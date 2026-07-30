@@ -1,17 +1,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/**
+ * Resoniq design tokens (Tailwind v4 CSS-first theme).
+ * These generate utilities automatically: --color-copper -> bg-copper /
+ * text-copper / border-copper, --font-display -> font-display, etc.
+ * This replaces the old tailwind.config.ts — there is no JS config file
+ * in this project anymore.
+ */
+@theme {
+  --color-bg: #0A0D12;
+  --color-bg-elevated: #12161D;
+  --color-copper: #FF8A3D;
+  --color-copper-dim: #B85E1F;
+  --color-signal: #37E6C9;
+  --color-muted: #8B93A1;
+  --color-ink: #F3EFE8;
+  --color-danger: #FF5D5D;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --radius-panel: 22px;
+
+  --shadow-glow: 0 0 40px -10px rgba(255, 138, 61, 0.35);
+  --shadow-panel: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+}
 
 :root {
   color-scheme: dark;
 }
 
 body {
-  background: #0A0D12;
-  color: #F3EFE8;
-  font-family: 'Inter', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
 }
 
 @layer utilities {
@@ -27,7 +51,7 @@ body {
   }
 
   .focus-ring:focus-visible {
-    outline: 2px solid #37E6C9;
+    outline: 2px solid var(--color-signal);
     outline-offset: 3px;
   }
 }

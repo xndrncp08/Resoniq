@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { auth } from "@/auth";
+import SessionProvider from "@/components/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: "Resoniq — Recreate Any Guitar Tone",
@@ -8,15 +10,17 @@ export const metadata: Metadata = {
   icons: { icon: "/logo.svg" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
     <html lang="en">
       <body className="antialiased selection:bg-copper/30 selection:text-ink">
-        {children}
+        <SessionProvider session={session}>{children}</SessionProvider>
       </body>
     </html>
   );
