@@ -1,0 +1,19 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Resoniq mark: an "R" whose spine is a guitar string, whose counter is an oscilloscope trace -->
+  <rect width="160" height="160" rx="36" fill="#0A0D12"/>
+  <!-- string spine -->
+  <path d="M56 34 L56 126" stroke="#F3EFE8" stroke-width="6" stroke-linecap="round"/>
+  <!-- R bowl as a plucked-string oscillation -->
+  <path d="M56 34
+           C 92 34, 108 40, 108 58
+           C 108 76, 92 82, 66 82"
+        stroke="#FF8A3D" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- R leg as a decaying waveform trailing to silence -->
+  <path d="M66 82
+           C 78 82, 84 92, 92 100
+           C 98 106, 102 112, 106 126"
+        stroke="#FF8A3D" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- frequency ticks: the vibrating string -->
+  <path d="M38 50 Q 44 58 38 66" stroke="#37E6C9" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
+  <path d="M30 44 Q 40 58 30 72" stroke="#37E6C9" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+</svg>
