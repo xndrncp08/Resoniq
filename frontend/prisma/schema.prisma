@@ -1,3 +1,8 @@
+// Resoniq database schema
+// Auth models follow the shape NextAuth's Prisma adapter expects.
+// `Tone` is a placeholder for Phase 8 (tone library) — wired up now so
+// user accounts have somewhere to attach saved tones later.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,12 +18,13 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  passwordHash  String?
+  passwordHash  String?   // set for email/password signups, null for OAuth-only users
   createdAt     DateTime  @default(now())
 
   accounts Account[]
   sessions Session[]
   tones    Tone[]
+  songs    Song[]
 }
 
 model Account {
@@ -57,6 +63,8 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// Placeholder for Phase 8 — not built yet, but the relation exists so
+// auth lands with somewhere real to point saved tones at.
 model Tone {
   id        String   @id @default(cuid())
   userId    String
@@ -65,4 +73,33 @@ model Tone {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// An uploaded track, pending or completed analysis (Phase 6 does the
+// analysis itself — this just tracks the upload + its lifecycle status).
+model Song {
+  id          String     @id @default(cuid())
+  userId      String
+  title       String?
+  artist      String?
+  fileUrl     String
+  durationSec Float?
+  sourceType  SourceType @default(UPLOAD)
+  sourceUrl   String?    // set when sourceType is a pasted link (not yet processed)
+  status      SongStatus @default(UPLOADED)
+  createdAt   DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SourceType {
+  UPLOAD
+  LINK
+}
+
+enum SongStatus {
+  UPLOADED
+  ANALYZING
+  ANALYZED
+  FAILED
 }
