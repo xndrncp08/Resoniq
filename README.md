@@ -38,7 +38,7 @@ part of the product's honesty, not just a legal footnote.
 
 ```
 resoniq/
-  frontend/         Next.js 14 (App Router) + TypeScript + Tailwind + Framer Motion
+  frontend/         Next.js (App Router) + TypeScript + Tailwind + Framer Motion
   backend/          Next API routes: auth, tone CRUD, calls into python-engine
   python-engine/    FastAPI microservice: Librosa/NumPy/SciPy feature extraction
 ```
