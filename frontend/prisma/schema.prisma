@@ -78,16 +78,18 @@ model Tone {
 // An uploaded track, pending or completed analysis (Phase 6 does the
 // analysis itself — this just tracks the upload + its lifecycle status).
 model Song {
-  id          String     @id @default(cuid())
-  userId      String
-  title       String?
-  artist      String?
-  fileUrl     String
-  durationSec Float?
-  sourceType  SourceType @default(UPLOAD)
-  sourceUrl   String?    // set when sourceType is a pasted link (not yet processed)
-  status      SongStatus @default(UPLOADED)
-  createdAt   DateTime   @default(now())
+  id           String     @id @default(cuid())
+  userId       String
+  title        String?
+  artist       String?
+  fileUrl      String
+  durationSec  Float?
+  sourceType   SourceType @default(UPLOAD)
+  sourceUrl    String?
+  status       SongStatus @default(UPLOADED)
+  analysisData Json?
+  analysisError String?
+  createdAt    DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
