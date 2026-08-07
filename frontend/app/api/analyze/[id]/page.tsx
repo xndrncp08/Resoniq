@@ -27,10 +27,11 @@ export default async function SongStatusPage({
         </h1>
       </div>
 
-      <div className="mx-auto mt-14 max-w-xl">
+      <div className="mx-auto mt-14 max-w-4xl">
         <AnalysisRunner
           songId={song.id}
           initialStatus={song.status}
+          // Prisma's Json type is opaque; AnalysisRunner validates shape at render.
           initialData={song.analysisData as any}
         />
       </div>

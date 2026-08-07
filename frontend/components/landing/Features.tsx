@@ -27,7 +27,7 @@ const features = [
 
 export default function Features() {
   return (
-    <section className="relative mx-auto max-w-6xl px-6 py-32">
+    <section id="features" className="relative mx-auto max-w-6xl px-6 py-32">
       <motion.h2
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}

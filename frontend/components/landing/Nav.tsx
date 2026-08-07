@@ -5,7 +5,12 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 
-const links = ["Product", "How it works", "Tones", "Free access"];
+const links = [
+  { label: "Product", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Tones", href: "#example-tone" },
+  { label: "Free access", href: "#free-access" },
+];
 
 export default function Nav() {
   const { data: session, status } = useSession();
@@ -41,11 +46,11 @@ export default function Nav() {
           ) : (
             links.map((l) => (
               <a
-                key={l}
-                href="#"
+                key={l.label}
+                href={l.href}
                 className="focus-ring transition hover:text-ink"
               >
-                {l}
+                {l.label}
               </a>
             ))
           )}

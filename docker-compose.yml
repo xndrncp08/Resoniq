@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: resoniq
+      POSTGRES_PASSWORD: resoniq
+      POSTGRES_DB: resoniq
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resoniq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  python-engine:
+    build: ./python-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://resoniq:resoniq@postgres:5432/resoniq
+      AUTH_SECRET: ${AUTH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      PYTHON_ENGINE_URL: http://python-engine:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      python-engine:
+        condition: service_started
+
+volumes:
+  postgres_data:
