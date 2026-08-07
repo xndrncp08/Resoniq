@@ -30,17 +30,25 @@ export default function Nav() {
             Resoniq
           </span>
         </div>
-
         <nav className="hidden gap-8 font-body text-sm text-muted md:flex">
-          {links.map((l) => (
-            <a
-              key={l}
-              href="#"
+          {status === "authenticated" ? (
+            <Link
+              href="/library"
               className="focus-ring transition hover:text-ink"
             >
-              {l}
-            </a>
-          ))}
+              Library
+            </Link>
+          ) : (
+            links.map((l) => (
+              <a
+                key={l}
+                href="#"
+                className="focus-ring transition hover:text-ink"
+              >
+                {l}
+              </a>
+            ))
+          )}
         </nav>
 
         {status === "authenticated" ? (
@@ -51,21 +59,12 @@ export default function Nav() {
             {session.user?.name?.split(" ")[0] ?? "Account"} · Sign out
           </button>
         ) : (
-          <div className="flex items-center gap-4">
-            <Link
-              href="/signup"
-              className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition hover:scale-[1.03]"
-            >
-              Analyze A Song — Free
-            </Link>
-
-            <a
-              href="#example-tone"
-              className="focus-ring glass rounded-full px-8 py-3.5 font-body text-sm font-medium text-ink transition hover:bg-white/[0.08]"
-            >
-              Explore Tones
-            </a>
-          </div>
+          <Link
+            href="/analyze"
+            className="focus-ring rounded-full bg-copper px-5 py-2 font-body text-sm font-medium text-bg transition hover:bg-copper/90"
+          >
+            Analyze A Song — Free
+          </Link>
         )}
       </div>
     </motion.header>

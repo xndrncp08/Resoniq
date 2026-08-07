@@ -68,8 +68,10 @@ model VerificationToken {
 model Tone {
   id        String   @id @default(cuid())
   userId    String
+  songId    String?
   name      String
   data      Json
+  favorite  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -105,3 +107,5 @@ enum SongStatus {
   ANALYZED
   FAILED
 }
+
+ 
