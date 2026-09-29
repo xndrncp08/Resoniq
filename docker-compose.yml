@@ -21,6 +21,10 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      # Optional: without a key the engine returns its rule-based recipe.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      RESONIQ_CLAUDE_MODEL: ${RESONIQ_CLAUDE_MODEL:-claude-sonnet-5}
 
   frontend:
     build: ./frontend
