@@ -1,0 +1,62 @@
+name: Resoniq CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop, 'feature/*' ]
+
+jobs:
+  frontend-build:
+    name: Frontend Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: cd frontend && npm ci
+
+      - name: Typecheck & Build Next.js
+        run: cd frontend && npm run build
+        env:
+          # NextAuth v5 reads AUTH_SECRET; NEXTAUTH_* kept for v4-style tooling.
+          AUTH_SECRET: "ci-testing-secret"
+          NEXTAUTH_SECRET: "ci-testing-secret"
+          NEXTAUTH_URL: "http://localhost:3000"
+
+  python-engine-test:
+    name: Python Engine Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            python-engine/requirements.txt
+            python-engine/requirements-dev.txt
+
+      - name: Install Python Dependencies
+        run: |
+          cd python-engine
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest Analysis Unit Tests
+        run: cd python-engine && pytest
+
+  merge-check:
+    name: Pipeline Gatekeeper
+    needs: [frontend-build, python-engine-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify All Parallel Checks Passed
+        run: echo "All parallel feature branches verified and ready to merge into main!"

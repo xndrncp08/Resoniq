@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { supabaseAdmin, SONGS_BUCKET } from "@/lib/supabase";
+import { getSupabaseAdmin, SONGS_BUCKET } from "@/lib/supabase";
 
 const ALLOWED_TYPES = ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/flac", "audio/x-flac"];
 const MAX_BYTES = 50 * 1024 * 1024; // 50MB
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
   const ext = file.name.split(".").pop() ?? "mp3";
   const path = `${session.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
+  const supabaseAdmin = getSupabaseAdmin();
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error: uploadError } = await supabaseAdmin.storage
     .from(SONGS_BUCKET)
