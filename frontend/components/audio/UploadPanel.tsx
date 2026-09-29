@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Dropzone from "@/components/audio/Dropzone";
 import LinkPasteInput from "@/components/audio/LinkPasteInput";
-import WaveformPreview from "@/components/audio/WaveformPreview";
+import WaveformPlayer from "@/components/ui/waveform-player";
 
 type Stage = "idle" | "preview" | "uploading" | "error";
 
@@ -71,7 +71,7 @@ export default function UploadPanel() {
       }
 
       setProgress(100);
-      router.push(`/analyze/${data.song.id}`);
+      router.push(`/analyze/${data.analysisJobId}`);
     } catch {
       clearInterval(tick);
       setError("Something went wrong. Check your connection and try again.");
@@ -128,7 +128,7 @@ export default function UploadPanel() {
             </div>
 
             <div className="mt-4">
-              <WaveformPreview file={file} />
+              <WaveformPlayer src={file} />
             </div>
 
             {stage === "uploading" && (

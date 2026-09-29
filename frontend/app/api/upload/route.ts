@@ -3,7 +3,14 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin, SONGS_BUCKET } from "@/lib/supabase";
 
-const ALLOWED_TYPES = ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/flac", "audio/x-flac"];
+// Keyed by extension: browsers report audio MIME types inconsistently
+// (audio/wav vs audio/wave vs audio/vnd.wave vs "", audio/mpeg vs audio/mp3),
+// so the extension decides and we store a canonical content type.
+const CONTENT_TYPES: Record<string, string> = {
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  flac: "audio/flac",
+};
 const MAX_BYTES = 50 * 1024 * 1024; // 50MB
 
 export async function POST(req: Request) {
@@ -14,12 +21,14 @@ export async function POST(req: Request) {
 
   const formData = await req.formData();
   const file = formData.get("file");
-  const durationSec = formData.get("durationSec");
+  const durationSec = Number(formData.get("durationSec"));
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No file provided." }, { status: 400 });
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = CONTENT_TYPES[ext];
+  if (!contentType || (file.type && !file.type.startsWith("audio/"))) {
     return NextResponse.json(
       { error: "Unsupported file type. Upload MP3, WAV, or FLAC." },
       { status: 400 }
@@ -29,14 +38,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "File is too large (50MB max)." }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop() ?? "mp3";
   const path = `${session.user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
   const supabaseAdmin = getSupabaseAdmin();
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error: uploadError } = await supabaseAdmin.storage
     .from(SONGS_BUCKET)
-    .upload(path, buffer, { contentType: file.type });
+    .upload(path, buffer, { contentType });
 
   if (uploadError) {
     return NextResponse.json(
@@ -56,11 +64,13 @@ export async function POST(req: Request) {
       title: maybeTitle ?? nameWithoutExt,
       artist: maybeTitle ? maybeArtist : null,
       fileUrl: publicUrl.publicUrl,
-      durationSec: durationSec ? Number(durationSec) : null,
+      durationSec: Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null,
       sourceType: "UPLOAD",
       status: "UPLOADED",
     },
   });
 
-  return NextResponse.json({ song }, { status: 201 });
+  // The Song row doubles as the analysis job: its status moves
+  // UPLOADED -> ANALYZING -> ANALYZED | FAILED via POST /api/analyze.
+  return NextResponse.json({ song, analysisJobId: song.id }, { status: 201 });
 }
