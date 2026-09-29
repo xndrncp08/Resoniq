@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import AnalysisRunner from "@/components/tone/AnalysisRunner";
+import type { EngineAnalysis } from "@/types/engine";
 
 export default async function SongStatusPage({
   params,
@@ -27,12 +28,18 @@ export default async function SongStatusPage({
         </h1>
       </div>
 
-      <div className="mx-auto mt-14 max-w-4xl">
+      <div className="mx-auto mt-14 max-w-5xl">
         <AnalysisRunner
-          songId={song.id}
+          song={{
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            fileUrl: song.fileUrl,
+            createdAt: song.createdAt.toISOString(),
+          }}
           initialStatus={song.status}
-          // Prisma's Json type is opaque; AnalysisRunner validates shape at render.
-          initialData={song.analysisData as any}
+          // Prisma's Json type is opaque; this is the python-engine response stored verbatim.
+          initialData={song.analysisData as EngineAnalysis | null}
         />
       </div>
     </main>
