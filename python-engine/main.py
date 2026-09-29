@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import AnalyzeRequest, AnalyzeResponse
 from app.features import extract_features
 from app.heuristics import build_tone_profile
+from app.recipe import generate_recipe
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("resoniq.python-engine")
@@ -58,5 +59,6 @@ def analyze(req: AnalyzeRequest):
 
     raw_features = extract_features(y, sr)
     tone_profile = build_tone_profile(raw_features)
+    recipe = generate_recipe(raw_features, tone_profile)
 
-    return AnalyzeResponse(raw_features=raw_features, tone_profile=tone_profile)
+    return AnalyzeResponse(raw_features=raw_features, tone_profile=tone_profile, recipe=recipe)
