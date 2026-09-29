@@ -3,31 +3,21 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import ToneDashboard from "@/components/tone/ToneDashboard";
-
-type ToneProfile = {
-  gain_percent: number;
-  eq: { bass: number; mid: number; treble: number };
-  amp_family: string;
-  cabinet: string;
-  pickup_position: string;
-  effects_chain: { name: string; confidence: number }[];
-  playing_style_tags: string[];
-  match_confidence: number;
-};
-
-type AnalysisData = { tone_profile: ToneProfile };
+import { recipeFromAnalysis, type SongMeta } from "@/lib/tone-recipe";
+import type { EngineAnalysis } from "@/types/engine";
 
 export default function AnalysisRunner({
-  songId,
+  song,
   initialStatus,
   initialData,
 }: {
-  songId: string;
+  song: SongMeta;
   initialStatus: string;
-  initialData: AnalysisData | null;
+  initialData: EngineAnalysis | null;
 }) {
+  const songId = song.id;
   const [status, setStatus] = useState(initialStatus);
-  const [data, setData] = useState<AnalysisData | null>(initialData);
+  const [data, setData] = useState<EngineAnalysis | null>(initialData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,7 +88,7 @@ export default function AnalysisRunner({
   }
 
   if (status === "ANALYZED" && data?.tone_profile) {
-    return <ToneDashboard songId={songId} profile={data.tone_profile} />;
+    return <ToneDashboard songId={songId} initialRecipe={recipeFromAnalysis(data, song)} />;
   }
 
   return null;
