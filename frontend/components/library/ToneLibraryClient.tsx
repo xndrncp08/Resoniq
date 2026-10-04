@@ -16,6 +16,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const tagsById = useMemo(() => new Map(tones.map((t) => [t.id, recipeTags(t)])), [tones]);
@@ -93,7 +94,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
   }
 
   async function remove(tone: ToneRecipe) {
-    if (!confirm(`Delete "${tone.title}"? This can't be undone.`)) return;
+    setConfirmingDeleteId(null);
     const before = tones;
     setTones((list) => list.filter((t) => t.id !== tone.id));
     try {
@@ -104,10 +105,17 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
     }
   }
 
-  function share(tone: ToneRecipe) {
-    navigator.clipboard.writeText(`${window.location.origin}/t/${tone.id}`);
-    setCopiedId(tone.id);
-    setTimeout(() => setCopiedId(null), 1800);
+  async function share(tone: ToneRecipe) {
+    const url = `${window.location.origin}/t/${tone.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setError(null);
+      setCopiedId(tone.id);
+      setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context).
+      setError(`Couldn't copy the link. Share this URL instead: ${url}`);
+    }
   }
 
   const chip = (tag: string) => {
@@ -247,13 +255,25 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
                 {copiedId === tone.id ? <Check size={13} /> : <Link2 size={13} />}
                 {copiedId === tone.id ? "Copied" : "Share"}
               </button>
-              <button
-                onClick={() => remove(tone)}
-                className="focus-ring flex items-center justify-center rounded-full border border-white/10 px-3 py-2 text-muted transition hover:border-danger/40 hover:text-danger"
-                aria-label={`Delete ${tone.title}`}
-              >
-                <Trash2 size={13} />
-              </button>
+              {confirmingDeleteId === tone.id ? (
+                <button
+                  onClick={() => remove(tone)}
+                  onBlur={() => setConfirmingDeleteId(null)}
+                  autoFocus
+                  className="focus-ring flex items-center justify-center rounded-full border border-danger/50 bg-danger/10 px-3 py-2 font-body text-xs text-danger transition"
+                  aria-label={`Confirm: delete ${tone.title} permanently`}
+                >
+                  Delete
+                </button>
+              ) : (
+                <button
+                  onClick={() => setConfirmingDeleteId(tone.id)}
+                  className="focus-ring flex items-center justify-center rounded-full border border-white/10 px-3 py-2 text-muted transition hover:border-danger/40 hover:text-danger"
+                  aria-label={`Delete ${tone.title}`}
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
             </div>
           </motion.article>
         ))}

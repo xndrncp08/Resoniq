@@ -21,10 +21,12 @@ export const colors = {
   danger: "#FF5D5D",
 } as const;
 
+// Families are loaded with next/font in app/layout.tsx and exposed as the
+// font-display / font-body / font-mono utilities.
 export const type = {
-  display: "'Space Grotesk', sans-serif",  // technical, geometric — instrument nameplates
-  body: "'Inter', sans-serif",             // neutral reading face
-  mono: "'IBM Plex Mono', monospace",      // numeric readouts: EQ %, Hz, gain
+  display: "Space Grotesk",  // technical, geometric — instrument nameplates
+  body: "Inter",             // neutral reading face
+  mono: "IBM Plex Mono",     // numeric readouts: EQ %, Hz, gain
 } as const;
 
 export const radius = {

@@ -109,7 +109,7 @@ function drawSpectrum(canvas: HTMLCanvasElement, db: Float32Array | null, sample
   }
 
   g.fillStyle = colors.textMuted;
-  g.font = `10px ${"'IBM Plex Mono', monospace"}`;
+  g.font = `10px ${getComputedStyle(canvas).fontFamily}`;
   g.textBaseline = "bottom";
   for (const hz of FREQ_LABELS) {
     const label = hz >= 1000 ? `${hz / 1000}k` : String(hz);
@@ -212,7 +212,7 @@ export default function SignalMonitor({ audioUrl }: { audioUrl: string }) {
           <figcaption className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">oscilloscope</figcaption>
         </figure>
         <figure>
-          <canvas ref={spectrumRef} className="h-32 w-full rounded-lg bg-black/30" aria-label="Spectrum analyzer" role="img" />
+          <canvas ref={spectrumRef} className="h-32 w-full rounded-lg bg-black/30 font-mono" aria-label="Spectrum analyzer" role="img" />
           <figcaption className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">spectrum · hz</figcaption>
         </figure>
       </div>

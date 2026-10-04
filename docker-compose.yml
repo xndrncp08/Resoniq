@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: resoniq
       POSTGRES_DB: resoniq
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,12 +19,24 @@ services:
   python-engine:
     build: ./python-engine
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    # Not published: only the frontend container talks to the engine.
+    expose:
+      - "8000"
     environment:
+      RESONIQ_ENGINE_SECRET: ${RESONIQ_ENGINE_SECRET:?set RESONIQ_ENGINE_SECRET in .env}
       # Optional: without a key the engine returns its rule-based recipe.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       RESONIQ_CLAUDE_MODEL: ${RESONIQ_CLAUDE_MODEL:-claude-sonnet-5}
+
+  migrate:
+    build:
+      context: ./frontend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://resoniq:resoniq@postgres:5432/resoniq
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -33,17 +45,24 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://resoniq:resoniq@postgres:5432/resoniq
-      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      AUTH_TRUST_HOST: "true"
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      RESONIQ_LOCAL_STORAGE_DIR: /data/songs
       PYTHON_ENGINE_URL: http://python-engine:8000
+      RESONIQ_ENGINE_SECRET: ${RESONIQ_ENGINE_SECRET:?set RESONIQ_ENGINE_SECRET in .env}
+    volumes:
+      # Used when Supabase isn't configured.
+      - song_data:/data/songs
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       python-engine:
         condition: service_started
 
 volumes:
   postgres_data:
+  song_data:

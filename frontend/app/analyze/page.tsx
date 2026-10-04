@@ -1,10 +1,8 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import UploadPanel from "@/components/audio/UploadPanel";
+import { requirePageUserId } from "@/lib/session";
 
 export default async function AnalyzePage() {
-  const session = await auth();
-  if (!session) redirect("/login?callbackUrl=/analyze");
+  await requirePageUserId("/analyze");
 
   return (
     <main className="min-h-screen bg-bg px-6 py-32">

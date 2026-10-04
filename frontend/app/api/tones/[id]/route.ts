@@ -1,54 +1,46 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/lib/api";
+import { RATE_LIMITS } from "@/lib/rate-limit";
+import { parseToneName, ValidationError } from "@/lib/tone-validation";
 
-async function assertOwnership(id: string, userId: string) {
-  const tone = await prisma.tone.findUnique({ where: { id } });
-  if (!tone || tone.userId !== userId) return null;
-  return tone;
-}
+type Ctx = { params: Promise<{ id: string }> };
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+const notFound = () => new ApiError(404, "Tone not found.");
+
+export const PATCH = route<Ctx>("tones.update", async (req, { params }) => {
+  const userId = await requireUserId();
+  enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
+  const { id } = await params;
+
+  const { name, favorite } = await readJson(req);
+  const data: { name?: string; favorite?: boolean } = {};
+  try {
+    if (name !== undefined) data.name = parseToneName(name);
+  } catch (err) {
+    if (err instanceof ValidationError) throw new ApiError(400, err.message);
+    throw err;
+  }
+  if (favorite !== undefined) {
+    if (typeof favorite !== "boolean") throw new ApiError(400, "favorite must be a boolean.");
+    data.favorite = favorite;
   }
 
-  const { id } = await params;
-  const existing = await assertOwnership(id, session.user.id);
-  if (!existing)
-    return NextResponse.json({ error: "Tone not found." }, { status: 404 });
+  // Scoping the write itself to the owner leaves no gap between check and update.
+  const { count } = await prisma.tone.updateMany({ where: { id, userId }, data });
+  if (count === 0) throw notFound();
 
-  const { name, favorite } = await req.json();
-
-  const tone = await prisma.tone.update({
-    where: { id },
-    data: {
-      ...(typeof name === "string" ? { name } : {}),
-      ...(typeof favorite === "boolean" ? { favorite } : {}),
-    },
-  });
-
+  const tone = await prisma.tone.findFirst({ where: { id, userId } });
+  if (!tone) throw notFound();
   return NextResponse.json({ tone });
-}
+});
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-  }
-
+export const DELETE = route<Ctx>("tones.delete", async (_req, { params }) => {
+  const userId = await requireUserId();
+  enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
   const { id } = await params;
-  const existing = await assertOwnership(id, session.user.id);
-  if (!existing)
-    return NextResponse.json({ error: "Tone not found." }, { status: 404 });
 
-  await prisma.tone.delete({ where: { id } });
+  const { count } = await prisma.tone.deleteMany({ where: { id, userId } });
+  if (count === 0) throw notFound();
   return NextResponse.json({ ok: true });
-}
+});

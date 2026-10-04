@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /**
@@ -18,14 +17,18 @@
   --color-ink: #F3EFE8;
   --color-danger: #FF5D5D;
 
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
-
   --radius-panel: 22px;
 
   --shadow-glow: 0 0 40px -10px rgba(255, 138, 61, 0.35);
   --shadow-panel: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Font families come from next/font (app/layout.tsx), which defines the
+   --font-space-grotesk / --font-inter / --font-plex-mono variables on <html>. */
+@theme inline {
+  --font-display: var(--font-space-grotesk), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+  --font-mono: var(--font-plex-mono), monospace;
 }
 
 :root {

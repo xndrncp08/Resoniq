@@ -1,56 +1,63 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/lib/api";
+import { analyzeAudio, EngineError } from "@/lib/engine";
+import { RATE_LIMITS } from "@/lib/rate-limit";
+import { getStorage } from "@/lib/storage";
 
-const ENGINE_URL = process.env.PYTHON_ENGINE_URL ?? "http://localhost:8000";
+// Analysis of a long track can take a while; don't let a platform default cut it off.
+export const maxDuration = 300;
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-  }
+// A job still ANALYZING after this long was abandoned (e.g. the server restarted mid-run).
+const STALE_ANALYSIS_MS = 10 * 60_000;
 
-  const { songId } = await req.json();
-  if (!songId) {
-    return NextResponse.json({ error: "songId is required." }, { status: 400 });
-  }
+export const POST = route("analyze", async (req) => {
+  const userId = await requireUserId();
+  enforceRateLimit("analyze", userId, RATE_LIMITS.analyze);
 
-  const song = await prisma.song.findUnique({ where: { id: songId } });
-  if (!song || song.userId !== session.user.id) {
-    return NextResponse.json({ error: "Song not found." }, { status: 404 });
-  }
+  const { songId } = await readJson(req);
+  if (typeof songId !== "string" || !songId) throw new ApiError(400, "songId is required.");
 
-  await prisma.song.update({ where: { id: song.id }, data: { status: "ANALYZING" } });
+  const song = await prisma.song.findFirst({ where: { id: songId, userId } });
+  if (!song) throw new ApiError(404, "Song not found.");
+  if (!song.storageKey) throw new ApiError(409, "This upload predates private storage. Upload it again to analyze it.");
+
+  // Claim the job atomically, so a double click or a second tab can't start
+  // a second analysis of the same song. FAILED and abandoned jobs can be retried.
+  const { count } = await prisma.song.updateMany({
+    where: {
+      id: song.id,
+      userId,
+      OR: [
+        { status: { in: ["UPLOADED", "FAILED"] } },
+        { status: "ANALYZING", analysisStartedAt: { lt: new Date(Date.now() - STALE_ANALYSIS_MS) } },
+        { status: "ANALYZING", analysisStartedAt: null },
+      ],
+    },
+    data: { status: "ANALYZING", analysisError: null, analysisStartedAt: new Date() },
+  });
+  if (count === 0) throw new ApiError(409, "This song is already being analyzed or is done.");
+
+  const fail = async (detail: unknown, publicMessage: string) => {
+    console.error(`[api] analyze ${song.id} failed`, detail);
+    await prisma.song.update({ where: { id: song.id }, data: { status: "FAILED", analysisError: publicMessage } });
+    return NextResponse.json({ error: publicMessage }, { status: 502 });
+  };
 
   try {
-    const res = await fetch(`${ENGINE_URL}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audio_url: song.fileUrl }),
-    });
+    const stored = await getStorage().get(song.storageKey);
+    if (!stored) return await fail(`storage object ${song.storageKey} missing`, "The uploaded file is missing. Upload it again.");
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      await prisma.song.update({
-        where: { id: song.id },
-        data: { status: "FAILED", analysisError: data.detail ?? "Analysis failed." },
-      });
-      return NextResponse.json({ error: data.detail ?? "Analysis failed." }, { status: 502 });
-    }
-
+    const analysis = await analyzeAudio(stored.bytes, song.storageKey.split("/").pop()!, stored.contentType);
     const updated = await prisma.song.update({
       where: { id: song.id },
-      data: { status: "ANALYZED", analysisData: data, analysisError: null },
+      // EngineAnalysis is plain JSON from the engine; Prisma's input type can't see that.
+      data: { status: "ANALYZED", analysisData: analysis as unknown as Prisma.InputJsonValue, analysisError: null },
+      select: { id: true, status: true, analysisData: true },
     });
-
     return NextResponse.json({ song: updated });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not reach the analysis engine.";
-    await prisma.song.update({
-      where: { id: song.id },
-      data: { status: "FAILED", analysisError: message },
-    });
-    return NextResponse.json({ error: message }, { status: 502 });
+    return await fail(err, err instanceof EngineError ? err.publicMessage : "Analysis failed. Try again.");
   }
-}
+});

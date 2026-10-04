@@ -8,26 +8,34 @@ import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 
-// Public, share-by-link view. The uploader's audio file is deliberately
-// not exposed here — only the recipe is shared.
+// Public, share-by-link view: anyone with the tone id can open it, signed
+// in or not. Only the recipe is shared — never the uploader's identity or
+// audio — so the queries select just what is rendered, and the song lookup
+// is scoped to the tone's owner.
 const loadRecipe = cache(async (id: string) => {
-  const tone = await prisma.tone.findUnique({ where: { id } });
+  const tone = await prisma.tone.findUnique({
+    where: { id },
+    select: { id: true, userId: true, songId: true, name: true, favorite: true, createdAt: true, data: true },
+  });
   if (!tone) return null;
   const song = tone.songId
-    ? await prisma.song.findUnique({
-        where: { id: tone.songId },
-        select: { id: true, title: true, artist: true, fileUrl: true, createdAt: true },
+    ? await prisma.song.findFirst({
+        where: { id: tone.songId, userId: tone.userId },
+        select: { id: true, title: true, artist: true, createdAt: true },
       })
     : null;
-  return recipeFromStoredTone(tone, song);
+  const recipe = recipeFromStoredTone(tone, song);
+  return recipe && { ...recipe, audioUrl: "", isFavorite: false };
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const recipe = await loadRecipe((await params).id);
-  if (!recipe) return { title: "Tone not found — Resoniq" };
+  if (!recipe) return { title: "Tone not found — Resoniq", robots: { index: false } };
   return {
     title: `${recipe.title} — Resoniq tone recipe`,
     description: recipe.recipeDescription,
+    // Shared links are unlisted, not published: keep them out of search results.
+    robots: { index: false, follow: false },
   };
 }
 
