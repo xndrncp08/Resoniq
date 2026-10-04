@@ -8,6 +8,8 @@ explicitly a heuristic, not a lookup against real amp/pedal fingerprints
 (no such public dataset exists).
 """
 
+from collections.abc import Callable
+
 import numpy as np
 import librosa
 
@@ -57,12 +59,19 @@ def _thd_estimate(y_harm: np.ndarray, sr: int, n_fft: int = 4096, hop: int = 102
     return float(np.median(ratios)) if ratios else 0.0
 
 
-def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
+# Measurement groups, in the order extract_features reaches them. Reported
+# through `on_step` so a client can show which part of the analysis is running.
+FEATURE_STEPS = ("spectrum", "dynamics", "onsets", "harmonics", "tempo", "effects")
+
+
+def extract_features(y: np.ndarray, sr: int, on_step: Callable[[str], None] | None = None) -> RawFeatures:
+    step = on_step or (lambda _name: None)
     # Trim leading/trailing silence so quiet intros/outros don't skew averages
     y_trimmed, _ = librosa.effects.trim(y, top_db=30)
     if y_trimmed.size == 0:
         y_trimmed = y
 
+    step("spectrum")
     # --- Brightness: spectral centroid, where the "center of mass" of the
     # frequency spectrum sits. Bright/distorted tones skew high; dark,
     # warm cleans skew low.
@@ -99,6 +108,7 @@ def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
     flatness_db = float(np.mean(10 * np.log10(flat_active + 1e-12))) if flat_active.size else -100.0
     saturation = _normalize(flatness_db, -55.0, -15.0)
 
+    step("dynamics")
     # --- Compression: inverse crest factor (peak/RMS). Heavily
     # compressed or high-gain signals have a low crest factor (loud and
     # consistent); dynamic clean playing has a high one.
@@ -113,6 +123,7 @@ def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
     dynamic_range_db = float(20 * np.log10(crest_factor))
     rms_db = float(20 * np.log10(mean_rms))
 
+    step("onsets")
     # --- Attack: average time from onset to local energy peak, across
     # detected onsets. Fast attack = picked/plucked/high-gain; slow
     # attack = volume swells, e-bow, heavy compression softening the pick.
@@ -154,6 +165,7 @@ def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
     decay_db_per_s = float(np.median(decay_rates)) if decay_rates else 66.0
     sustain_s = float(min(20.0 / max(decay_db_per_s, 1e-3), 4.0))  # time to fall 20dB
 
+    step("harmonics")
     # --- Harmonic/percussive split: how much of the signal is tonal
     # (sustained pitches) vs transient (picking/strumming attack noise).
     y_harm, y_perc = librosa.effects.hpss(y_trimmed)
@@ -164,6 +176,7 @@ def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
 
     thd_estimate = _thd_estimate(y_harm, sr)
 
+    step("tempo")
     # --- Tempo (informational, not used in gear heuristics directly)
     try:
         tempo, _ = librosa.beat.beat_track(y=y_trimmed, sr=sr)
@@ -172,6 +185,7 @@ def extract_features(y: np.ndarray, sr: int) -> RawFeatures:
     except Exception:
         tempo_bpm = None
 
+    step("effects")
     # --- Reverb tail estimate: how long the RMS envelope takes to fall
     # 30dB after the last strong onset (the trim above cuts at -30dB, so
     # anything quieter is gone) — a rough proxy for reverb/room decay,
