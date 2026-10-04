@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img"><title>Resoniq — Glow Tube</title>
+          <defs><radialGradient id="rq-glow-1"><stop offset="0" stop-color="#FF8A3D" stop-opacity=".5"/><stop offset="1" stop-color="#FF8A3D" stop-opacity="0"/></radialGradient></defs>
+          <circle cx="80" cy="90" r="34" fill="url(#rq-glow-1)"/>
+          <path d="M66 122V92M94 122V92" stroke="#F3EFE8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+          <path d="M70 58A12 12 0 0 1 90 58" stroke="#37E6C9" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M54 122V66A26 26 0 0 1 106 66V122" stroke="#F3EFE8" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M46 122H114" stroke="#F3EFE8" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M66 129V137M80 129V137M94 129V137" stroke="#F3EFE8" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M66 92c3.5-14 10.5-14 14 0s10.5 14 14 0" stroke="#FF8A3D" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
