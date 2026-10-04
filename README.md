@@ -37,6 +37,32 @@ python-engine/   FastAPI service: feature extraction, heuristics, recipe
 scripts/         smoke-test.sh: end-to-end API test against a running stack
 ```
 
+## Studio
+
+`/studio` is a desktop of floating windows over the same tools: a song
+list, one tone dashboard per song, the library, upload, an amp & EQ lab.
+Windows drag (with gentle momentum), resize from all 8 edges and corners,
+stack, minimize, maximize, tile and cascade; the dock launches apps and
+switches windows. The layout is saved per user (`UserWorkspace`, autosaved
+after each drag or resize) and restored on load.
+
+How it stays fast with 20+ windows:
+
+- The Zustand store replaces only the window entries an action changes, so
+  each window (subscribed to its own entry) re-renders only for its own
+  changes. Tests check that untouched entries keep their identity.
+- Drags and resizes write motion values (transform, width, height), not
+  React state; the store gets one update when the gesture ends.
+- Only the focused window uses backdrop blur. App bodies are lazy chunks.
+
+**Spatial mode** (status bar toggle, Alt+Shift+S, saved with the layout)
+adds a WebGL scene behind the windows: a shader-driven particle surface that
+ripples toward the cursor and swells under open windows, lit toward the
+focused one, with a parallax camera and bloom. Windows stay DOM, with depth:
+the focused one comes forward and the rest recede and angle in. three.js
+loads only when spatial mode is on, and bloom and resolution drop
+automatically if the frame rate falls.
+
 ## Motion
 
 Each animation library has one job, so they don't overlap:

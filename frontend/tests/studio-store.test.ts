@@ -259,3 +259,22 @@ describe("window store: tiles stay put", () => {
     expect(s.getState().windows[ids[0]]).toMatchObject({ x: 30, y: 40, width, height });
   });
 });
+
+describe("spatial mode", () => {
+  it("toggles without touching any window, and round-trips through the saved layout", () => {
+    const s = fresh();
+    s.getState().openWindow("songs");
+    s.getState().openWindow("amp-lab");
+    const before = s.getState().windows;
+    s.getState().setSpatial(true);
+    expect(s.getState().windows).toBe(before);
+    const layout = parseWorkspaceLayout(JSON.parse(JSON.stringify(toLayout(s.getState()))));
+    expect(layout.spatial).toBe(true);
+    expect(createWindowStore(layout, viewport).getState().spatial).toBe(true);
+  });
+
+  it("treats layouts saved before spatial mode as flat, and rejects a non-boolean flag", () => {
+    expect(parseWorkspaceLayout({ version: 1, windows: [], focusedId: null }).spatial).toBe(false);
+    expect(() => parseWorkspaceLayout({ version: 1, windows: [], focusedId: null, spatial: "yes" })).toThrow(LayoutError);
+  });
+});

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, CloudOff, Loader2 } from "lucide-react";
+import { Box, Check, CloudOff, Loader2 } from "lucide-react";
 import DesktopCanvas from "@/components/studio/DesktopCanvas";
 import Dock from "@/components/studio/Dock";
 import { SHORTCUTS } from "@/lib/studio/shortcuts";
-import { useWindowStoreApi, WindowStoreProvider } from "@/lib/studio/store-context";
+import { useWindowStore, useWindowStoreApi, WindowStoreProvider } from "@/lib/studio/store-context";
 import { useWorkspaceAutosave, type SaveStatus } from "@/lib/studio/use-workspace-autosave";
 import type { WorkspaceLayout } from "@/lib/studio/types";
 
@@ -40,6 +40,7 @@ function Desktop({ firstVisit, userName }: { firstVisit: boolean; userName: stri
         </Link>
         <div className="flex items-center gap-4 font-mono text-[11px] text-muted">
           <SaveIndicator status={saveStatus} />
+          <SpatialToggle />
           {userName && <span className="hidden sm:inline">{userName}</span>}
           <Clock />
         </div>
@@ -50,6 +51,25 @@ function Desktop({ firstVisit, userName }: { firstVisit: boolean; userName: stri
         <Dock />
       </main>
     </div>
+  );
+}
+
+function SpatialToggle() {
+  const spatial = useWindowStore((s) => s.spatial);
+  const store = useWindowStoreApi();
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={spatial}
+      onClick={() => store.getState().setSpatial(!spatial)}
+      title="Spatial mode: a 3D scene and depth behind the windows (Alt+Shift+S)"
+      className={`focus-ring flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 uppercase tracking-[0.14em] transition-colors ${
+        spatial ? "border-signal/40 text-signal" : "border-white/10 hover:text-ink"
+      }`}
+    >
+      <Box size={11} aria-hidden /> spatial
+    </button>
   );
 }
 
@@ -104,6 +124,8 @@ function useStudioShortcuts() {
           return s.focusedId && s.maximizeWindow(s.focusedId);
         case "close":
           return s.focusedId && s.closeWindow(s.focusedId);
+        case "spatial":
+          return s.setSpatial(!s.spatial);
         case "cycle": {
           // Bring the bottom-most visible window to the front.
           const visible = Object.values(s.windows).filter((w) => !w.isMinimized);

@@ -79,5 +79,6 @@ export function parseWorkspaceLayout(v: unknown): WorkspaceLayout {
   const windows = layout.windows.map(savedWindow);
   if (new Set(windows.map((w) => w.id)).size !== windows.length) fail("layout.windows has duplicate ids.");
   const focusedId = typeof layout.focusedId === "string" && windows.some((w) => w.id === layout.focusedId) ? layout.focusedId : null;
-  return { version: 1, windows, focusedId };
+  if (layout.spatial !== undefined && typeof layout.spatial !== "boolean") fail("layout.spatial must be a boolean.");
+  return { version: 1, windows, focusedId, spatial: layout.spatial === true };
 }

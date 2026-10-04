@@ -102,6 +102,7 @@ export function toLayout(state: WindowState): WorkspaceLayout {
   return {
     version: 1,
     focusedId: state.focusedId,
+    spatial: state.spatial,
     windows: state.order.map((id) => {
       const w = state.windows[id];
       const saved: SavedWindow = {
@@ -123,7 +124,7 @@ export function toLayout(state: WindowState): WorkspaceLayout {
   };
 }
 
-function stateFromLayout(layout: WorkspaceLayout): Omit<WindowState, "viewport"> {
+function stateFromLayout(layout: WorkspaceLayout): Omit<WindowState, "viewport" | "spatial"> {
   const windows: Record<string, WindowInstance> = {};
   let maxZIndex = 0;
   for (const s of layout.windows.slice(0, MAX_WINDOWS)) {
@@ -136,8 +137,8 @@ function stateFromLayout(layout: WorkspaceLayout): Omit<WindowState, "viewport">
 
 export function createWindowStore(initial?: WorkspaceLayout | null, viewport = defaultViewport) {
   const base: WindowState = initial
-    ? { ...stateFromLayout(initial), viewport }
-    : { windows: {}, order: [], maxZIndex: 0, focusedId: null, viewport };
+    ? { ...stateFromLayout(initial), viewport, spatial: initial.spatial ?? false }
+    : { windows: {}, order: [], maxZIndex: 0, focusedId: null, viewport, spatial: false };
 
   return createStore<WindowStore>()((set, get) => ({
     ...base,
@@ -354,8 +355,12 @@ export function createWindowStore(initial?: WorkspaceLayout | null, viewport = d
       set(changed ? { viewport, windows } : { viewport });
     },
 
+    setSpatial(spatial) {
+      if (get().spatial !== spatial) set({ spatial });
+    },
+
     hydrate(layout) {
-      set({ ...stateFromLayout(layout) });
+      set({ ...stateFromLayout(layout), spatial: layout.spatial ?? false });
     },
   }));
 }

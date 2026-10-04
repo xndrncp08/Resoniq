@@ -55,7 +55,9 @@ export function useWorkspaceAutosave(store: WindowStoreApi): SaveStatus {
     };
 
     const unsubscribe = store.subscribe((state, prev) => {
-      if (state.windows === prev.windows && state.order === prev.order && state.focusedId === prev.focusedId) return;
+      if (state.windows === prev.windows && state.order === prev.order && state.focusedId === prev.focusedId && state.spatial === prev.spatial) {
+        return;
+      }
       const body = JSON.stringify(toLayout(state));
       if (body === lastSaved.current) {
         pending.current = null;
