@@ -1,62 +1,105 @@
-name: Resoniq CI/CD Pipeline
+name: CI
 
+# Every push and PR runs the full pipeline. There is no deploy stage: the
+# project has no hosting target yet, so a merge to main stops at "everything
+# builds, the images start, and the end-to-end smoke test passes against
+# them". Add a deploy job gated on `needs: [frontend, engine, stack]` once a
+# target exists.
 on:
   push:
-    branches: [ main, develop ]
+    branches: ["**"]
   pull_request:
-    branches: [ main, develop, 'feature/*' ]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  frontend-build:
-    name: Frontend Typecheck & Build
+  frontend:
+    name: Frontend · lint, typecheck, test, build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      AUTH_SECRET: ci-build-only-secret
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and route tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Audit runtime dependencies (critical)
+        run: npm audit --omit=dev --audit-level=critical
 
-      - name: Install Frontend Dependencies
-        run: cd frontend && npm ci
-
-      - name: Typecheck & Build Next.js
-        run: cd frontend && npm run build
-        env:
-          # NextAuth v5 reads AUTH_SECRET; NEXTAUTH_* kept for v4-style tooling.
-          AUTH_SECRET: "ci-testing-secret"
-          NEXTAUTH_SECRET: "ci-testing-secret"
-          NEXTAUTH_URL: "http://localhost:3000"
-
-  python-engine-test:
-    name: Python Engine Test
+  engine:
+    name: Engine · lint, test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python-engine
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: pip
           cache-dependency-path: |
             python-engine/requirements.txt
             python-engine/requirements-dev.txt
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsndfile1
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Tests
+        run: pytest
 
-      - name: Install Python Dependencies
-        run: |
-          cd python-engine
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
-      - name: Run Pytest Analysis Unit Tests
-        run: cd python-engine && pytest
-
-  merge-check:
-    name: Pipeline Gatekeeper
-    needs: [frontend-build, python-engine-test]
+  stack:
+    name: Docker images · compose smoke test
     runs-on: ubuntu-latest
     steps:
-      - name: Verify All Parallel Checks Passed
-        run: echo "All parallel feature branches verified and ready to merge into main!"
+      - uses: actions/checkout@v4
+      - name: Write .env for compose
+        run: |
+          {
+            echo "AUTH_SECRET=$(openssl rand -hex 32)"
+            echo "RESONIQ_ENGINE_SECRET=$(openssl rand -hex 32)"
+          } > .env
+      - name: Build images
+        run: docker compose build
+      - name: Start the stack
+        run: docker compose up -d
+      - name: Wait for the frontend
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3000/; then exit 0; fi
+            sleep 2
+          done
+          docker compose ps -a
+          docker compose logs
+          exit 1
+      - name: End-to-end smoke test
+        run: BASE_URL=http://localhost:3000 scripts/smoke-test.sh
+      - name: Logs on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
