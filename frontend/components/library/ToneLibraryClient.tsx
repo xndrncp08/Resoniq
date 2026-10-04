@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { Search, Star, Pencil, Trash2, Link2, Check } from "lucide-react";
+import { Search, Star, Pencil, Trash2, Link2 } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
 import { recipeSearchText, recipeTags } from "@/lib/recipe-tags";
+import Feedback from "@/components/ui/Feedback";
+import ShareDialog from "@/components/library/ShareDialog";
 import { spring, STAGGER_S } from "@/lib/motion";
 
 const FAVORITES = "Favorites";
@@ -16,9 +18,12 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<ToneRecipe | null>(null);
+  const [errorCount, setErrorCount] = useState(0);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const closeShare = useCallback(() => setSharing(null), []);
 
   const tagsById = useMemo(() => new Map(tones.map((t) => [t.id, recipeTags(t)])), [tones]);
 
@@ -62,6 +67,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
     } catch {
       setTones(before);
       setError(failure);
+      setErrorCount((n) => n + 1);
     }
   }
 
@@ -106,19 +112,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
     } catch {
       setTones(before);
       setError("Couldn't delete. Try again.");
-    }
-  }
-
-  async function share(tone: ToneRecipe) {
-    const url = `${window.location.origin}/t/${tone.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setError(null);
-      setCopiedId(tone.id);
-      setTimeout(() => setCopiedId(null), 1800);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context).
-      setError(`Couldn't copy the link. Share this URL instead: ${url}`);
+      setErrorCount((n) => n + 1);
     }
   }
 
@@ -170,10 +164,12 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
       )}
 
       {error && (
-        <p role="alert" className="mb-4 font-body text-sm text-danger">
+        <Feedback tone="error" trigger={errorCount} className="mb-4 font-body text-sm">
           {error}
-        </p>
+        </Feedback>
       )}
+
+      <ShareDialog tone={sharing} onClose={closeShare} />
 
       {filtered.length === 0 && (
         <p className="font-body text-sm text-muted">
@@ -258,11 +254,11 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
                   <Pencil size={13} /> Rename
                 </button>
                 <button
-                  onClick={() => share(tone)}
+                  onClick={() => setSharing(tone)}
+                  aria-haspopup="dialog"
                   className="focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/10 py-2 font-body text-xs text-muted transition hover:bg-white/[0.05] hover:text-ink"
                 >
-                  {copiedId === tone.id ? <Check size={13} /> : <Link2 size={13} />}
-                  {copiedId === tone.id ? "Copied" : "Share"}
+                  <Link2 size={13} aria-hidden /> Share
                 </button>
                 {confirmingDeleteId === tone.id ? (
                   <button

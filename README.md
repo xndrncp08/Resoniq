@@ -37,6 +37,27 @@ python-engine/   FastAPI service: feature extraction, heuristics, recipe
 scripts/         smoke-test.sh: end-to-end API test against a running stack
 ```
 
+## Motion
+
+Each animation library has one job, so they don't overlap:
+
+| Library | Used for |
+| --- | --- |
+| [Motion](https://motion.dev) (`motion/react`) | Layout and presence: signal-chain nodes, pedal reorder, pickup selector, library grid, share dialog, dropzone gestures, page entrances |
+| [GSAP](https://gsap.com) | Scroll-scrubbed timelines (hero waveform morph, How it works), the spectrum analyzer's render loop, EQ-curve tweening |
+| [Anime.js](https://animejs.com) | Knob spring physics and staggered measurement lists |
+| [Theatre.js](https://www.theatrejs.com) | The measurement-to-recipe reveal when an analysis lands (`lib/theatre/matcher-sequence.ts`) |
+| [Animate.css](https://animate.style) | Feedback states (error shake, confirmations), importing only the keyframes used |
+
+All of them honor `prefers-reduced-motion`. Theatre loads lazily on the
+analysis page only.
+
+Licensing: GSAP is free to use under its own
+[standard license](https://gsap.com/standard-license) (not open source).
+`@theatre/studio`, the visual editor for the reveal's timing, is AGPL-3.0: it
+is a dev dependency, loads only in development behind `?theatre`, and isn't
+in production builds. The runtime, `@theatre/core`, is Apache-2.0.
+
 ## Running it
 
 ### With Docker
