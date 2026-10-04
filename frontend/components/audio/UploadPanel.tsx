@@ -2,12 +2,34 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import Dropzone from "@/components/audio/Dropzone";
 import LinkPasteInput from "@/components/audio/LinkPasteInput";
 import WaveformPlayer from "@/components/ui/waveform-player";
+import Feedback from "@/components/ui/Feedback";
+import { spring } from "@/lib/motion";
 
-type Stage = "idle" | "preview" | "uploading" | "error";
+type Stage = "idle" | "preview" | "uploading" | "finishing" | "error";
+
+type UploadResult = { ok: boolean; body: { error?: string; analysisJobId?: string } };
+
+/**
+ * POSTs the form with XMLHttpRequest, which (unlike fetch) reports upload
+ * progress, so the bar shows bytes actually sent rather than a guess.
+ */
+function uploadWithProgress(body: FormData, onProgress: (percent: number) => void): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.responseType = "json";
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress((e.loaded / e.total) * 100);
+    };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, body: xhr.response ?? {} });
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.send(body);
+  });
+}
 
 function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -42,6 +64,7 @@ export default function UploadPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   async function handleFile(selected: File) {
     setFile(selected);
@@ -61,29 +84,20 @@ export default function UploadPanel() {
     body.append("file", file);
     if (durationSec) body.append("durationSec", String(durationSec));
 
-    // Simulated smooth progress while the real request is in flight —
-    // fetch doesn't expose upload progress without XHR, so this keeps
-    // the bar honest-looking without overclaiming precision.
-    const tick = setInterval(() => {
-      setProgress((p) => (p < 90 ? p + Math.random() * 12 : p));
-    }, 250);
-
     try {
-      const res = await fetch("/api/upload", { method: "POST", body });
-      clearInterval(tick);
-      const data = await res.json();
-
+      const res = await uploadWithProgress(body, setProgress);
       if (!res.ok) {
-        setError(data.error ?? "Upload failed.");
+        setError(res.body.error ?? "Upload failed.");
+        setAttempt((n) => n + 1);
         setStage("error");
         return;
       }
-
-      setProgress(100);
-      router.push(`/analyze/${data.analysisJobId}`);
+      // Bytes are in; the server is storing the file and creating the job.
+      setStage("finishing");
+      router.push(`/analyze/${res.body.analysisJobId}`);
     } catch {
-      clearInterval(tick);
       setError("Something went wrong. Check your connection and try again.");
+      setAttempt((n) => n + 1);
       setStage("error");
     }
   }
@@ -121,7 +135,7 @@ export default function UploadPanel() {
           </motion.div>
         )}
 
-        {tab === "file" && (stage === "preview" || stage === "uploading" || stage === "error") && file && (
+        {tab === "file" && stage !== "idle" && file && (
           <motion.div
             key="preview"
             initial={{ opacity: 0, y: 12 }}
@@ -140,24 +154,36 @@ export default function UploadPanel() {
               <WaveformPlayer src={file} />
             </div>
 
-            {stage === "uploading" && (
+            {(stage === "uploading" || stage === "finishing") && (
               <div className="mt-5">
-                <div className="h-1.5 rounded-full bg-white/5">
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-white/5"
+                  role="progressbar"
+                  aria-label="Upload progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(progress)}
+                >
+                  {/* scaleX, not width: a compositor-only animation, no layout per frame */}
                   <motion.div
-                    animate={{ width: `${progress}%` }}
-                    transition={{ ease: "easeOut" }}
-                    className="h-full rounded-full bg-copper"
+                    animate={{ scaleX: progress / 100 }}
+                    transition={spring.snappy}
+                    className="h-full origin-left rounded-full bg-copper shadow-[0_0_10px_var(--color-copper)]"
                   />
                 </div>
-                <p className="mt-2 font-mono text-[11px] text-muted">
-                  Uploading… {Math.min(100, Math.round(progress))}%
+                <p className="mt-2 font-mono text-[11px] tabular-nums text-muted" aria-live="polite">
+                  {stage === "finishing" ? "Uploaded. Starting analysis…" : `Uploading… ${Math.min(100, Math.round(progress))}%`}
                 </p>
               </div>
             )}
 
-            {error && <p className="mt-4 font-body text-sm text-danger">{error}</p>}
+            {error && (
+              <Feedback tone="error" trigger={attempt} className="mt-4 font-body text-sm">
+                {error}
+              </Feedback>
+            )}
 
-            {stage !== "uploading" && (
+            {(stage === "preview" || stage === "error") && (
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => {

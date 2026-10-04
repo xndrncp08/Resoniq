@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import ToneDashboard from "@/components/tone/ToneDashboard";
 import { recipeFromAnalysis, type SongMeta } from "@/lib/tone-recipe";
 import type { EngineAnalysis } from "@/types/engine";
@@ -26,6 +26,8 @@ export default function AnalysisRunner({
   const [data, setData] = useState<EngineAnalysis | null>(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const started = useRef(false);
+  // Stable identity, so the dashboard's one-shot reveal doesn't restart on re-render.
+  const recipe = useMemo(() => (data?.tone_profile ? recipeFromAnalysis(data, song) : null), [data, song]);
 
   const run = useCallback(async () => {
     setStatus("ANALYZING");
@@ -108,8 +110,8 @@ export default function AnalysisRunner({
     );
   }
 
-  if (status === "ANALYZED" && data?.tone_profile) {
-    return <ToneDashboard songId={songId} initialRecipe={recipeFromAnalysis(data, song)} />;
+  if (status === "ANALYZED" && data && recipe) {
+    return <ToneDashboard songId={songId} initialRecipe={recipe} measurements={data.raw_features} />;
   }
 
   return null;

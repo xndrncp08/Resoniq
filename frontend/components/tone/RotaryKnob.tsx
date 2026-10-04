@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { animate, createSpring, type JSAnimation } from "animejs";
+import { useReducedMotion } from "motion/react";
 
 const SWEEP = 270; // degrees of travel, 7 o'clock to 5 o'clock
 const START = -135;
@@ -24,10 +26,32 @@ function arc(cx: number, cy: number, r: number, from: number, to: number) {
 
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
+// A slightly underdamped spring: the pointer swings past and settles, the
+// way a real knob's indicator reads when you flick it.
+const KNOB_SPRING = createSpring({ mass: 1, stiffness: 240, damping: 18 });
+
+function geometry(size: number) {
+  const c = size / 2;
+  return { c, trackR: c - 3, bodyR: c - 9 };
+}
+
+/** Arc + pointer for a (possibly fractional, mid-animation) value. */
+function shapes(size: number, v: number) {
+  const { c, trackR, bodyR } = geometry(size);
+  const angle = START + (Math.max(0, Math.min(100, v)) / 100) * SWEEP;
+  const from = polar(c, c, bodyR * 0.35, angle);
+  const to = polar(c, c, bodyR * 0.85, angle);
+  return { arc: v > 0.5 ? arc(c, c, trackR, START, angle) : "", from, to };
+}
+
 /**
  * 0-100 rotary control. Drag vertically (Shift for fine), or use arrow
  * keys / PageUp / PageDown / Home / End when focused. With no onChange it
  * renders read-only (e.g. on the public recipe page).
+ *
+ * Dragging moves the pointer 1:1. Any other change (keys, reset, a new
+ * recipe) settles on an Anime.js spring, painted straight to the SVG so a
+ * board of knobs animating doesn't re-render React every frame.
  */
 export default function RotaryKnob({
   label,
@@ -43,13 +67,49 @@ export default function RotaryKnob({
   disabled?: boolean;
 }) {
   const drag = useRef<{ y: number; value: number } | null>(null);
+  const arcRef = useRef<SVGPathElement>(null);
+  const pointerRef = useRef<SVGLineElement>(null);
+  const shown = useRef(value);
+  const anim = useRef<JSAnimation | null>(null);
+  const reduce = useReducedMotion();
   const interactive = !!onChange && !disabled;
-  const angle = START + (clamp(value) / 100) * SWEEP;
-  const c = size / 2;
-  const trackR = c - 3;
-  const bodyR = c - 9;
-  const pointerFrom = polar(c, c, bodyR * 0.35, angle);
-  const pointerTo = polar(c, c, bodyR * 0.85, angle);
+  const { c, trackR, bodyR } = geometry(size);
+  // React paints the first frame only; after that the effect owns these
+  // attributes, so a re-render can't snap the pointer ahead of the spring.
+  const [initial] = useState(() => shapes(size, value));
+
+  useEffect(() => {
+    const paint = (v: number) => {
+      const s = shapes(size, v);
+      arcRef.current?.setAttribute("d", s.arc);
+      const line = pointerRef.current;
+      if (line) {
+        line.setAttribute("x1", String(s.from.x));
+        line.setAttribute("y1", String(s.from.y));
+        line.setAttribute("x2", String(s.to.x));
+        line.setAttribute("y2", String(s.to.y));
+      }
+    };
+
+    anim.current?.cancel();
+    if (drag.current || reduce || shown.current === value) {
+      shown.current = value;
+      paint(value);
+      return;
+    }
+    const state = { v: shown.current };
+    anim.current = animate(state, {
+      v: value,
+      ease: KNOB_SPRING,
+      onUpdate: () => {
+        shown.current = state.v;
+        paint(state.v);
+      },
+    });
+    return () => {
+      anim.current?.cancel();
+    };
+  }, [value, size, reduce]);
 
   function set(v: number) {
     if (interactive) onChange(clamp(v));
@@ -93,16 +153,15 @@ export default function RotaryKnob({
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
           <path d={arc(c, c, trackR, START, START + SWEEP)} stroke="rgba(255,255,255,0.08)" strokeWidth={3} fill="none" strokeLinecap="round" />
-          {value > 0 && (
-            <path d={arc(c, c, trackR, START, angle)} stroke="var(--color-copper)" strokeWidth={3} fill="none" strokeLinecap="round" />
-          )}
+          <path ref={arcRef} d={initial.arc} stroke="var(--color-copper)" strokeWidth={3} fill="none" strokeLinecap="round" />
           <circle cx={c} cy={c} r={bodyR} fill="#161b23" stroke="rgba(255,255,255,0.1)" />
           <circle cx={c} cy={c} r={bodyR - 4} fill="none" stroke="rgba(255,255,255,0.04)" />
           <line
-            x1={pointerFrom.x}
-            y1={pointerFrom.y}
-            x2={pointerTo.x}
-            y2={pointerTo.y}
+            ref={pointerRef}
+            x1={initial.from.x}
+            y1={initial.from.y}
+            x2={initial.to.x}
+            y2={initial.to.y}
             stroke="var(--color-ink)"
             strokeWidth={2}
             strokeLinecap="round"

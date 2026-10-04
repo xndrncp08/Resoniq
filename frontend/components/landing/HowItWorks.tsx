@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import Reveal from "@/components/motion/Reveal";
-import { STAGGER_S } from "@/lib/motion";
+import { gsap, REDUCED_MOTION, useGSAP } from "@/lib/gsap";
 
 const stages = [
   { name: "Recording", note: "measured as a full mix" },
@@ -14,14 +13,38 @@ const stages = [
   { name: "EQ", note: "final tonal shape" },
 ];
 
+const LIT_BORDER = "rgba(255, 138, 61, 0.45)";
+const LIT_NUMBER = "#37E6C9";
+
 export default function HowItWorks() {
   const chainRef = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  // The signal line fills as the chain scrolls through the viewport, so the
-  // reader "follows the signal" stage by stage. Smoothed with a spring so
-  // wheel steps don't make it jump.
-  const { scrollYProgress } = useScroll({ target: chainRef, offset: ["start 85%", "end 55%"] });
-  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
+
+  // One scrubbed GSAP timeline: the signal line fills left to right as the
+  // chain scrolls through the viewport, and each stage lights up when the
+  // signal reaches it. Scrub smoothing keeps wheel steps from jumping.
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add(`not ${REDUCED_MOTION}`, () => {
+        const cards = gsap.utils.toArray<HTMLElement>("[data-stage]");
+        const tl = gsap.timeline({
+          defaults: { ease: "none" },
+          scrollTrigger: { trigger: chainRef.current, start: "top 80%", end: "bottom 45%", scrub: 0.6 },
+        });
+        tl.fromTo("[data-signal-line]", { scaleX: 0 }, { scaleX: 1, duration: 1 }, 0);
+        cards.forEach((card, i) => {
+          const at = i / (cards.length - 1);
+          tl.fromTo(card, { borderColor: "rgba(255,255,255,0.08)" }, { borderColor: LIT_BORDER, duration: 0.06 }, at * 0.94);
+          tl.fromTo(card.querySelector("[data-stage-number]"), { color: "#8B93A1" }, { color: LIT_NUMBER, duration: 0.06 }, at * 0.94);
+        });
+      });
+      // Reduced motion: the finished state, no scroll coupling.
+      mm.add(REDUCED_MOTION, () => {
+        gsap.set("[data-signal-line]", { scaleX: 1 });
+      });
+    },
+    { scope: chainRef },
+  );
 
   return (
     <section id="how-it-works" className="relative mx-auto max-w-6xl scroll-mt-28 px-6 py-32">
@@ -39,25 +62,22 @@ export default function HowItWorks() {
       <div ref={chainRef} className="relative mt-16">
         {/* signal line behind the stages (desktop only, where they sit in a row) */}
         <div className="absolute inset-x-6 top-1/2 hidden h-px -translate-y-1/2 bg-white/[0.06] sm:block" aria-hidden>
-          <motion.div
-            style={{ scaleX: reduce ? 1 : progress }}
-            className="h-full origin-left bg-gradient-to-r from-signal/70 to-copper/70"
-          />
+          <div data-signal-line className="h-full origin-left bg-gradient-to-r from-signal/80 to-copper/80 shadow-[0_0_8px_var(--color-signal)]" />
         </div>
 
         <ol className="relative grid gap-3 sm:grid-cols-6 sm:gap-4">
           {stages.map((s, i) => (
-            <li key={s.name}>
-              <Reveal
-                delay={i * STAGGER_S}
-                y={10}
-                // Opaque, so the signal line shows only in the gaps between stages.
-                className="h-full rounded-2xl border border-white/[0.08] bg-bg-elevated px-4 py-6 text-center transition-colors duration-300 hover:border-copper/40"
-              >
-                <div className="font-mono text-[10px] tabular-nums text-muted">{String(i + 1).padStart(2, "0")}</div>
-                <div className="mt-1 font-display text-base font-medium">{s.name}</div>
-                <div className="mt-1 font-mono text-[11px] text-muted">{s.note}</div>
-              </Reveal>
+            <li
+              key={s.name}
+              data-stage
+              // Opaque, so the signal line shows only in the gaps between stages.
+              className="h-full rounded-2xl border border-white/[0.08] bg-bg-elevated px-4 py-6 text-center"
+            >
+              <div data-stage-number className="font-mono text-[10px] tabular-nums text-muted">
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div className="mt-1 font-display text-base font-medium">{s.name}</div>
+              <div className="mt-1 font-mono text-[11px] text-muted">{s.note}</div>
             </li>
           ))}
         </ol>

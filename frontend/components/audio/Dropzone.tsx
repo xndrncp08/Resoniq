@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { UploadCloud } from "lucide-react";
 import { spring } from "@/lib/motion";
 
@@ -36,6 +36,7 @@ export default function Dropzone({ onFile }: { onFile: (file: File) => void }) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0, scale: dragging ? 1.01 : 1 }}
         transition={spring.snappy}
+        whileTap={{ scale: 0.99 }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -52,7 +53,10 @@ export default function Dropzone({ onFile }: { onFile: (file: File) => void }) {
           dragging ? "border-copper bg-copper/[0.06]" : "border-white/10 hover:border-white/20"
         }`}
       >
-        <UploadCloud size={36} aria-hidden className={`transition-colors ${dragging ? "text-copper" : "text-muted"}`} />
+        {/* The icon lifts toward the file while one is held over the zone. */}
+        <motion.span animate={{ y: dragging ? -6 : 0, scale: dragging ? 1.1 : 1 }} transition={spring.snappy} aria-hidden>
+          <UploadCloud size={36} className={`transition-colors ${dragging ? "text-copper" : "text-muted"}`} />
+        </motion.span>
         <span className="mt-4 font-display text-lg font-medium">Drop a song here, or click to browse</span>
         <span id="dropzone-hint" className="mt-1.5 font-mono text-xs text-muted">
           MP3, WAV, or FLAC · up to 50MB · up to 10 minutes

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import Feedback from "@/components/ui/Feedback";
 import { spring } from "@/lib/motion";
 
 const SIGN_IN_ERRORS: Record<string, string> = {
@@ -26,9 +27,11 @@ export default function AuthForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setAttempts((n) => n + 1);
     setError(null);
     setLoading(true);
 
@@ -160,7 +163,11 @@ export default function AuthForm({
         />
       </label>
 
-      {error && <p className="mt-3 font-body text-sm text-danger">{error}</p>}
+      {error && (
+        <Feedback tone="error" trigger={attempts} className="mt-3 font-body text-sm">
+          {error}
+        </Feedback>
+      )}
 
       <button
         type="submit"
