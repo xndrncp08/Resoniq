@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, type ReactNode } from "react";
-import { motion } from "motion/react";
+import { memo, useRef, type ReactNode } from "react";
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { AudioLines, Columns3, Keyboard, Layers, Library, ListMusic, Minimize2, RotateCcw, SlidersHorizontal, Upload } from "lucide-react";
 import { APP_KEYS, APPS } from "@/lib/studio/apps";
 import { spring } from "@/lib/motion";
@@ -24,17 +24,32 @@ const ICONS: Record<AppKey, ReactNode> = {
  */
 export default function Dock() {
   const order = useWindowStore((s) => s.order);
+  // Running-window count per app, as a string so this re-renders only when a count changes.
+  const counts = useWindowStore((s) => {
+    const n: Partial<Record<AppKey, number>> = {};
+    for (const w of Object.values(s.windows)) n[w.appKey] = (n[w.appKey] ?? 0) + 1;
+    return APP_KEYS.map((k) => n[k] ?? 0).join(",");
+  });
+  const countFor = (k: AppKey) => Number(counts.split(",")[APP_KEYS.indexOf(k)]);
   const store = useWindowStoreApi();
   const a = store.getState();
+  // Cursor x over the launcher, for magnification. Infinity = not hovering.
+  const mouseX = useMotionValue(Infinity);
 
   return (
     <nav aria-label="Dock" className="pointer-events-none absolute inset-x-0 bottom-3 z-[9000] flex justify-center px-3">
       <div className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-bg-elevated/80 p-1.5 shadow-2xl backdrop-blur-xl">
-        {APP_KEYS.filter((k) => APPS[k].launchable).map((k) => (
-          <DockButton key={k} label={`Open ${APPS[k].label}`} onClick={() => a.openWindow(k)}>
-            {ICONS[k]}
-          </DockButton>
-        ))}
+        <div
+          className="flex items-end gap-1"
+          onPointerMove={(e) => mouseX.set(e.clientX)}
+          onPointerLeave={() => mouseX.set(Infinity)}
+        >
+          {APP_KEYS.filter((k) => APPS[k].launchable).map((k) => (
+            <LauncherButton key={k} label={APPS[k].label} count={countFor(k)} mouseX={mouseX} onClick={() => a.openWindow(k)}>
+              {ICONS[k]}
+            </LauncherButton>
+          ))}
+        </div>
 
         {order.length > 0 && <span aria-hidden className="mx-1 h-7 w-px flex-shrink-0 bg-white/10" />}
         <ul aria-label="Open windows" className="flex items-center gap-1">
@@ -58,6 +73,56 @@ export default function Dock() {
         </DockButton>
       </div>
     </nav>
+  );
+}
+
+/**
+ * Launcher icon with macOS-style magnification: scale follows the cursor's
+ * distance on a spring. Reduced motion keeps icons still. A dot marks a
+ * running app; a number shows how many windows it has open.
+ */
+function LauncherButton({
+  label,
+  count,
+  mouseX,
+  onClick,
+  children,
+}: {
+  label: string;
+  count: number;
+  mouseX: MotionValue<number>;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const reduce = useReducedMotion();
+  const distance = useTransform(mouseX, (x) => {
+    const r = ref.current?.getBoundingClientRect();
+    return r ? x - (r.left + r.width / 2) : Infinity;
+  });
+  const target = useTransform(distance, [-110, 0, 110], [1, 1.4, 1]);
+  const scale = useSpring(target, { stiffness: 420, damping: 30, mass: 0.4 });
+  const name = count > 0 ? `${label} (${count} open)` : `Open ${label}`;
+
+  return (
+    <motion.button
+      ref={ref}
+      type="button"
+      aria-label={name}
+      title={name}
+      onClick={onClick}
+      whileTap={{ scale: 0.9 }}
+      style={{ scale: reduce ? 1 : scale, transformOrigin: "50% 100%" }}
+      className="focus-ring relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-white/[0.06] hover:text-ink"
+    >
+      {children}
+      {count > 1 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-copper px-1 font-mono text-[9px] font-semibold leading-none text-bg">
+          {count}
+        </span>
+      )}
+      {count > 0 && <span aria-hidden className="absolute bottom-0.5 h-1 w-1 rounded-full bg-signal shadow-[0_0_6px_var(--color-signal)]" />}
+    </motion.button>
   );
 }
 

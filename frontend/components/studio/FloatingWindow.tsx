@@ -49,8 +49,9 @@ function FloatingWindowImpl({ id }: { id: string }) {
   const [last, setLast] = useState(live);
   if (live && live !== last) setLast(live);
   const win = live ?? last;
-  // Changes only when the canvas is resized, which re-renders every window once.
+  // Change only on canvas resize / mode switch, which re-render every window once.
   const viewport = useWindowStore((s) => s.viewport);
+  const spatial = useWindowStore((s) => s.spatial);
   const store = useWindowStoreApi();
   const reduce = useReducedMotion();
   const dragControls = useDragControls();
@@ -59,6 +60,9 @@ function FloatingWindowImpl({ id }: { id: string }) {
   const y = useMotionValue(win.y);
   const width = useMotionValue(win.width);
   const height = useMotionValue(win.height);
+  // Spatial depth: z and a slight turn toward the viewer, composed into the same transform.
+  const z = useMotionValue(0);
+  const rotateY = useMotionValue(0);
   // While a gesture runs, the motion values are the source of truth.
   const gesture = useRef<"drag" | "resize" | null>(null);
   const resizeStart = useRef<{ dir: Dir; px: number; py: number; x: number; y: number; w: number; h: number } | null>(null);
@@ -69,6 +73,18 @@ function FloatingWindowImpl({ id }: { id: string }) {
     const running = [animate(x, win.x, t), animate(y, win.y, t), animate(width, win.width, t), animate(height, win.height, t)];
     return () => running.forEach((a) => a.stop());
   }, [win.x, win.y, win.width, win.height, x, y, width, height, reduce]);
+
+  // Focus moves a window forward; the rest settle back. Windows off-center
+  // angle in, like screens around a desk. Keyed off isFocused (which only
+  // the old and new focused windows change), so focus still re-renders two.
+  useEffect(() => {
+    const centerX = (win.x + win.width / 2) / Math.max(1, viewport.width) - 0.5;
+    const targetZ = !spatial || win.isMaximized ? 0 : win.isFocused ? 60 : -40;
+    const targetRot = !spatial || win.isMaximized ? 0 : Math.max(-7, Math.min(7, -centerX * 12));
+    const t = reduce ? { duration: 0 } : spring.layout;
+    const running = [animate(z, targetZ, t), animate(rotateY, targetRot, t)];
+    return () => running.forEach((a) => a.stop());
+  }, [spatial, win.isFocused, win.isMaximized, win.x, win.width, viewport.width, z, rotateY, reduce]);
 
   const meta = APPS[win.appKey];
   const App = APP_COMPONENTS[win.appKey];
@@ -182,7 +198,7 @@ function FloatingWindowImpl({ id }: { id: string }) {
         commit();
       }}
       onPointerDownCapture={() => store.getState().focusWindow(id)}
-      style={{ x, y, width, height, zIndex: win.zIndex, transformOrigin: "50% 100%" }}
+      style={{ x, y, z, rotateY, width, height, zIndex: win.zIndex, transformOrigin: "50% 100%" }}
       // The outer box only positions and stacks. The visible chrome is the
       // inner panel, which clips its content to the rounded corners; the
       // resize handles sit beside it so that clipping can't eat their hit areas.

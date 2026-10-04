@@ -41,6 +41,11 @@ export type WindowState = {
   focusedId: string | null;
   /** Size of the desktop canvas, used to place, clamp and tile windows. */
   viewport: { width: number; height: number };
+  /**
+   * Spatial mode: a 3D scene behind the windows and depth on the windows
+   * themselves (focus moves a window forward on z). Saved with the layout.
+   */
+  spatial: boolean;
 };
 
 export type OpenWindowOptions = {
@@ -67,6 +72,7 @@ export type WindowActions = {
   cascadeWindows: () => void;
   resetLayout: () => void;
   setViewport: (width: number, height: number) => void;
+  setSpatial: (spatial: boolean) => void;
   /** Replaces the desktop with a saved layout (already validated). */
   hydrate: (layout: WorkspaceLayout) => void;
 };
@@ -83,4 +89,6 @@ export type WorkspaceLayout = {
   version: 1;
   windows: SavedWindow[];
   focusedId: string | null;
+  /** Absent in layouts saved before spatial mode existed. */
+  spatial?: boolean;
 };
