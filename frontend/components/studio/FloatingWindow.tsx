@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { animate, motion, useDragControls, useMotionValue, useReducedMotion, type Variants } from "motion/react";
 import { Maximize2, Minimize2, Minus, X } from "lucide-react";
 import { APPS } from "@/lib/studio/apps";
@@ -42,7 +42,13 @@ const visibility: Variants = {
  * to the new bounds on a spring.
  */
 function FloatingWindowImpl({ id }: { id: string }) {
-  const win = useWindowStore((s) => s.windows[id]);
+  const live = useWindowStore((s) => s.windows[id]);
+  // After a close, AnimatePresence keeps rendering this window for its exit
+  // animation, but the store entry is already gone. Render the last state it
+  // had (React's "adjust state while rendering" pattern, no effect needed).
+  const [last, setLast] = useState(live);
+  if (live && live !== last) setLast(live);
+  const win = live ?? last;
   // Changes only when the canvas is resized, which re-renders every window once.
   const viewport = useWindowStore((s) => s.viewport);
   const store = useWindowStoreApi();
