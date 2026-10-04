@@ -4,6 +4,8 @@ import { useId } from "react";
 import { LayoutGroup, motion } from "motion/react";
 import type { AmpSettings, CabinetSettings, PickupPosition } from "@/types/tone";
 import RotaryKnob from "@/components/tone/RotaryKnob";
+import EqCurve from "@/components/tone/EqCurve";
+import { gainsFromAmp } from "@/lib/eq";
 import { spring } from "@/lib/motion";
 
 const AMP_KNOBS: { key: keyof Omit<AmpSettings, "family" | "model">; label: string }[] = [
@@ -56,7 +58,15 @@ export default function AmpPanel({
         ))}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-5">
+        <div className="mb-1 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+          <span>eq response</span>
+          <span className="normal-case tracking-normal">100 · 1k · 10k Hz</span>
+        </div>
+        <EqCurve gains={gainsFromAmp(amp)} />
+      </div>
+
+      <div className="mt-5">
         <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">pickup</div>
         {/* The selected pill slides between positions (a shared layout animation). */}
         <LayoutGroup id={groupId}>

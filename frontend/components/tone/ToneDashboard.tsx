@@ -63,7 +63,7 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
     <motion.div variants={assemble} initial="hidden" animate="show" className="space-y-6">
       {recipe.audioUrl && (
         <motion.div variants={panel}>
-          <SignalMonitor audioUrl={recipe.audioUrl} />
+          <SignalMonitor audioUrl={recipe.audioUrl} amp={recipe.amp} />
         </motion.div>
       )}
 
