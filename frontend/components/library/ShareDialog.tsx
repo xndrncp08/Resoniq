@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, ExternalLink, X } from "lucide-react";
 import Feedback from "@/components/ui/Feedback";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { spring } from "@/lib/motion";
 
 /**
  * Modal for sharing a tone link. Copies to the clipboard when allowed and
  * always shows the URL, so sharing still works when clipboard access is
- * denied. Focus moves into the dialog, Tab stays inside it, Escape or the
- * backdrop closes it, and focus returns to whatever opened it.
+ * denied. Focus handling comes from useDialogFocus; the backdrop also closes it.
  */
 export default function ShareDialog({
   tone,
@@ -28,31 +28,10 @@ function Dialog({ tone, onClose }: { tone: { id: string; title: string }; onClos
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
   const url = `${window.location.origin}/t/${tone.id}`;
 
+  useDialogFocus(panel, onClose, input);
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    input.current?.focus();
     input.current?.select();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key !== "Tab" || !panel.current) return;
-      const focusable = panel.current.querySelectorAll<HTMLElement>("button, a[href], input");
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      opener?.focus();
-    };
-  }, [onClose]);
+  }, []);
 
   async function copyLink() {
     try {

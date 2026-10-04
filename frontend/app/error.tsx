@@ -15,7 +15,7 @@ export default function RouteError({ error, retry }: { error: Error & { digest?:
   }, [error]);
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-bg px-6">
+    <main className="flex min-h-svh items-center justify-center px-6">
       <div className="glass w-full max-w-md rounded-panel p-8 text-center">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-danger">signal lost</p>
         <h1 className="mt-3 font-display text-2xl font-semibold">Something went wrong.</h1>

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Box, Check, CloudOff, Loader2 } from "lucide-react";
 import DesktopCanvas from "@/components/studio/DesktopCanvas";
 import Dock from "@/components/studio/Dock";
+import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { SHORTCUTS } from "@/lib/studio/shortcuts";
 import { useWindowStore, useWindowStoreApi, WindowStoreProvider } from "@/lib/studio/store-context";
 import { useWorkspaceAutosave, type SaveStatus } from "@/lib/studio/use-workspace-autosave";
@@ -31,9 +32,10 @@ function Desktop({ firstVisit, userName }: { firstVisit: boolean; userName: stri
   useStudioShortcuts();
 
   return (
-    <div className="flex h-svh flex-col overflow-hidden bg-bg [background-image:radial-gradient(ellipse_at_50%_-20%,rgba(55,230,201,0.07),transparent_60%),radial-gradient(ellipse_at_90%_110%,rgba(255,138,61,0.06),transparent_55%)]">
+    // Transparent: the shared background scene (root layout) shows through.
+    <div className="flex h-svh flex-col overflow-hidden">
       <header className="z-[9000] flex h-10 flex-shrink-0 items-center justify-between gap-4 border-b border-white/[0.06] bg-bg/70 px-4 backdrop-blur-xl">
-        <Link href="/" className="focus-ring flex items-center gap-2 rounded-lg" aria-label="Back to Resoniq">
+        <Link href="/" transitionTypes={["nav-shallower"]} className="focus-ring flex items-center gap-2 rounded-lg" aria-label="Back to Resoniq">
           <Image src="/logo.svg" alt="" width={20} height={20} className="rounded" />
           <span className="font-display text-sm font-semibold">Resoniq</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-signal">studio</span>
@@ -41,6 +43,7 @@ function Desktop({ firstVisit, userName }: { firstVisit: boolean; userName: stri
         <div className="flex items-center gap-4 font-mono text-[11px] text-muted">
           <SaveIndicator status={saveStatus} />
           <SpatialToggle />
+          <SettingsDrawer className="-my-1" />
           {userName && <span className="hidden sm:inline">{userName}</span>}
           <Clock />
         </div>

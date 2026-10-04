@@ -103,3 +103,19 @@ export function responseDb(gains: EqGains, frequencies: number[], sampleRate = 4
 
 /** x position (0..1) of a frequency on the log axis. */
 export const xForHz = (hz: number) => Math.log(hz / MIN_HZ) / Math.log(MAX_HZ / MIN_HZ);
+
+/**
+ * Master fader law (0-100): 0 dB at 80, a little headroom above (max +5 dB),
+ * 0.6 dB per step below, and true silence at 0.
+ */
+export function volumeToDb(v: number): number {
+  return v >= 80 ? (v - 80) * 0.25 : (v - 80) * 0.6;
+}
+
+export const volumeToGain = (v: number) => (v <= 0 ? 0 : 10 ** (volumeToDb(v) / 20));
+
+export const formatVolume = (v: number) => {
+  if (v <= 0) return "mute";
+  const db = Math.round(volumeToDb(v));
+  return `${db > 0 ? "+" : ""}${db} dB`;
+};

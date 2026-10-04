@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { requirePageUserId } from "@/lib/session";
 import { LayoutError, parseWorkspaceLayout } from "@/lib/studio/layout-validation";
 import StudioShell from "@/components/studio/StudioShell";
+import RouteStage from "@/components/motion/RouteStage";
 
 export const metadata: Metadata = { title: "Studio" };
 
@@ -30,5 +31,9 @@ export default async function StudioPage() {
     }
   }
 
-  return <StudioShell initialLayout={layout} userName={session?.user?.name?.split(" ")[0] ?? null} />;
+  return (
+    <RouteStage>
+      <StudioShell initialLayout={layout} userName={session?.user?.name?.split(" ")[0] ?? null} />
+    </RouteStage>
+  );
 }

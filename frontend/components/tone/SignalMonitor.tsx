@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { colors } from "@/lib/design-tokens";
-import { BANDS, gainsFromAmp, type EqGains } from "@/lib/eq";
+import { BANDS, formatVolume, gainsFromAmp, volumeToGain, type EqGains } from "@/lib/eq";
 import { gsap } from "@/lib/gsap";
 import type { AmpSettings } from "@/types/tone";
+import Slider from "@/components/ui/tactile/Slider";
+import { sceneState } from "@/components/scene/state";
 
 const MIN_HZ = 40;
 const MAX_HZ = 16000;
@@ -28,7 +30,9 @@ type AudioGraph = {
   filters: BiquadFilterNode[];
   wet: GainNode;
   dry: GainNode;
+  master: GainNode;
 };
+
 
 /** Size a canvas's backing store to its CSS box at device pixel ratio. */
 function fit(canvas: HTMLCanvasElement) {
@@ -147,6 +151,26 @@ function drawSpectrum(canvas: HTMLCanvasElement, bars: Float32Array, peaks: Floa
   }
 }
 
+const avg = (a: Float32Array, from: number, to: number) => {
+  let s = 0;
+  for (let i = from; i < to; i++) s += a[i];
+  return s / Math.max(1, to - from);
+};
+
+/** Coarse levels for the shared background scene, so the field moves with the music. */
+function publishAudio(levels: Float32Array | null) {
+  const a = sceneState.audio;
+  if (!levels) {
+    a.playing = false;
+    return;
+  }
+  a.playing = true;
+  a.low = avg(levels, 0, 20); // ~40-200 Hz
+  a.mid = avg(levels, 20, 50); // ~200 Hz-2.5 kHz
+  a.high = avg(levels, 50, SPECTRUM_BARS); // upper bands
+  a.level = avg(levels, 0, SPECTRUM_BARS);
+}
+
 function setEq(graph: AudioGraph, gains: EqGains) {
   const t = graph.ctx.currentTime;
   BANDS.forEach((band, i) => graph.filters[i].gain.setTargetAtTime(gains[band.key], t, EQ_GLIDE_S));
@@ -170,6 +194,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
   const graph = useRef<AudioGraph | null>(null);
   const [playing, setPlaying] = useState(false);
   const [eqOn, setEqOn] = useState(true);
+  const [volume, setVolume] = useState(80);
   const [error, setError] = useState<string | null>(null);
   // Latest gains for the graph to start from; kept in sync by the effect below.
   const gainsRef = useRef<EqGains>(gainsFromAmp(amp));
@@ -179,6 +204,11 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
     gainsRef.current = gainsFromAmp({ bass: amp.bass, mids: amp.mids, treble: amp.treble, presence: amp.presence });
     if (graph.current) setEq(graph.current, gainsRef.current);
   }, [amp.bass, amp.mids, amp.treble, amp.presence]);
+
+  useEffect(() => {
+    const g = graph.current;
+    if (g) g.master.gain.setTargetAtTime(volumeToGain(volume), g.ctx.currentTime, EQ_GLIDE_S);
+  }, [volume]);
 
   // Crossfade between the processed and the untouched signal.
   useEffect(() => {
@@ -217,6 +247,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
       } else {
         levels.fill(0);
       }
+      publishAudio(live ? levels : null);
       let moving = false;
       for (let b = 0; b < SPECTRUM_BARS; b++) {
         bars[b] = Math.max(levels[b], bars[b] - BAR_FALL_PER_S * dt);
@@ -240,6 +271,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
     return () => {
       gsap.ticker.remove(tick);
       ro.disconnect();
+      publishAudio(null);
     };
   }, [playing]);
 
@@ -269,17 +301,22 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
         analyser.fftSize = 4096;
         analyser.smoothingTimeConstant = 0.75;
 
+        const master = ctx.createGain();
+        master.gain.value = volumeToGain(volume);
+
         // source -> [EQ chain] -> wet ┐
-        // source -----------------> dry ┴-> analyser -> speakers
+        // source -----------------> dry ┴-> analyser -> master -> speakers
+        // (The spectrum reads before the master fader: volume changes loudness, not the picture.)
         filters.reduce<AudioNode>((prev, f) => (prev.connect(f), f), source).connect(wet);
         source.connect(dry);
         wet.connect(analyser);
         dry.connect(analyser);
-        analyser.connect(ctx.destination);
+        analyser.connect(master);
+        master.connect(ctx.destination);
         wet.gain.value = eqOn ? 1 : 0;
         dry.gain.value = eqOn ? 0 : 1;
 
-        graph.current = { ctx, analyser, filters, wet, dry };
+        graph.current = { ctx, analyser, filters, wet, dry, master };
         setEq(graph.current, gainsRef.current);
       }
       await graph.current.ctx.resume();
@@ -342,6 +379,8 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
           </figcaption>
         </figure>
       </div>
+
+      <Slider label="master" value={volume} onChange={setVolume} weight="smooth" format={formatVolume} className="mt-4 max-w-sm" />
 
       {error && <p className="mt-3 font-body text-xs text-danger">{error}</p>}
 

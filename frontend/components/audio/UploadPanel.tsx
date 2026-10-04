@@ -103,7 +103,7 @@ export default function UploadPanel({ onUploaded }: { onUploaded?: (songId: stri
         setFile(null);
         setStage("idle");
       } else {
-        router.push(`/analyze/${res.body.analysisJobId}`);
+        router.push(`/analyze/${res.body.analysisJobId}`, { transitionTypes: ["nav-deeper"] });
       }
     } catch {
       setError("Something went wrong. Check your connection and try again.");

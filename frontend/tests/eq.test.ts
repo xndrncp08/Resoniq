@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gainsFromAmp, knobToDb, logFrequencies, MAX_DB, responseDb, xForHz } from "@/lib/eq";
+import { formatVolume, gainsFromAmp, knobToDb, logFrequencies, MAX_DB, responseDb, volumeToGain, xForHz } from "@/lib/eq";
 
 const flat = { bass: 0, mids: 0, treble: 0, presence: 0 };
 
@@ -45,5 +45,16 @@ describe("EQ model vs Web Audio", () => {
     const chrome = [8.984, 8.324, 4.232, -1.403, -6.329, -3.649, -4.602, -8.486, 0.446, 3.932];
     const ours = responseDb({ bass: 9, mids: -6, treble: 4.5, presence: -12 }, freqs, 48000);
     ours.forEach((db, i) => expect(Math.abs(db - chrome[i])).toBeLessThan(0.05));
+  });
+});
+
+describe("master fader law", () => {
+  it("is unity at 80, mutes at 0, rises monotonically with modest headroom", () => {
+    expect(volumeToGain(80)).toBe(1);
+    expect(volumeToGain(0)).toBe(0);
+    const gains = Array.from({ length: 101 }, (_, v) => volumeToGain(v));
+    for (let v = 1; v <= 100; v++) expect(gains[v]).toBeGreaterThan(gains[v - 1]);
+    expect(volumeToGain(100)).toBeCloseTo(10 ** (5 / 20), 10);
+    expect([formatVolume(0), formatVolume(80), formatVolume(100), formatVolume(60)]).toEqual(["mute", "0 dB", "+5 dB", "-12 dB"]);
   });
 });
