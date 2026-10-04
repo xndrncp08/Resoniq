@@ -15,17 +15,23 @@ export default function AnalysisRunner({
   initialStatus,
   initialError,
   initialData,
+  onStatusChange,
 }: {
   song: SongMeta;
   initialStatus: string;
   initialError: string | null;
   initialData: EngineAnalysis | null;
+  onStatusChange?: (status: string) => void;
 }) {
   const songId = song.id;
   const [status, setStatus] = useState(initialStatus);
   const [data, setData] = useState<EngineAnalysis | null>(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const started = useRef(false);
+
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [status, onStatusChange]);
   // Stable identity, so the dashboard's one-shot reveal doesn't restart on re-render.
   const recipe = useMemo(() => (data?.tone_profile ? recipeFromAnalysis(data, song) : null), [data, song]);
 

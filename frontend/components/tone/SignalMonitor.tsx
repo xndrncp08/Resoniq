@@ -291,7 +291,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
   }
 
   return (
-    <div className="glass rounded-panel p-6">
+    <div className="glass @container rounded-panel p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-signal">
           <span
@@ -325,7 +325,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 @xl:grid-cols-2">
         <figure>
           <canvas ref={scopeRef} className="h-32 w-full rounded-lg bg-black/30" aria-label="Oscilloscope" role="img" />
           <figcaption className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">oscilloscope</figcaption>

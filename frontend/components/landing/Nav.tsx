@@ -18,6 +18,7 @@ const publicLinks = [
 const appLinks = [
   { label: "Analyze", href: "/analyze" },
   { label: "Library", href: "/library" },
+  { label: "Studio", href: "/studio" },
 ];
 
 export default function Nav() {
@@ -25,6 +26,9 @@ export default function Nav() {
   const pathname = usePathname();
   const signedIn = status === "authenticated";
   const links = signedIn ? appLinks : publicLinks;
+
+  // The Studio is a full-screen desktop with its own status bar and dock.
+  if (pathname.startsWith("/studio")) return null;
 
   return (
     <motion.header

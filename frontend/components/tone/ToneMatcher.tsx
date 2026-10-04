@@ -198,7 +198,7 @@ export default function ToneMatcher({
   const inRow = (k: InputKey) => INPUTS.findIndex((i) => i.key === k);
 
   return (
-    <section className="glass hidden rounded-panel p-6 sm:block" aria-labelledby="matcher-heading">
+    <section className="glass hidden rounded-panel p-6 @xl:block" aria-labelledby="matcher-heading">
       <div className="flex items-center justify-between gap-3">
         <h2 id="matcher-heading" className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
           from measurement to recipe

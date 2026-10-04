@@ -66,14 +66,14 @@ export default function MeasurementsPanel({ features }: { features: EngineAnalys
   }, [reduce]);
 
   return (
-    <section className="glass rounded-panel p-6" aria-labelledby="measurements-heading">
+    <section className="glass @container rounded-panel p-6" aria-labelledby="measurements-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="measurements-heading" className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
           measurements
         </h2>
         <p className="font-mono text-[10px] text-muted">measured from the recording · the recipe is inferred from these</p>
       </div>
-      <dl ref={root} className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.06] sm:grid-cols-3 lg:grid-cols-4">
+      <dl ref={root} className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.06] @md:grid-cols-3 @2xl:grid-cols-4">
         {rows.map((m) => {
           const value = features[m.key] as number;
           const level = m.meter?.(value);

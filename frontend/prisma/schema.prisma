@@ -23,8 +23,9 @@ model User {
 
   accounts Account[]
   sessions Session[]
-  tones    Tone[]
-  songs    Song[]
+  tones     Tone[]
+  songs     Song[]
+  workspace UserWorkspace?
 }
 
 model Account {
@@ -103,6 +104,16 @@ model Song {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// The Studio desktop's window layout for a user (one row per user). `layout`
+// is a WorkspaceLayout (lib/studio/types.ts), validated before every write.
+model UserWorkspace {
+  userId    String   @id
+  layout    Json
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum SourceType {

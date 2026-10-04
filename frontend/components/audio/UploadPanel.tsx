@@ -57,7 +57,11 @@ function readDuration(file: File, timeoutMs = 3000): Promise<number | null> {
   });
 }
 
-export default function UploadPanel() {
+/**
+ * `onUploaded` lets a host (the Studio) decide what happens next; by default
+ * the page navigates to the new song's analysis.
+ */
+export default function UploadPanel({ onUploaded }: { onUploaded?: (songId: string, title: string) => void } = {}) {
   const router = useRouter();
   const [tab, setTab] = useState<"file" | "link">("file");
   const [stage, setStage] = useState<Stage>("idle");
@@ -94,7 +98,13 @@ export default function UploadPanel() {
       }
       // Bytes are in; the server is storing the file and creating the job.
       setStage("finishing");
-      router.push(`/analyze/${res.body.analysisJobId}`);
+      if (onUploaded) {
+        onUploaded(res.body.analysisJobId!, file.name.replace(/\.[^/.]+$/, ""));
+        setFile(null);
+        setStage("idle");
+      } else {
+        router.push(`/analyze/${res.body.analysisJobId}`);
+      }
     } catch {
       setError("Something went wrong. Check your connection and try again.");
       setAttempt((n) => n + 1);
