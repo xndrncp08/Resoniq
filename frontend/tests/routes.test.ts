@@ -9,6 +9,7 @@ const db = {
   user: { findFirst: vi.fn(), create: vi.fn() },
   song: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   tone: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+  userWorkspace: { findUnique: vi.fn(), upsert: vi.fn() },
 };
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
@@ -30,6 +31,7 @@ const tone = await import("@/app/api/tones/[id]/route");
 const upload = await import("@/app/api/upload/route");
 const analyze = await import("@/app/api/analyze/route");
 const audio = await import("@/app/api/songs/[id]/audio/route");
+const workspace = await import("@/app/api/workspace/route");
 const { EngineError } = await import("@/lib/engine");
 
 const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
@@ -241,5 +243,46 @@ describe("cross-site protection", () => {
     signedIn("user-a");
     const req = new Request("http://localhost/api/tones", { method: "POST", headers: { "content-type": "text/plain" }, body: "{}" });
     expect((await tones.POST(req, undefined)).status).toBe(415);
+  });
+});
+
+describe("/api/workspace", () => {
+  const win = {
+    id: "songs-0000abcd", appKey: "songs", title: "Songs", props: {}, x: 10, y: 20, width: 420, height: 520,
+    zIndex: 1, isMinimized: false, isMaximized: false, restoreBounds: null,
+  };
+  const put = (layout: unknown) => workspace.PUT(json({ layout }, { method: "PUT" }), undefined);
+
+  it("requires a session", async () => {
+    expect((await workspace.GET(new Request("http://localhost/api/workspace"), undefined)).status).toBe(401);
+    expect((await put({ version: 1, windows: [], focusedId: null })).status).toBe(401);
+  });
+
+  it("returns null before anything is saved", async () => {
+    signedIn("user-a");
+    db.userWorkspace.findUnique.mockResolvedValue(null);
+    const res = await workspace.GET(new Request("http://localhost/api/workspace"), undefined);
+    expect(await res.json()).toEqual({ layout: null, updatedAt: null });
+    expect(db.userWorkspace.findUnique.mock.calls[0][0].where).toEqual({ userId: "user-a" });
+  });
+
+  it("saves a validated layout under the session's user only", async () => {
+    signedIn("user-a");
+    db.userWorkspace.upsert.mockResolvedValue({ updatedAt: new Date() });
+    const res = await put({ version: 1, windows: [{ ...win, title: "  Songs  ", userId: "user-b" }], focusedId: win.id });
+    expect(res.status).toBe(200);
+    const call = db.userWorkspace.upsert.mock.calls[0][0];
+    expect(call.where).toEqual({ userId: "user-a" });
+    expect(call.create.userId).toBe("user-a");
+    expect(call.update.layout.windows[0]).not.toHaveProperty("userId");
+    expect(call.update.layout.windows[0].title).toBe("Songs");
+  });
+
+  it("rejects invalid layouts with 400 and oversized bodies with 413", async () => {
+    signedIn("user-a");
+    expect((await put({ version: 1, windows: [{ ...win, appKey: "terminal" }], focusedId: null })).status).toBe(400);
+    const huge = { version: 1, windows: [{ ...win, title: "x".repeat(70 * 1024) }], focusedId: null };
+    expect((await put(huge)).status).toBe(413);
+    expect(db.userWorkspace.upsert).not.toHaveBeenCalled();
   });
 });
