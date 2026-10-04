@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { motion, type Variants } from "motion/react";
-import { ChevronRight, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
 import type { StoredToneData } from "@/lib/tone-recipe";
 import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 import SignalMonitor from "@/components/tone/SignalMonitor";
+import SignalChain from "@/components/tone/SignalChain";
+import MeasurementsPanel from "@/components/tone/MeasurementsPanel";
+import ToneMatcher from "@/components/tone/ToneMatcher";
+import type { EngineAnalysis } from "@/types/engine";
+import Feedback from "@/components/ui/Feedback";
 import { spring } from "@/lib/motion";
 
 // The moment analysis lands: panels assemble down the signal path, one
@@ -19,19 +24,19 @@ const panel: Variants = {
   show: { opacity: 1, y: 0, filter: "blur(0px)", transition: spring.enter },
 };
 
-function ChainStep({ label, detail }: { label: string; detail?: string }) {
-  return (
-    <span className="whitespace-nowrap">
-      <span className="text-ink">{label}</span>
-      {detail && <span className="text-muted"> · {detail}</span>}
-    </span>
-  );
-}
-
-export default function ToneDashboard({ songId, initialRecipe }: { songId: string; initialRecipe: ToneRecipe }) {
+export default function ToneDashboard({
+  songId,
+  initialRecipe,
+  measurements,
+}: {
+  songId: string;
+  initialRecipe: ToneRecipe;
+  measurements?: EngineAnalysis["raw_features"];
+}) {
   const [recipe, setRecipe] = useState<ToneRecipe>(initialRecipe);
   const [toneName, setToneName] = useState(initialRecipe.title);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveAttempts, setSaveAttempts] = useState(0);
 
   function update(patch: Partial<ToneRecipe>) {
     setRecipe((r) => ({ ...r, ...patch }));
@@ -39,6 +44,7 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
   }
 
   async function handleSave() {
+    setSaveAttempts((n) => n + 1);
     setSaveState("saving");
     const { confidenceScore, recipeDescription, amp, cabinet, pickup, pedalboard, similarArtists } = recipe;
     const data: StoredToneData = {
@@ -57,10 +63,15 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
     }
   }
 
-  const activePedals = recipe.pedalboard.filter((p) => p.enabled).length;
-
   return (
     <motion.div variants={assemble} initial="hidden" animate="show" className="space-y-6">
+      {measurements && (
+        <motion.div variants={panel}>
+          {/* Plays against the analysis as it came back, not later knob edits. */}
+          <ToneMatcher features={measurements} amp={initialRecipe.amp} confidence={initialRecipe.confidenceScore} />
+        </motion.div>
+      )}
+
       {recipe.audioUrl && (
         <motion.div variants={panel}>
           <SignalMonitor audioUrl={recipe.audioUrl} amp={recipe.amp} />
@@ -81,15 +92,9 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
           </button>
         </div>
 
-        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px]">
-          <ChainStep label="Guitar" detail={recipe.pickup} />
-          <ChevronRight size={12} className="text-muted" />
-          <ChainStep label="Pedals" detail={`${activePedals}/${recipe.pedalboard.length} on`} />
-          <ChevronRight size={12} className="text-muted" />
-          <ChainStep label="Amp" detail={recipe.amp.family} />
-          <ChevronRight size={12} className="text-muted" />
-          <ChainStep label="Cab" detail={recipe.cabinet.type} />
-        </p>
+        <div className="mt-4">
+          <SignalChain recipe={recipe} />
+        </div>
 
         <div className="mt-5">
           <Pedalboard pedals={recipe.pedalboard} onChange={(pedalboard) => update({ pedalboard })} />
@@ -111,6 +116,12 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
         />
         <RecipeSummary recipe={recipe} />
       </motion.div>
+
+      {measurements && (
+        <motion.div variants={panel}>
+          <MeasurementsPanel features={measurements} />
+        </motion.div>
+      )}
 
       <motion.div variants={panel} className="glass flex flex-wrap items-center gap-3 rounded-panel p-4">
         <label htmlFor="tone-name" className="sr-only">
@@ -134,9 +145,9 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
           {saveState === "saved" ? "Saved to your library." : ""}
         </p>
         {saveState === "error" && (
-          <p role="alert" className="w-full font-body text-sm text-danger">
+          <Feedback tone="error" trigger={saveAttempts} className="w-full font-body text-sm">
             Couldn&apos;t save. Try again.
-          </p>
+          </Feedback>
         )}
       </motion.div>
     </motion.div>
