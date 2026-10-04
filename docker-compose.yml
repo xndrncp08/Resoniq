@@ -22,6 +22,11 @@ services:
     # Not published: only the frontend container talks to the engine.
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     environment:
       RESONIQ_ENGINE_SECRET: ${RESONIQ_ENGINE_SECRET:?set RESONIQ_ENGINE_SECRET in .env}
       # Optional: without a key the engine returns its rule-based recipe.
@@ -61,7 +66,7 @@ services:
       migrate:
         condition: service_completed_successfully
       python-engine:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres_data:
