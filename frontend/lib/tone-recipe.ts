@@ -113,7 +113,7 @@ export function heuristicRecipe(profile: EngineToneProfile): RecipeCore {
 
 export function recipeCoreFromAnalysis(analysis: EngineAnalysis): RecipeCore {
   if (analysis.recipe) {
-    const { source: _source, ...core } = analysis.recipe;
+    const { source, ...core } = analysis.recipe;
     return core;
   }
   return heuristicRecipe(analysis.tone_profile);

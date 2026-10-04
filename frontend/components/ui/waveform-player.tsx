@@ -12,20 +12,28 @@ function formatTime(sec: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+type Props = {
+  src: string | File;
+  height?: number;
+  className?: string;
+};
+
+function sourceKey(src: string | File) {
+  return typeof src === "string" ? src : `${src.name}:${src.size}:${src.lastModified}`;
+}
+
 /**
  * Reusable waveform + transport. `src` is a remote URL or a local File
  * (e.g. an upload preview). Waveform/live-audio visuals use signal-teal
  * only, per the design system — copper stays reserved for gear and CTAs.
+ *
+ * Remounts per source, so playback state never carries over between files.
  */
-export default function WaveformPlayer({
-  src,
-  height = 64,
-  className = "",
-}: {
-  src: string | File;
-  height?: number;
-  className?: string;
-}) {
+export default function WaveformPlayer(props: Props) {
+  return <Player key={sourceKey(props.src)} {...props} />;
+}
+
+function Player({ src, height = 64, className = "" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
   const [ready, setReady] = useState(false);
@@ -37,10 +45,6 @@ export default function WaveformPlayer({
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
-    setReady(false);
-    setPlaying(false);
-    setTime(0);
-    setError(null);
 
     (async () => {
       const WaveSurferLib = (await import("wavesurfer.js")).default;

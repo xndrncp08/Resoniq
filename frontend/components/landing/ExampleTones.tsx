@@ -36,7 +36,7 @@ function EQBar({ label, value }: { label: string; value: number }) {
 
 export default function ExampleTones() {
   return (
-    <section className="relative mx-auto max-w-6xl px-6 py-32">
+    <section id="example-tone" className="relative mx-auto max-w-6xl scroll-mt-28 px-6 py-32">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">example tone</p>
       <h2 className="mt-3 max-w-lg font-display text-3xl font-semibold tracking-tight sm:text-4xl">
         What comes out of an analysis.
