@@ -69,6 +69,22 @@ body {
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
 
+  /* Thin, dark scrollbars for window bodies (Studio). */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
   .focus-ring:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 3px;
