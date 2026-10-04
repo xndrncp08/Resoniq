@@ -1,6 +1,6 @@
-import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requirePageUserId } from "@/lib/session";
 import AnalysisRunner from "@/components/tone/AnalysisRunner";
 import type { EngineAnalysis } from "@/types/engine";
 
@@ -10,11 +10,10 @@ export default async function SongStatusPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
-  if (!session) redirect(`/login?callbackUrl=/analyze/${id}`);
+  const userId = await requirePageUserId(`/analyze/${id}`);
 
-  const song = await prisma.song.findUnique({ where: { id } });
-  if (!song || song.userId !== session.user.id) notFound();
+  const song = await prisma.song.findFirst({ where: { id, userId } });
+  if (!song) notFound();
 
   return (
     <main className="min-h-screen bg-bg px-6 py-32">
@@ -34,10 +33,10 @@ export default async function SongStatusPage({
             id: song.id,
             title: song.title,
             artist: song.artist,
-            fileUrl: song.fileUrl,
             createdAt: song.createdAt.toISOString(),
           }}
           initialStatus={song.status}
+          initialError={song.analysisError}
           // Prisma's Json type is opaque; this is the python-engine response stored verbatim.
           initialData={song.analysisData as EngineAnalysis | null}
         />

@@ -1,57 +1,44 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { ApiError, enforceRateLimit, readJson, route } from "@/lib/api";
+import { BCRYPT_ROUNDS, MAX_NAME_LENGTH, normalizeEmail, passwordProblem } from "@/lib/credentials";
+import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
-// Handle user registration requests
-export async function POST(req: Request) {
-  // Extract user information from the request body
-  const { name, email, password } = await req.json();
+/**
+ * Creates an email/password account.
+ *
+ * The response is the same whether or not the email is already registered
+ * (and the password is hashed either way, so timing matches), so this
+ * endpoint alone doesn't confirm who has an account. Without email
+ * verification that only goes so far: the sign-in that follows still fails
+ * for an existing account. See SECURITY.md.
+ */
+export const POST = route("register", async (req) => {
+  enforceRateLimit("register", clientIp(req), RATE_LIMITS.register);
 
-  // Validate required fields
-  if (!email || !password) {
-    return NextResponse.json(
-      { error: "Email and password are required." },
-      { status: 400 },
-    );
-  }
+  const { name, email: rawEmail, password } = await readJson(req);
 
-  // Enforce minimum password length for security
-  if (password.length < 8) {
-    return NextResponse.json(
-      { error: "Password must be at least 8 characters." },
-      { status: 400 },
-    );
-  }
+  const email = normalizeEmail(rawEmail);
+  if (!email) throw new ApiError(400, "Enter a valid email address.");
+  const problem = passwordProblem(password);
+  if (problem) throw new ApiError(400, problem);
+  const displayName = typeof name === "string" ? name.trim().slice(0, MAX_NAME_LENGTH) || null : null;
 
-  // Check if an account with the provided email already exists
-  const existing = await prisma.user.findUnique({
-    where: { email },
+  const passwordHash = await bcrypt.hash(password as string, BCRYPT_ROUNDS);
+
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true },
   });
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "An account with this email already exists." },
-      { status: 409 },
-    );
+  if (!existing) {
+    try {
+      await prisma.user.create({ data: { name: displayName, email, passwordHash } });
+    } catch (err) {
+      // Lost a race with a concurrent signup for the same email: same answer as above.
+      if ((err as { code?: string }).code !== "P2002") throw err;
+    }
   }
 
-  // Hash the user's password before storing it in the database
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  // Create the new user and return only safe fields
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-    },
-  });
-
-  // Return the newly created user with a 201 Created status
-  return NextResponse.json({ user }, { status: 201 });
-}
+  return NextResponse.json({ ok: true }, { status: 201 });
+});

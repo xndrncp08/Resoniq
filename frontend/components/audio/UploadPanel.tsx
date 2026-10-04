@@ -13,16 +13,25 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function readDuration(file: File): Promise<number | null> {
+/**
+ * Duration is optional metadata, so this never blocks the upload: browsers
+ * may never fire loadedmetadata (a codec they can't probe, or media loading
+ * deferred in a background tab), hence the timeout.
+ */
+function readDuration(file: File, timeoutMs = 3000): Promise<number | null> {
   return new Promise((resolve) => {
     const audio = document.createElement("audio");
-    audio.preload = "metadata";
-    audio.onloadedmetadata = () => {
-      resolve(Number.isFinite(audio.duration) ? audio.duration : null);
-      URL.revokeObjectURL(audio.src);
+    const url = URL.createObjectURL(file);
+    const done = (value: number | null) => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(value);
     };
-    audio.onerror = () => resolve(null);
-    audio.src = URL.createObjectURL(file);
+    const timer = setTimeout(() => done(null), timeoutMs);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => done(Number.isFinite(audio.duration) ? audio.duration : null);
+    audio.onerror = () => done(null);
+    audio.src = url;
   });
 }
 

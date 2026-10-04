@@ -3,9 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
-export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
+const SIGN_IN_ERRORS: Record<string, string> = {
+  rate_limited: "Too many sign-in attempts. Wait a few minutes and try again.",
+};
+
+export default function AuthForm({
+  mode,
+  googleEnabled,
+  callbackUrl,
+}: {
+  mode: "login" | "signup";
+  googleEnabled: boolean;
+  callbackUrl: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,12 +53,17 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       });
 
       if (result?.error) {
-        setError("That email and password combination doesn't match.");
+        setError(
+          (result.code && SIGN_IN_ERRORS[result.code]) ??
+            (mode === "signup"
+              ? "Couldn't sign you in with those details. If you already have an account, sign in instead."
+              : "That email and password combination doesn't match."),
+        );
         setLoading(false);
         return;
       }
 
-      router.push("/");
+      router.push(callbackUrl);
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
@@ -70,19 +88,25 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           : "Free, no card required."}
       </p>
 
-      <button
-        type="button"
-        onClick={() => signIn("google", { callbackUrl: "/" })}
-        className="focus-ring mt-6 w-full rounded-full border border-white/10 bg-white/[0.03] py-3 font-body text-sm font-medium transition hover:bg-white/[0.08]"
-      >
-        Continue with Google
-      </button>
+      {googleEnabled ? (
+        <>
+          <button
+            type="button"
+            onClick={() => signIn("google", { callbackUrl })}
+            className="focus-ring mt-6 w-full rounded-full border border-white/10 bg-white/[0.03] py-3 font-body text-sm font-medium transition hover:bg-white/[0.08]"
+          >
+            Continue with Google
+          </button>
 
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-white/10" />
-        <span className="font-mono text-[11px] text-muted">or</span>
-        <div className="h-px flex-1 bg-white/10" />
-      </div>
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="font-mono text-[11px] text-muted">or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+        </>
+      ) : (
+        <div className="mt-6" />
+      )}
 
       {mode === "signup" && (
         <label className="mb-4 block">
@@ -92,6 +116,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <input
             type="text"
             required
+            autoComplete="name"
+            maxLength={100}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
@@ -107,6 +133,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <input
           type="email"
           required
+          autoComplete="email"
+          maxLength={254}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
@@ -122,6 +150,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           type="password"
           required
           minLength={8}
+          maxLength={72}
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
@@ -147,16 +177,16 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {mode === "login" ? (
           <>
             Don&apos;t have an account?{" "}
-            <a href="/signup" className="text-signal">
+            <Link href={`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal">
               Sign up
-            </a>
+            </Link>
           </>
         ) : (
           <>
             Already have an account?{" "}
-            <a href="/login" className="text-signal">
+            <Link href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal">
               Sign in
-            </a>
+            </Link>
           </>
         )}
       </p>

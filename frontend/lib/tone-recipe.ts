@@ -11,9 +11,13 @@ export type SongMeta = {
   id: string;
   title: string | null;
   artist: string | null;
-  fileUrl: string;
   createdAt: Date | string;
 };
+
+/** Owner-only audio stream for a song (see app/api/songs/[id]/audio). */
+export function songAudioUrl(songId: string): string {
+  return `/api/songs/${encodeURIComponent(songId)}/audio`;
+}
 
 /** What `Tone.data` holds for tones saved from the ToneRecipe dashboard. */
 export type StoredToneData = { version: 2; recipe: RecipeCore };
@@ -130,7 +134,7 @@ export function recipeFromAnalysis(analysis: EngineAnalysis, song: SongMeta): To
     id: song.id,
     title: song.title ?? "Untitled upload",
     artist: song.artist ?? "Unknown artist",
-    audioUrl: song.fileUrl,
+    audioUrl: songAudioUrl(song.id),
     isFavorite: false,
     createdAt: iso(song.createdAt),
   };
@@ -173,7 +177,7 @@ export function recipeFromStoredTone(
     id: tone.id,
     title: tone.name,
     artist: song?.artist ?? "Unknown artist",
-    audioUrl: song?.fileUrl ?? "",
+    audioUrl: song ? songAudioUrl(song.id) : "",
     isFavorite: tone.favorite,
     createdAt: iso(tone.createdAt),
   };

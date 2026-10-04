@@ -1,23 +1,21 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
 import type { ToneRecipe } from "@/types/tone";
 import ToneLibraryClient from "@/components/library/ToneLibraryClient";
+import { requirePageUserId } from "@/lib/session";
 
 export default async function LibraryPage() {
-  const session = await auth();
-  if (!session) redirect("/login?callbackUrl=/library");
+  const userId = await requirePageUserId("/library");
 
   const tones = await prisma.tone.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     orderBy: [{ favorite: "desc" }, { createdAt: "desc" }],
   });
 
   const songIds = [...new Set(tones.map((t) => t.songId).filter((id): id is string => !!id))];
   const songs = await prisma.song.findMany({
-    where: { id: { in: songIds }, userId: session.user.id },
-    select: { id: true, title: true, artist: true, fileUrl: true, createdAt: true },
+    where: { id: { in: songIds }, userId },
+    select: { id: true, title: true, artist: true, createdAt: true },
   });
   const songById = new Map(songs.map((s) => [s.id, s]));
 

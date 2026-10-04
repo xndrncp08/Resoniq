@@ -63,8 +63,8 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Placeholder for Phase 8 — not built yet, but the relation exists so
-// auth lands with somewhere real to point saved tones at.
+// A saved tone recipe. `data` holds StoredToneData (lib/tone-recipe.ts).
+// Anyone with the id can view it at /t/[id]; see SECURITY.md.
 model Tone {
   id        String   @id @default(cuid())
   userId    String
@@ -75,6 +75,8 @@ model Tone {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, favorite, createdAt])
 }
 
 // An uploaded track, pending or completed analysis (Phase 6 does the
@@ -84,16 +86,23 @@ model Song {
   userId       String
   title        String?
   artist       String?
-  fileUrl      String
+  // Legacy public URL (uploads before private storage). New uploads leave
+  // it null and set storageKey; audio is served by /api/songs/[id]/audio.
+  fileUrl      String?
+  storageKey   String?
   durationSec  Float?
   sourceType   SourceType @default(UPLOAD)
   sourceUrl    String?
   status       SongStatus @default(UPLOADED)
   analysisData Json?
   analysisError String?
+  // When the current analysis was claimed; lets a stuck ANALYZING job be retried.
+  analysisStartedAt DateTime?
   createdAt    DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum SourceType {

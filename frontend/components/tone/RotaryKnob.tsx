@@ -6,9 +6,13 @@ const SWEEP = 270; // degrees of travel, 7 o'clock to 5 o'clock
 const START = -135;
 const DRAG_RANGE_PX = 180; // vertical drag distance for a full 0-100 sweep
 
+// Rounded so server and browser agree: Math.cos/sin can differ in the last
+// floating-point digit between engines, which is a hydration mismatch.
+const round = (n: number) => Math.round(n * 1000) / 1000;
+
 function polar(cx: number, cy: number, r: number, deg: number) {
   const rad = ((deg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  return { x: round(cx + r * Math.cos(rad)), y: round(cy + r * Math.sin(rad)) };
 }
 
 function arc(cx: number, cy: number, r: number, from: number, to: number) {
