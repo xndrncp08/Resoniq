@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { useSession, signOut } from "next-auth/react";
 import { spring } from "@/lib/motion";
+import SettingsDrawer from "@/components/settings/SettingsDrawer";
 
 // Absolute so they work from any page, not just the landing page.
 const publicLinks = [
@@ -71,21 +72,24 @@ export default function Nav() {
           })}
         </nav>
 
-        {signedIn ? (
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="focus-ring rounded-full border border-white/10 px-4 py-2 font-body text-sm text-muted transition-colors hover:text-ink"
-          >
-            <span className="hidden sm:inline">{session.user?.name?.split(" ")[0] ?? "Account"} · </span>Sign out
-          </button>
-        ) : (
-          <Link
-            href="/analyze"
-            className="focus-ring rounded-full bg-copper px-4 py-2 font-body text-sm font-medium text-bg transition-colors hover:bg-copper/90 sm:px-5"
-          >
-            Analyze a song<span className="hidden sm:inline"> — free</span>
-          </Link>
-        )}
+        <div className="flex items-center gap-1.5">
+          <SettingsDrawer />
+          {signedIn ? (
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="focus-ring rounded-full border border-white/10 px-4 py-2 font-body text-sm text-muted transition-colors hover:text-ink"
+            >
+              <span className="hidden sm:inline">{session.user?.name?.split(" ")[0] ?? "Account"} · </span>Sign out
+            </button>
+          ) : (
+            <Link
+              href="/analyze"
+              className="focus-ring rounded-full bg-copper px-4 py-2 font-body text-sm font-medium text-bg transition-colors hover:bg-copper/90 sm:px-5"
+            >
+              Analyze a song<span className="hidden sm:inline"> — free</span>
+            </Link>
+          )}
+        </div>
       </div>
     </motion.header>
   );

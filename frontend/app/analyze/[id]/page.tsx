@@ -19,7 +19,7 @@ export default async function SongStatusPage({
   if (!song) notFound();
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-32">
+    <main className="min-h-screen px-6 py-32">
       <div className="mx-auto max-w-xl text-center">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
           {song.artist ? `${song.artist} — ` : ""}

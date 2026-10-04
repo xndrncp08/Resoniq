@@ -11,7 +11,7 @@ export default async function LibraryPage() {
   const recipes = await loadLibrary(userId);
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-32">
+    <main className="min-h-screen px-6 py-32">
       <div className="mx-auto max-w-5xl">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">library</p>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Your saved tones</h1>

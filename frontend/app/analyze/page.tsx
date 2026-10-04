@@ -8,7 +8,7 @@ export default async function AnalyzePage() {
   await requirePageUserId("/analyze");
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-32">
+    <main className="min-h-screen px-6 py-32">
       <div className="mx-auto max-w-2xl text-center">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">analyze</p>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">

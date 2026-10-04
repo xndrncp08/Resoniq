@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import SessionProvider from "@/components/providers/SessionProvider";
 import MotionProvider from "@/components/providers/MotionProvider";
 import Nav from "@/components/landing/Nav";
+import SceneRoot from "@/components/scene/SceneRoot";
 
 // Self-hosted at build time by next/font: no request to Google at runtime,
 // and the CSP can keep font-src to 'self'.
@@ -36,6 +37,7 @@ export default async function RootLayout({
       <body className="antialiased selection:bg-copper/30 selection:text-ink">
         <SessionProvider session={session}>
           <MotionProvider>
+            <SceneRoot />
             <Nav />
             {children}
           </MotionProvider>

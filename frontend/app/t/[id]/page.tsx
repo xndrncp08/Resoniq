@@ -44,7 +44,7 @@ export default async function SharedTonePage({ params }: { params: Promise<{ id:
   if (!recipe) notFound();
 
   return (
-    <main className="min-h-screen bg-bg px-6 py-24">
+    <main className="min-h-screen px-6 py-24">
       <div className="mx-auto max-w-4xl">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">tone recipe</p>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{recipe.title}</h1>

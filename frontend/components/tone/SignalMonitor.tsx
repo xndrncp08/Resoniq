@@ -7,6 +7,7 @@ import { BANDS, formatVolume, gainsFromAmp, volumeToGain, type EqGains } from "@
 import { gsap } from "@/lib/gsap";
 import type { AmpSettings } from "@/types/tone";
 import Slider from "@/components/ui/tactile/Slider";
+import { sceneState } from "@/components/scene/state";
 
 const MIN_HZ = 40;
 const MAX_HZ = 16000;
@@ -150,6 +151,26 @@ function drawSpectrum(canvas: HTMLCanvasElement, bars: Float32Array, peaks: Floa
   }
 }
 
+const avg = (a: Float32Array, from: number, to: number) => {
+  let s = 0;
+  for (let i = from; i < to; i++) s += a[i];
+  return s / Math.max(1, to - from);
+};
+
+/** Coarse levels for the shared background scene, so the field moves with the music. */
+function publishAudio(levels: Float32Array | null) {
+  const a = sceneState.audio;
+  if (!levels) {
+    a.playing = false;
+    return;
+  }
+  a.playing = true;
+  a.low = avg(levels, 0, 20); // ~40-200 Hz
+  a.mid = avg(levels, 20, 50); // ~200 Hz-2.5 kHz
+  a.high = avg(levels, 50, SPECTRUM_BARS); // upper bands
+  a.level = avg(levels, 0, SPECTRUM_BARS);
+}
+
 function setEq(graph: AudioGraph, gains: EqGains) {
   const t = graph.ctx.currentTime;
   BANDS.forEach((band, i) => graph.filters[i].gain.setTargetAtTime(gains[band.key], t, EQ_GLIDE_S));
@@ -226,6 +247,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
       } else {
         levels.fill(0);
       }
+      publishAudio(live ? levels : null);
       let moving = false;
       for (let b = 0; b < SPECTRUM_BARS; b++) {
         bars[b] = Math.max(levels[b], bars[b] - BAR_FALL_PER_S * dt);
@@ -249,6 +271,7 @@ export default function SignalMonitor({ audioUrl, amp }: { audioUrl: string; amp
     return () => {
       gsap.ticker.remove(tick);
       ro.disconnect();
+      publishAudio(null);
     };
   }, [playing]);
 

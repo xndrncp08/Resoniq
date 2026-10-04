@@ -2,7 +2,7 @@ import Skeleton from "@/components/ui/Skeleton";
 
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-bg px-6 py-32" aria-busy="true" aria-label="Loading tone profile">
+    <main className="min-h-screen px-6 py-32" aria-busy="true" aria-label="Loading tone profile">
       <div className="mx-auto max-w-xl text-center">
         <Skeleton className="mx-auto h-3 w-40 rounded-full" />
         <Skeleton className="mx-auto mt-4 h-9 w-64 rounded-xl" />

@@ -12,7 +12,7 @@ export default async function SignupPage({
 }) {
   const { callbackUrl } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg px-6">
+    <main className="flex min-h-screen items-center justify-center px-6">
       <AuthForm mode="signup" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/analyze")} />
     </main>
   );
