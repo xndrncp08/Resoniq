@@ -45,3 +45,10 @@ def test_spectral_features_are_ordered(clean_signal):
     assert 0 < f.centroid_hz < f.rolloff_hz < SR / 2
     assert f.onset_strength > 0
     assert f.harmonic_percussive_ratio > 0
+
+
+def test_clipping_reads_as_more_saturated(clean_signal, driven_signal):
+    clean = extract_features(clean_signal, SR)
+    driven = extract_features(driven_signal, SR)
+    assert driven.saturation > clean.saturation
+    assert driven.saturation > 0.1  # a linear flatness scale read hard clipping as 0
