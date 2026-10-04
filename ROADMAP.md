@@ -1,45 +1,42 @@
 # Resoniq Roadmap
 
-## ✅ Phase 1 — Project setup
-Next.js 14 App Router + TypeScript + Tailwind, folder structure for
-frontend/backend/python-engine, git initialized.
+## Done
 
-## ✅ Phase 2 — Branding
-- Logo: `frontend/public/logo.svg` — an "R" built from a plucked-string
-  waveform, with faint teal frequency ticks (the string vibrating).
-- Design tokens: `frontend/lib/design-tokens.ts` — copper (gear/CTA) +
-  signal-teal (waveform/live-data only, kept deliberately separate) on a
-  blue-charcoal instrument-panel background.
-- Type system: Space Grotesk (display) / Inter (body) / IBM Plex Mono
-  (numeric readouts — EQ %, Hz, gain).
+1. **Project setup**: Next.js App Router + TypeScript + Tailwind, FastAPI engine.
+2. **Branding**: logo, design tokens (`frontend/lib/design-tokens.ts`, the
+   `@theme` block in `frontend/app/globals.css`). Copper for gear and CTAs,
+   signal-teal reserved for waveform and live data. Space Grotesk / Inter /
+   IBM Plex Mono via `next/font`.
+3. **Landing page**: hero with the oscilloscope-trace signature, features,
+   signal-chain explainer, a real (unedited) analysis result, free access.
+4. **Authentication**: NextAuth v5 with email/password, and Google when
+   configured.
+5. **Upload**: drag-and-drop, waveform preview, private storage (Supabase or
+   local disk), magic-byte type checks.
+6. **Analysis engine**: Librosa features → heuristics → recipe (optionally
+   written by Claude). SSRF-guarded URL fetch, shared-secret auth, size and
+   duration caps.
+7. **Tone dashboard**: rotary knobs, draggable pedalboard with bypass, pickup
+   selector, live oscilloscope and spectrum while the source plays.
+8. **Tone library**: save, search, tag filters, favorite, rename, delete,
+   share links.
+9. **Hardening and delivery**: rate limiting, CSP and security headers,
+   ownership-scoped queries, generic errors, Vitest and pytest suites, CI with
+   a Docker Compose end-to-end smoke test. See `SECURITY.md`.
 
-**Commit:** `feat: add Resoniq branding and design system`
+## Next
 
-## ✅ Phase 3 — Landing page
-Full hero, features, how-it-works signal chain, example tone card, pricing,
-testimonials, footer. Animated oscilloscope-trace background (signature
-element). Builds clean with `next build`.
+- Email verification and password reset (closes the signup enumeration and
+  account-squatting gaps in `SECURITY.md`).
+- Shared rate-limit store before running more than one instance.
+- Song management: list and delete uploads (deleting a tone keeps its audio).
+- Explicit share/unshare for tones instead of always-viewable-by-ID links.
+- Calibrate the heuristics against a labeled set of recordings; the modulation
+  detector currently mistakes playing rhythm for tremolo.
+- Background job queue for analysis, so long tracks don't hold an HTTP request.
+- A deploy target, then a deploy stage in CI.
 
-**Commit:** `feat: build premium Resoniq landing page`
+## Not planned
 
-## ⏳ Phase 4 — Authentication
-NextAuth with email/password + Google OAuth, Prisma User model.
-
-## ⏳ Phase 5 — Song upload system
-Drag-and-drop upload UI, waveform preview (wavesurfer.js), Supabase Storage,
-YouTube/Spotify/SoundCloud link ingestion.
-
-## ⏳ Phase 6 — AI analysis engine
-FastAPI service in `python-engine/`: Librosa feature extraction → heuristics
-mapping → LLM-generated readable tone recipe. See README's honesty note on
-what this can and can't actually claim to detect.
-
-## ⏳ Phase 7 — Tone dashboard
-Animated pedalboard signal-chain visualization, adjustable amp/pedal/effect
-controls, tone match score.
-
-## ⏳ Phase 8 — Tone library
-Save/rename/favorite/search/share saved tones, Prisma schema for `Tone`.
-
----
-Tell me which phase to build next and I'll pick up from here.
+- Link ingestion from YouTube / Spotify / SoundCloud (terms of service and
+  licensing).

@@ -36,8 +36,15 @@ export function enforceRateLimit(bucket: string, key: string, rule: RateLimitRul
   }
 }
 
-/** Parses a JSON object body, rejecting oversized or malformed input with a 4xx instead of a 500. */
+/**
+ * Parses a JSON object body, rejecting oversized or malformed input with a 4xx instead of a 500.
+ * Requiring application/json also means a cross-site <form> can't post here
+ * (it can't set that type without a CORS preflight, which this app never grants).
+ */
 export async function readJson(req: Request, maxBytes = 16 * 1024): Promise<Record<string, unknown>> {
+  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    throw new ApiError(415, "Expected an application/json body.");
+  }
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) throw new ApiError(413, "Request body too large.");
   const text = await req.text();
@@ -51,6 +58,26 @@ export async function readJson(req: Request, maxBytes = 16 * 1024): Promise<Reco
   throw new ApiError(400, "Invalid JSON body.");
 }
 
+/**
+ * Refuses state-changing requests whose Origin is another site. The session
+ * cookie is SameSite=Lax, which already keeps it off cross-site POSTs; this
+ * is the second layer. Requests without an Origin (curl, server-to-server)
+ * pass, since they can't carry a victim's browser cookies.
+ */
+function assertSameOrigin(req: Request) {
+  if (req.method === "GET" || req.method === "HEAD") return;
+  const origin = req.headers.get("origin");
+  if (!origin) return;
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  let originHost: string | null = null;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    // "null" or garbage: treat as cross-site
+  }
+  if (!host || originHost !== host) throw new ApiError(403, "Cross-site request refused.");
+}
+
 type Handler<C> = (req: Request, ctx: C) => Promise<Response>;
 
 /**
@@ -60,6 +87,7 @@ type Handler<C> = (req: Request, ctx: C) => Promise<Response>;
 export function route<C = unknown>(name: string, handler: Handler<C>): Handler<C> {
   return async (req, ctx) => {
     try {
+      assertSameOrigin(req);
       return await handler(req, ctx);
     } catch (err) {
       if (err instanceof ApiError) return jsonError(err.status, err.message, err.headers);

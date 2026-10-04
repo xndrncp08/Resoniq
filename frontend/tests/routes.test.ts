@@ -32,12 +32,12 @@ const analyze = await import("@/app/api/analyze/route");
 const audio = await import("@/app/api/songs/[id]/audio/route");
 const { EngineError } = await import("@/lib/engine");
 
-const json = (body: unknown, init: RequestInit = {}) =>
+const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
   new Request("http://localhost/api", {
     method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
     ...init,
+    headers: { "content-type": "application/json", ...headers },
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const signedIn = (id = "user-a") => authMock.mockResolvedValue({ user: { id } });
@@ -80,7 +80,7 @@ describe("POST /api/register", () => {
   it("validates input and rejects malformed JSON with 400", async () => {
     expect((await register.POST(json({ email: "nope", password: "long-enough-1" }), undefined)).status).toBe(400);
     expect((await register.POST(json({ email: "a@b.co", password: "short" }), undefined)).status).toBe(400);
-    const bad = new Request("http://localhost", { method: "POST", body: "{not json" });
+    const bad = new Request("http://localhost", { method: "POST", headers: { "content-type": "application/json" }, body: "{not json" });
     expect((await register.POST(bad, undefined)).status).toBe(400);
   });
 
@@ -217,5 +217,29 @@ describe("GET /api/songs/[id]/audio", () => {
     expect(res.headers.get("cache-control")).toContain("no-store");
     expect(Buffer.from(await res.arrayBuffer()).toString()).toBe("234");
     expect(db.song.findFirst.mock.calls[0][0].where).toEqual({ id: "s1", userId: "user-a" });
+  });
+});
+
+describe("cross-site protection", () => {
+  it("refuses mutations from another origin", async () => {
+    signedIn("user-a");
+    const req = json({ name: "x" }, { headers: { origin: "https://evil.example", host: "localhost:3000" } });
+    expect((await tones.POST(req, undefined)).status).toBe(403);
+    expect(db.tone.create).not.toHaveBeenCalled();
+  });
+
+  it("allows same-origin browser requests", async () => {
+    db.user.findFirst.mockResolvedValue({ id: "existing" });
+    const req = json(
+      { email: "a@b.co", password: "long-enough-1" },
+      { headers: { origin: "http://localhost:3000", host: "localhost:3000" } },
+    );
+    expect((await register.POST(req, undefined)).status).toBe(201);
+  });
+
+  it("rejects non-JSON bodies on JSON routes (no cross-site form posts)", async () => {
+    signedIn("user-a");
+    const req = new Request("http://localhost/api/tones", { method: "POST", headers: { "content-type": "text/plain" }, body: "{}" });
+    expect((await tones.POST(req, undefined)).status).toBe(415);
   });
 });
