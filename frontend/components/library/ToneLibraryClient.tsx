@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { Search, Star, Pencil, Trash2, Link2, Check } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";

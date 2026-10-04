@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import ToneDashboard from "@/components/tone/ToneDashboard";
 import { recipeFromAnalysis, type SongMeta } from "@/lib/tone-recipe";
 import type { EngineAnalysis } from "@/types/engine";

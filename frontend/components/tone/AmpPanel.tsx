@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { LayoutGroup, motion } from "framer-motion";
+import { LayoutGroup, motion } from "motion/react";
 import type { AmpSettings, CabinetSettings, PickupPosition } from "@/types/tone";
 import RotaryKnob from "@/components/tone/RotaryKnob";
 import { spring } from "@/lib/motion";

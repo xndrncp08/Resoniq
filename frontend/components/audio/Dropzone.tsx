@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { UploadCloud } from "lucide-react";
 import { spring } from "@/lib/motion";
 

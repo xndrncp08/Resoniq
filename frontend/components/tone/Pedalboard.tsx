@@ -1,6 +1,6 @@
 "use client";
 
-import { Reorder, useDragControls } from "framer-motion";
+import { Reorder, useDragControls } from "motion/react";
 import { GripVertical } from "lucide-react";
 import type { PedalSlot } from "@/types/tone";
 import RotaryKnob from "@/components/tone/RotaryKnob";

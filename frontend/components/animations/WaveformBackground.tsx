@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "motion/react";
 
 const traces = [
   { path: "M0,120 C 150,60 300,180 450,120 S 750,60 900,120 S 1200,180 1350,120", opacity: 0.5, dur: 14, color: "var(--color-signal)" },

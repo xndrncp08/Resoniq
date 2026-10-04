@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import Dropzone from "@/components/audio/Dropzone";
 import LinkPasteInput from "@/components/audio/LinkPasteInput";
 import WaveformPlayer from "@/components/ui/waveform-player";

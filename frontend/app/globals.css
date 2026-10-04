@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Animate.css: only the base class and the three keyframes the UI uses for
+   feedback states (see components/ui/Feedback.tsx), not the full library. */
+@import "animate.css/source/_vars.css";
+@import "animate.css/source/_base.css";
+@import "animate.css/source/attention_seekers/headShake.css";
+@import "animate.css/source/fading_entrances/fadeIn.css";
+@import "animate.css/source/fading_entrances/fadeInUp.css";
+
 /**
  * Resoniq design tokens (Tailwind v4 CSS-first theme).
  * These generate utilities automatically: --color-copper -> bg-copper /
@@ -33,6 +41,8 @@
 
 :root {
   color-scheme: dark;
+  /* Feedback should be quick; Animate.css defaults to a full second. */
+  --animate-duration: 0.45s;
 }
 
 body {
@@ -53,10 +63,21 @@ body {
     text-shadow: 0 0 30px rgba(255, 138, 61, 0.35);
   }
 
+  .skeleton {
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.03) 70%);
+    background-size: 300% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
   .focus-ring:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 3px;
   }
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
+import { motion, type Variants } from "motion/react";
 import Link from "next/link";
 import WaveformBackground from "@/components/animations/WaveformBackground";
 import { spring, STAGGER_S } from "@/lib/motion";

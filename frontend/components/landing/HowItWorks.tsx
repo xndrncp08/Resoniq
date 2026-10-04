@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring } from "motion/react";
 import Reveal from "@/components/motion/Reveal";
 import { STAGGER_S } from "@/lib/motion";
 

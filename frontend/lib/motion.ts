@@ -1,4 +1,4 @@
-import type { Transition } from "framer-motion";
+import type { Transition } from "motion/react";
 
 /**
  * Shared motion tokens. Duration-based springs (Motion's `bounce` model)

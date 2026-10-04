@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, type Variants } from "framer-motion";
+import { motion, type Variants } from "motion/react";
 import { ChevronRight, RotateCcw } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
 import type { StoredToneData } from "@/lib/tone-recipe";
