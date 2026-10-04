@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 import librosa
+import numpy as np
 import soundfile as sf
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -26,10 +27,29 @@ SAMPLE_RATE = 22050
 UPLOAD_CHUNK_BYTES = 1024 * 1024
 
 
+def warm_up() -> None:
+    """
+    Decode and analyze one second of generated audio before serving traffic.
+
+    librosa loads its submodules lazily and numba compiles (and caches) its
+    kernels on first use, so a broken environment, such as an unwritable
+    numba cache, would otherwise only surface inside the first request,
+    where it was reported as "Could not decode audio file". Doing it here
+    makes startup fail loudly instead, and takes the JIT cost off the first
+    user's request.
+    """
+    t = np.arange(SAMPLE_RATE) / SAMPLE_RATE
+    buf = io.BytesIO()
+    sf.write(buf, (0.5 * np.sin(2 * np.pi * 220 * t)).astype(np.float32), SAMPLE_RATE, format="WAV")
+    y, sr = librosa.load(io.BytesIO(buf.getvalue()), sr=SAMPLE_RATE, mono=True)
+    build_tone_profile(extract_features(y, sr))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     if not os.environ.get("RESONIQ_ENGINE_SECRET"):
         logger.warning("RESONIQ_ENGINE_SECRET is not set; /analyze will refuse every request until it is.")
+    warm_up()
     yield
 
 

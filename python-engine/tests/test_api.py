@@ -112,3 +112,12 @@ def test_fetch_failure_does_not_leak_reason(client, monkeypatch):
     res = client.post("/analyze", json={"audio_url": "https://example.com/a.wav"}, headers=AUTH)
     assert res.status_code == 502
     assert res.json() == {"detail": "Could not fetch audio."}
+
+
+def test_startup_warm_up_runs_the_full_pipeline(monkeypatch):
+    calls = []
+    real = main.extract_features
+    monkeypatch.setattr(main, "extract_features", lambda y, sr: calls.append(sr) or real(y, sr))
+    with TestClient(main.app) as c:  # entering the context runs the lifespan
+        assert c.get("/health").status_code == 200
+    assert calls == [SR]
