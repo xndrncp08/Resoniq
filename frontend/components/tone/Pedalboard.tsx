@@ -3,7 +3,7 @@
 import { Reorder, useDragControls } from "motion/react";
 import { GripVertical } from "lucide-react";
 import type { PedalSlot } from "@/types/tone";
-import RotaryKnob from "@/components/tone/RotaryKnob";
+import Knob from "@/components/ui/tactile/Knob";
 import { spring } from "@/lib/motion";
 
 const KNOBS = ["drive", "tone", "level"] as const;
@@ -38,10 +38,12 @@ function PedalBody({
 
       <div className="mt-4 flex flex-1 flex-wrap justify-center gap-x-3 gap-y-2">
         {knobs.map((k: KnobKey) => (
-          <RotaryKnob
+          <Knob
             key={k}
             label={k}
             size={44}
+            // Drive is a real pot; tone and level are trims.
+            weight={k === "drive" ? "medium" : "light"}
             value={pedal[k] ?? 0}
             disabled={!pedal.enabled}
             onChange={onChange && ((v) => onChange({ ...pedal, [k]: v }))}
