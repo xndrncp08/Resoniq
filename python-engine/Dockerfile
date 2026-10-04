@@ -13,6 +13,10 @@ COPY app ./app
 COPY main.py .
 
 RUN useradd --system --uid 1001 engine
+# librosa's numba kernels are compiled with cache=True. site-packages isn't
+# writable for this user and a --system user has no home directory, so
+# without a cache dir every librosa import fails with "no locator available".
+ENV NUMBA_CACHE_DIR=/tmp/numba-cache
 USER engine
 
 EXPOSE 8000
