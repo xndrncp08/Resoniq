@@ -1,65 +1,55 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import Link from "next/link";
 import WaveformBackground from "@/components/animations/WaveformBackground";
+import { spring, STAGGER_S } from "@/lib/motion";
+
+const group: Variants = { show: { transition: { staggerChildren: STAGGER_S * 1.5, delayChildren: 0.15 } } };
+const item: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: spring.enter },
+};
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+    <section className="relative flex min-h-svh items-center justify-center overflow-hidden px-6">
       <WaveformBackground />
 
-      <div className="relative z-10 mx-auto max-w-3xl text-center">
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-          className="mb-5 font-mono text-xs uppercase tracking-[0.25em] text-signal"
-        >
-          gear recognition, from the recording out
+      <motion.div variants={group} initial="hidden" animate="show" className="relative z-10 mx-auto max-w-3xl text-center">
+        <motion.p variants={item} className="mb-5 font-mono text-xs uppercase tracking-[0.25em] text-signal">
+          tone inference, from the recording out
         </motion.p>
 
         <motion.h1
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-          className="text-glow font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-7xl"
+          variants={item}
+          className="text-glow text-balance font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-7xl"
         >
           Recreate Any
           <br />
           Guitar Tone.
         </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-          className="mx-auto mt-6 max-w-xl font-body text-lg text-muted"
-        >
-          Upload your favorite songs and discover the amp, pedals, EQ, and
-          effects behind the sound.
+        <motion.p variants={item} className="mx-auto mt-6 max-w-xl text-pretty font-body text-lg text-muted">
+          Upload a song and get a starting-point recipe for the amp, pedals, EQ, and effects, inferred from the
+          recording itself.
         </motion.p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
-        >
+        <motion.div variants={item} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/analyze"
-            className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition hover:scale-[1.03]"
+            className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition-[background-color,transform] hover:bg-copper/90 active:scale-[0.98]"
           >
-            Analyze A Song
+            Analyze a song
           </Link>
           <a
             href="#example-tone"
-            className="focus-ring glass rounded-full px-8 py-3.5 font-body text-sm font-medium text-ink transition hover:bg-white/[0.08]"
+            className="focus-ring glass rounded-full px-8 py-3.5 font-body text-sm font-medium text-ink transition-colors hover:bg-white/[0.08]"
           >
-            Explore Tones
+            See a real result
           </a>
         </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 }

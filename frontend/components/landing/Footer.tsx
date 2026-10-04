@@ -1,4 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
+
+const links = [
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Example result", href: "/#example-tone" },
+  { label: "Analyze a song", href: "/analyze" },
+  { label: "Tone library", href: "/library" },
+];
 
 export default function Footer() {
   return (
@@ -6,35 +14,23 @@ export default function Footer() {
       <div className="flex flex-col items-start justify-between gap-8 border-t border-white/5 pt-12 sm:flex-row">
         <div>
           <div className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="Resoniq" width={28} height={28} className="rounded-lg" />
+            <Image src="/logo.svg" alt="" width={28} height={28} className="rounded-lg" />
             <span className="font-display text-base font-semibold">Resoniq</span>
           </div>
-          <p className="mt-3 max-w-xs font-body text-sm text-muted">
-            Upload a song. Get the tone recipe behind it.
-          </p>
+          <p className="mt-3 max-w-xs font-body text-sm text-muted">Upload a song. Get a tone recipe to start from.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-12 font-body text-sm text-muted sm:grid-cols-3">
-          <div className="space-y-2">
-            <div className="font-medium text-ink">Product</div>
-            <div>How it works</div>
-            <div>Pricing</div>
-            <div>Tone library</div>
-          </div>
-          <div className="space-y-2">
-            <div className="font-medium text-ink">Company</div>
-            <div>About</div>
-            <div>Contact</div>
-          </div>
-          <div className="space-y-2">
-            <div className="font-medium text-ink">Legal</div>
-            <div>Terms</div>
-            <div>Privacy</div>
-          </div>
-        </div>
+        <nav aria-label="Footer" className="grid grid-cols-2 gap-x-12 gap-y-2 font-body text-sm text-muted">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} className="focus-ring rounded transition-colors hover:text-ink">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
       </div>
-      <p className="mt-12 font-mono text-xs text-muted/60">
-        © {new Date().getFullYear()} Resoniq. Not affiliated with any amp or pedal manufacturer named in tone results.
+      <p className="mt-12 font-mono text-xs text-muted">
+        © {new Date().getFullYear()} Resoniq. Tone results are inferred from audio, not verified rigs. Not affiliated
+        with any amp or pedal manufacturer named in them.
       </p>
     </footer>
   );

@@ -2,73 +2,84 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
+import { spring } from "@/lib/motion";
 
-const links = [
-  { label: "Product", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Tones", href: "#example-tone" },
-  { label: "Free access", href: "#free-access" },
+// Absolute so they work from any page, not just the landing page.
+const publicLinks = [
+  { label: "Product", href: "/#features" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Example", href: "/#example-tone" },
+  { label: "Free access", href: "/#free-access" },
+];
+
+const appLinks = [
+  { label: "Analyze", href: "/analyze" },
+  { label: "Library", href: "/library" },
 ];
 
 export default function Nav() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const signedIn = status === "authenticated";
+  const links = signedIn ? appLinks : publicLinks;
 
   return (
     <motion.header
-      initial={{ y: -24, opacity: 0 }}
+      initial={{ y: -16, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="fixed top-0 z-50 w-full"
+      transition={spring.enter}
+      className="fixed top-0 z-50 w-full px-4"
     >
-      <div className="glass mx-auto mt-4 flex max-w-6xl items-center justify-between rounded-panel px-6 py-3">
-        <div className="flex items-center gap-2">
-          <Image
-            src="/logo.svg"
-            alt="Resoniq"
-            width={32}
-            height={32}
-            className="rounded-lg"
-          />
-          <span className="font-display text-lg font-semibold tracking-tight">
+      <div className="glass mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-panel px-4 py-2.5 sm:px-6">
+        <Link href="/" className="focus-ring flex items-center gap-2 rounded-lg" aria-label="Resoniq home">
+          <Image src="/logo.svg" alt="" width={28} height={28} className="rounded-lg" />
+          <span className={`font-display text-lg font-semibold tracking-tight ${signedIn ? "hidden sm:inline" : ""}`}>
             Resoniq
           </span>
-        </div>
-        <nav className="hidden gap-8 font-body text-sm text-muted md:flex">
-          {status === "authenticated" ? (
-            <Link
-              href="/library"
-              className="focus-ring transition hover:text-ink"
-            >
-              Library
-            </Link>
-          ) : (
-            links.map((l) => (
-              <a
-                key={l.label}
+        </Link>
+
+        {/* Two app links fit on a phone; the four landing anchors don't. */}
+        <nav aria-label="Main" className={`items-center gap-1 font-body text-sm ${signedIn ? "flex" : "hidden md:flex"}`}>
+          {links.map((l) => {
+            const active = signedIn && (pathname === l.href || pathname.startsWith(`${l.href}/`));
+            return (
+              <Link
+                key={l.href}
                 href={l.href}
-                className="focus-ring transition hover:text-ink"
+                aria-current={active ? "page" : undefined}
+                className={`focus-ring relative rounded-full px-3 py-1.5 transition-colors ${
+                  active ? "text-ink" : "text-muted hover:text-ink"
+                }`}
               >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active"
+                    transition={spring.snappy}
+                    className="absolute inset-0 -z-10 rounded-full bg-white/[0.06]"
+                  />
+                )}
                 {l.label}
-              </a>
-            ))
-          )}
+              </Link>
+            );
+          })}
         </nav>
 
-        {status === "authenticated" ? (
+        {signedIn ? (
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="focus-ring rounded-full bg-copper px-5 py-2 font-body text-sm font-medium text-bg transition hover:bg-copper/90"
+            className="focus-ring rounded-full border border-white/10 px-4 py-2 font-body text-sm text-muted transition-colors hover:text-ink"
           >
-            {session.user?.name?.split(" ")[0] ?? "Account"} · Sign out
+            <span className="hidden sm:inline">{session.user?.name?.split(" ")[0] ?? "Account"} · </span>Sign out
           </button>
         ) : (
           <Link
             href="/analyze"
-            className="focus-ring rounded-full bg-copper px-5 py-2 font-body text-sm font-medium text-bg transition hover:bg-copper/90"
+            className="focus-ring rounded-full bg-copper px-4 py-2 font-body text-sm font-medium text-bg transition-colors hover:bg-copper/90 sm:px-5"
           >
-            Analyze A Song — Free
+            Analyze a song<span className="hidden sm:inline"> — free</span>
           </Link>
         )}
       </div>

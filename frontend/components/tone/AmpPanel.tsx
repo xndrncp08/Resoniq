@@ -1,7 +1,10 @@
 "use client";
 
+import { useId } from "react";
+import { LayoutGroup, motion } from "framer-motion";
 import type { AmpSettings, CabinetSettings, PickupPosition } from "@/types/tone";
 import RotaryKnob from "@/components/tone/RotaryKnob";
+import { spring } from "@/lib/motion";
 
 const AMP_KNOBS: { key: keyof Omit<AmpSettings, "family" | "model">; label: string }[] = [
   { key: "gain", label: "Gain" },
@@ -27,6 +30,7 @@ export default function AmpPanel({
   onAmpChange?: (amp: AmpSettings) => void;
   onPickupChange?: (pickup: PickupPosition) => void;
 }) {
+  const groupId = useId();
   return (
     <div className="glass rounded-panel p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -54,26 +58,32 @@ export default function AmpPanel({
 
       <div className="mt-6">
         <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">pickup</div>
-        <div role="radiogroup" aria-label="Pickup position" className="grid grid-cols-5 gap-1 rounded-full border border-white/10 p-1">
-          {PICKUPS.map((p) => {
-            const active = p === pickup;
-            return (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                disabled={!onPickupChange}
-                onClick={() => onPickupChange?.(p)}
-                className={`focus-ring rounded-full px-1 py-1.5 font-mono text-[10px] transition ${
-                  active ? "bg-copper text-bg" : "text-muted enabled:hover:text-ink"
-                } disabled:cursor-default`}
-              >
-                {p.replace("/", " / ")}
-              </button>
-            );
-          })}
-        </div>
+        {/* The selected pill slides between positions (a shared layout animation). */}
+        <LayoutGroup id={groupId}>
+          <div role="radiogroup" aria-label="Pickup position" className="grid grid-cols-5 gap-1 rounded-full border border-white/10 p-1">
+            {PICKUPS.map((p) => {
+              const active = p === pickup;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  disabled={!onPickupChange}
+                  onClick={() => onPickupChange?.(p)}
+                  className={`focus-ring relative min-h-8 rounded-full px-1 py-1.5 font-mono text-[10px] transition-colors ${
+                    active ? "text-bg" : "text-muted enabled:hover:text-ink"
+                  } disabled:cursor-default`}
+                >
+                  {active && (
+                    <motion.span layoutId="pickup-active" transition={spring.snappy} className="absolute inset-0 rounded-full bg-copper" />
+                  )}
+                  <span className="relative">{p.replace("/", " / ")}</span>
+                </button>
+              );
+            })}
+          </div>
+        </LayoutGroup>
       </div>
     </div>
   );
