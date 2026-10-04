@@ -38,6 +38,7 @@ export default function Hero() {
         <motion.div variants={item} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/analyze"
+            transitionTypes={["nav-deeper"]}
             className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition-[background-color,transform] hover:bg-copper/90 active:scale-[0.98]"
           >
             Analyze a song

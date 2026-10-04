@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { cache } from "react";
+import { cache, ViewTransition } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
 import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
+import RouteStage from "@/components/motion/RouteStage";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 
 // Public, share-by-link view: anyone with the tone id can open it, signed
@@ -44,31 +45,35 @@ export default async function SharedTonePage({ params }: { params: Promise<{ id:
   if (!recipe) notFound();
 
   return (
-    <main className="min-h-screen px-6 py-24">
-      <div className="mx-auto max-w-4xl">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">tone recipe</p>
-        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{recipe.title}</h1>
-        {recipe.artist !== "Unknown artist" && <p className="mt-2 font-body text-sm text-muted">{recipe.artist}</p>}
+    <RouteStage>
+      <main className="min-h-screen px-6 py-24">
+        <div className="mx-auto max-w-4xl">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">tone recipe</p>
+          <ViewTransition name={`tone-title-${recipe.id}`} share="morph" default="none">
+            <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{recipe.title}</h1>
+          </ViewTransition>
+          {recipe.artist !== "Unknown artist" && <p className="mt-2 font-body text-sm text-muted">{recipe.artist}</p>}
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          <AmpPanel amp={recipe.amp} cabinet={recipe.cabinet} pickup={recipe.pickup} />
-          <RecipeSummary recipe={recipe} />
+          <div className="mt-10 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+            <AmpPanel amp={recipe.amp} cabinet={recipe.cabinet} pickup={recipe.pickup} />
+            <RecipeSummary recipe={recipe} />
+          </div>
+
+          <section className="glass mt-6 rounded-panel p-6" aria-labelledby="pedals-heading">
+            <h2 id="pedals-heading" className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-signal">
+              pedalboard
+            </h2>
+            <Pedalboard pedals={recipe.pedalboard} />
+          </section>
+
+          <Link
+            href="/analyze"
+            className="focus-ring shadow-glow mx-auto mt-10 block max-w-sm rounded-full bg-copper py-3 text-center font-body text-sm font-semibold text-bg transition hover:bg-copper/90"
+          >
+            Analyze your own song. It&apos;s free.
+          </Link>
         </div>
-
-        <section className="glass mt-6 rounded-panel p-6" aria-labelledby="pedals-heading">
-          <h2 id="pedals-heading" className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-signal">
-            pedalboard
-          </h2>
-          <Pedalboard pedals={recipe.pedalboard} />
-        </section>
-
-        <Link
-          href="/analyze"
-          className="focus-ring shadow-glow mx-auto mt-10 block max-w-sm rounded-full bg-copper py-3 text-center font-body text-sm font-semibold text-bg transition hover:bg-copper/90"
-        >
-          Analyze your own song. It&apos;s free.
-        </Link>
-      </div>
-    </main>
+      </main>
+    </RouteStage>
   );
 }

@@ -91,12 +91,109 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Route transitions (components/motion/RouteStage + React <ViewTransition>).
+ * Easing is a damped spring sampled into linear(): it overshoots slightly
+ * and settles, which cubic-bezier can't do. Generated from stiffness 170 /
+ * damping 22 (depth, ~630ms) and 260 / 30 (settle, ~460ms).
+ * ------------------------------------------------------------------------- */
+:root {
+  --spring-depth: linear(0, 0.0187, 0.0665, 0.1334, 0.2113, 0.2943, 0.378, 0.4592, 0.5358, 0.6064, 0.6703, 0.7271, 0.777, 0.8202, 0.8571, 0.8883, 0.9144, 0.9358, 0.9532, 0.9672, 0.9783, 0.9869, 0.9935, 0.9983, 1.0018, 1.0043, 1.0058, 1.0067, 1.0071, 1.0072, 1.0069, 1.0065, 1.006, 1.0054, 1.0048, 1.0042, 1.0036, 1.0031, 1.0026, 1.0022, 1);
+  --spring-settle: linear(0, 0.0263, 0.0904, 0.1754, 0.2692, 0.3641, 0.4551, 0.5391, 0.6146, 0.6811, 0.7386, 0.7877, 0.829, 0.8634, 0.8918, 0.915, 0.9338, 0.9489, 0.9609, 0.9704, 0.9778, 0.9836, 0.9881, 0.9914, 0.994, 0.9959, 0.9973, 0.9983, 0.999, 0.9995, 1);
+  --route-exit: 220ms;
+  --route-enter: 630ms;
+}
+
+/* Going deeper: the old page recedes, the new one arrives from in front. */
+::view-transition-old(.route-deeper) {
+  animation: var(--route-exit) ease-in both route-recede;
+}
+::view-transition-new(.route-deeper) {
+  animation: var(--route-enter) var(--spring-depth) both route-arrive-from-front;
+}
+/* Going back: the old page comes toward you and fades, the new one rises from behind. */
+::view-transition-old(.route-shallower) {
+  animation: var(--route-exit) ease-in both route-pass-forward;
+}
+::view-transition-new(.route-shallower) {
+  animation: var(--route-enter) var(--spring-depth) both route-arrive-from-behind;
+}
+/* Sideways between sections: a short slide with a touch of depth. */
+::view-transition-old(.route-sideways) {
+  animation: var(--route-exit) ease-in both route-slide-out;
+}
+::view-transition-new(.route-sideways) {
+  animation: var(--route-enter) var(--spring-settle) both route-slide-in;
+}
+
+@keyframes route-recede {
+  to { opacity: 0; scale: 0.94; filter: blur(4px); }
+}
+@keyframes route-arrive-from-front {
+  from { opacity: 0; scale: 1.05; filter: blur(6px); }
+  40% { opacity: 1; }
+  to { filter: blur(0); }
+}
+@keyframes route-pass-forward {
+  to { opacity: 0; scale: 1.05; filter: blur(4px); }
+}
+@keyframes route-arrive-from-behind {
+  from { opacity: 0; scale: 0.94; filter: blur(4px); }
+  40% { opacity: 1; }
+  to { filter: blur(0); }
+}
+@keyframes route-slide-out {
+  to { opacity: 0; translate: -24px 0; scale: 0.98; }
+}
+@keyframes route-slide-in {
+  from { opacity: 0; translate: 24px 0; scale: 0.98; }
+}
+
+/* Shared elements (a tone title flying from its library card into its page). */
+::view-transition-group(.morph) {
+  animation-duration: 520ms;
+  animation-timing-function: var(--spring-settle);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: route-morph-blur;
+}
+@keyframes route-morph-blur {
+  30% { filter: blur(2px); }
+}
+
+/* The nav is the spatial anchor: it never moves with the page. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+@keyframes route-fade-out {
+  to { opacity: 0; }
+}
+@keyframes route-fade-in {
+  from { opacity: 0; }
+}
+
 @keyframes skeleton-shimmer {
   from { background-position: 100% 0; }
   to { background-position: 0 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Route changes become a short crossfade: no scaling, no travel, no blur. */
+  ::view-transition-old(*) {
+    animation: 120ms ease-out both route-fade-out !important;
+  }
+  ::view-transition-new(*) {
+    animation: 120ms ease-in both route-fade-in !important;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
