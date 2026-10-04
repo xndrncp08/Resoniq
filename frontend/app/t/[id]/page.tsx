@@ -30,9 +30,9 @@ const loadRecipe = cache(async (id: string) => {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const recipe = await loadRecipe((await params).id);
-  if (!recipe) return { title: "Tone not found — Resoniq", robots: { index: false } };
+  if (!recipe) return { title: "Tone not found", robots: { index: false } };
   return {
-    title: `${recipe.title} — Resoniq tone recipe`,
+    title: `${recipe.title} · tone recipe`,
     description: recipe.recipeDescription,
     // Shared links are unlisted, not published: keep them out of search results.
     robots: { index: false, follow: false },

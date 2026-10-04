@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { Search, Star, Pencil, Trash2, Link2, Check } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
 import { recipeSearchText, recipeTags } from "@/lib/recipe-tags";
+import { spring, STAGGER_S } from "@/lib/motion";
 
 const FAVORITES = "Favorites";
 
@@ -30,13 +31,16 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return tones.filter((t) => {
-      if (q && !recipeSearchText(t).includes(q)) return false;
-      for (const tag of activeTags) {
-        if (tag === FAVORITES ? !t.isFavorite : !tagsById.get(t.id)?.includes(tag)) return false;
-      }
-      return true;
-    });
+    return tones
+      .filter((t) => {
+        if (q && !recipeSearchText(t).includes(q)) return false;
+        for (const tag of activeTags) {
+          if (tag === FAVORITES ? !t.isFavorite : !tagsById.get(t.id)?.includes(tag)) return false;
+        }
+        return true;
+      })
+      // Same order as the server (favorites first, newest first), kept live as favorites change.
+      .sort((a, b) => Number(b.isFavorite) - Number(a.isFavorite) || b.createdAt.localeCompare(a.createdAt));
   }, [tones, query, activeTags, tagsById]);
 
   function toggleTag(tag: string) {
@@ -145,7 +149,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tones, amps, pedals, artists…"
           aria-label="Search tones"
-          className="focus-ring w-full rounded-full border border-white/10 bg-white/[0.03] py-2.5 pl-11 pr-4 font-body text-sm outline-none"
+          className="focus-ring w-full rounded-full border border-white/10 bg-white/[0.03] py-2.5 pl-11 pr-4 font-body text-base sm:text-sm outline-none"
         />
       </div>
 
@@ -187,97 +191,103 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
         </p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((tone, i) => (
-          <motion.article
-            key={tone.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.03 }}
-            className="glass flex flex-col rounded-panel p-6"
-          >
-            <div className="flex items-start justify-between gap-2">
-              {editingId === tone.id ? (
-                <input
-                  autoFocus
-                  aria-label="Tone name"
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onBlur={() => commitRename(tone)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitRename(tone);
-                    if (e.key === "Escape") setEditingId(null);
+      {/* Cards reflow with layout animations when the list is filtered,
+          re-sorted or shortened, instead of jumping into place. */}
+      <motion.div layout className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <AnimatePresence mode="popLayout">
+          {filtered.map((tone, i) => (
+            <motion.article
+              key={tone.id}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0, transition: { ...spring.enter, delay: Math.min(i, 8) * STAGGER_S } }}
+              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+              transition={spring.layout}
+              className="glass flex flex-col rounded-panel p-6"
+            >
+              <div className="flex items-start justify-between gap-2">
+                {editingId === tone.id ? (
+                  <input
+                    autoFocus
+                    aria-label="Tone name"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onBlur={() => commitRename(tone)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(tone);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 font-body text-base sm:text-sm outline-none"
+                  />
+                ) : (
+                  <Link href={`/t/${tone.id}`} className="focus-ring rounded font-display text-base font-medium hover:text-copper">
+                    {tone.title}
+                  </Link>
+                )}
+                <button
+                  onClick={() => toggleFavorite(tone)}
+                  className="focus-ring flex-shrink-0 text-muted transition hover:text-copper"
+                  aria-label={tone.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  aria-pressed={tone.isFavorite}
+                >
+                  <Star size={16} fill={tone.isFavorite ? "currentColor" : "none"} className={tone.isFavorite ? "text-copper" : ""} />
+                </button>
+              </div>
+
+              <p className="mt-1 font-body text-xs text-muted">{tone.artist}</p>
+              <p className="mt-3 font-mono text-[11px] text-muted">
+                {tone.amp.model} · gain {tone.amp.gain}
+              </p>
+
+              <ul className="mt-3 flex flex-wrap gap-1">
+                {tagsById.get(tone.id)?.map((tag) => (
+                  <li key={tag} className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-muted">
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-auto flex gap-2 pt-5">
+                <button
+                  onClick={() => {
+                    setEditingId(tone.id);
+                    setDraftName(tone.title);
                   }}
-                  className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 font-body text-sm outline-none"
-                />
-              ) : (
-                <Link href={`/t/${tone.id}`} className="focus-ring rounded font-display text-base font-medium hover:text-copper">
-                  {tone.title}
-                </Link>
-              )}
-              <button
-                onClick={() => toggleFavorite(tone)}
-                className="focus-ring flex-shrink-0 text-muted transition hover:text-copper"
-                aria-label={tone.isFavorite ? "Remove from favorites" : "Add to favorites"}
-                aria-pressed={tone.isFavorite}
-              >
-                <Star size={16} fill={tone.isFavorite ? "currentColor" : "none"} className={tone.isFavorite ? "text-copper" : ""} />
-              </button>
-            </div>
-
-            <p className="mt-1 font-body text-xs text-muted">{tone.artist}</p>
-            <p className="mt-3 font-mono text-[11px] text-muted">
-              {tone.amp.model} · gain {tone.amp.gain}
-            </p>
-
-            <ul className="mt-3 flex flex-wrap gap-1">
-              {tagsById.get(tone.id)?.map((tag) => (
-                <li key={tag} className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-muted">
-                  {tag}
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-auto flex gap-2 pt-5">
-              <button
-                onClick={() => {
-                  setEditingId(tone.id);
-                  setDraftName(tone.title);
-                }}
-                className="focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/10 py-2 font-body text-xs text-muted transition hover:bg-white/[0.05] hover:text-ink"
-              >
-                <Pencil size={13} /> Rename
-              </button>
-              <button
-                onClick={() => share(tone)}
-                className="focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/10 py-2 font-body text-xs text-muted transition hover:bg-white/[0.05] hover:text-ink"
-              >
-                {copiedId === tone.id ? <Check size={13} /> : <Link2 size={13} />}
-                {copiedId === tone.id ? "Copied" : "Share"}
-              </button>
-              {confirmingDeleteId === tone.id ? (
-                <button
-                  onClick={() => remove(tone)}
-                  onBlur={() => setConfirmingDeleteId(null)}
-                  autoFocus
-                  className="focus-ring flex items-center justify-center rounded-full border border-danger/50 bg-danger/10 px-3 py-2 font-body text-xs text-danger transition"
-                  aria-label={`Confirm: delete ${tone.title} permanently`}
+                  className="focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/10 py-2 font-body text-xs text-muted transition hover:bg-white/[0.05] hover:text-ink"
                 >
-                  Delete
+                  <Pencil size={13} /> Rename
                 </button>
-              ) : (
                 <button
-                  onClick={() => setConfirmingDeleteId(tone.id)}
-                  className="focus-ring flex items-center justify-center rounded-full border border-white/10 px-3 py-2 text-muted transition hover:border-danger/40 hover:text-danger"
-                  aria-label={`Delete ${tone.title}`}
+                  onClick={() => share(tone)}
+                  className="focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-full border border-white/10 py-2 font-body text-xs text-muted transition hover:bg-white/[0.05] hover:text-ink"
                 >
-                  <Trash2 size={13} />
+                  {copiedId === tone.id ? <Check size={13} /> : <Link2 size={13} />}
+                  {copiedId === tone.id ? "Copied" : "Share"}
                 </button>
-              )}
-            </div>
-          </motion.article>
-        ))}
-      </div>
+                {confirmingDeleteId === tone.id ? (
+                  <button
+                    onClick={() => remove(tone)}
+                    onBlur={() => setConfirmingDeleteId(null)}
+                    autoFocus
+                    className="focus-ring flex items-center justify-center rounded-full border border-danger/50 bg-danger/10 px-3 py-2 font-body text-xs text-danger transition"
+                    aria-label={`Confirm: delete ${tone.title} permanently`}
+                  >
+                    Delete
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingDeleteId(tone.id)}
+                    className="focus-ring flex items-center justify-center rounded-full border border-white/10 px-3 py-2 text-muted transition hover:border-danger/40 hover:text-danger"
+                    aria-label={`Delete ${tone.title}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            </motion.article>
+          ))}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

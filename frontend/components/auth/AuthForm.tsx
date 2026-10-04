@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { spring } from "@/lib/motion";
 
 const SIGN_IN_ERRORS: Record<string, string> = {
   rate_limited: "Too many sign-in attempts. Wait a few minutes and try again.",
@@ -75,7 +76,7 @@ export default function AuthForm({
     <motion.form
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={spring.enter}
       onSubmit={handleSubmit}
       className="glass w-full max-w-sm rounded-panel p-8"
     >
@@ -120,7 +121,7 @@ export default function AuthForm({
             maxLength={100}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
+            className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-base sm:text-sm outline-none"
             placeholder="Your name"
           />
         </label>
@@ -137,7 +138,7 @@ export default function AuthForm({
           maxLength={254}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
+          className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-base sm:text-sm outline-none"
           placeholder="you@example.com"
         />
       </label>
@@ -154,7 +155,7 @@ export default function AuthForm({
           autoComplete={mode === "login" ? "current-password" : "new-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
+          className="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-base sm:text-sm outline-none"
           placeholder="••••••••"
         />
       </label>

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
 import type { ToneRecipe } from "@/types/tone";
 import ToneLibraryClient from "@/components/library/ToneLibraryClient";
 import { requirePageUserId } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Your saved tones" };
 
 export default async function LibraryPage() {
   const userId = await requirePageUserId("/library");

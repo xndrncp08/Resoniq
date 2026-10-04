@@ -1,109 +1,56 @@
-"use client";
+import AmpPanel from "@/components/tone/AmpPanel";
+import Pedalboard from "@/components/tone/Pedalboard";
+import RecipeSummary from "@/components/tone/RecipeSummary";
+import Reveal from "@/components/motion/Reveal";
+import { EXAMPLE_MEASUREMENTS, EXAMPLE_RECIPE, EXAMPLE_SOURCE } from "@/lib/example-analysis";
 
-import { motion } from "framer-motion";
-
-const example = {
-  song: "Slow Dancing In A Burning Room",
-  artist: "John Mayer",
-  matchScore: 92,
-  amp: "Two-Rock style clean",
-  cab: "2x12 open back",
-  effects: ["Compressor", "Blues Driver-style overdrive", "Spring reverb", "Delay"],
-  eq: { bass: 45, mid: 60, treble: 70 },
-  gain: 25,
-  pickup: "Neck + middle",
-};
-
-function EQBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="mb-1.5 flex justify-between font-mono text-[11px] text-muted">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-white/5">
-        <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: `${value}%` }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="h-full rounded-full bg-copper"
-        />
-      </div>
-    </div>
-  );
-}
-
+/**
+ * A real analysis, rendered with the same read-only components as a shared
+ * tone page. Nothing here is mocked up; see lib/example-analysis.ts.
+ */
 export default function ExampleTones() {
   return (
     <section id="example-tone" className="relative mx-auto max-w-6xl scroll-mt-28 px-6 py-32">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">example tone</p>
-      <h2 className="mt-3 max-w-lg font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-        What comes out of an analysis.
-      </h2>
+      <Reveal>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">a real result</p>
+        <h2 className="mt-3 max-w-xl text-balance font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          What comes out of an analysis.
+        </h2>
+        <p className="mt-4 max-w-2xl text-pretty font-body text-sm leading-relaxed text-muted">
+          This is the engine&apos;s unedited output for{" "}
+          <a href={EXAMPLE_SOURCE.url} className="focus-ring rounded text-ink underline decoration-white/20 underline-offset-4 hover:decoration-ink">
+            a short metal riff
+          </a>{" "}
+          by {EXAMPLE_SOURCE.author} (
+          <a href={EXAMPLE_SOURCE.licenseUrl} className="focus-ring rounded underline decoration-white/20 underline-offset-4 hover:text-ink">
+            {EXAMPLE_SOURCE.license}
+          </a>
+          ), misses included: it reads the gain right, but a player would likely bypass the tremolo and reach for the
+          bridge pickup. That&apos;s what the editable dashboard is for.
+        </p>
+      </Reveal>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.6 }}
-        className="glass shadow-panel mt-14 grid gap-10 rounded-panel p-10 sm:grid-cols-[1fr_1.2fr]"
-      >
-        <div>
-          <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
-            {example.artist}
-          </div>
-          <div className="mt-1 font-display text-2xl font-medium">{example.song}</div>
+      <Reveal className="mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <AmpPanel amp={EXAMPLE_RECIPE.amp} cabinet={EXAMPLE_RECIPE.cabinet} pickup={EXAMPLE_RECIPE.pickup} />
+        <RecipeSummary recipe={EXAMPLE_RECIPE} />
+      </Reveal>
 
-          <div className="mt-8 flex items-baseline gap-2">
-            <span className="font-display text-5xl font-semibold text-copper">
-              {example.matchScore}%
-            </span>
-            <span className="font-mono text-xs text-muted">tone match score</span>
-          </div>
+      <Reveal className="glass mt-6 rounded-panel p-6">
+        <div className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-signal">pedalboard</div>
+        <Pedalboard pedals={EXAMPLE_RECIPE.pedalboard} />
+      </Reveal>
 
-          <dl className="mt-8 space-y-3 font-body text-sm">
-            <div className="flex justify-between border-b border-white/5 pb-2">
-              <dt className="text-muted">Amp</dt>
-              <dd>{example.amp}</dd>
+      <Reveal className="mt-6">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-panel border border-white/[0.08] bg-white/[0.06] sm:grid-cols-4">
+          {EXAMPLE_MEASUREMENTS.map((m) => (
+            <div key={m.label} className="bg-bg px-5 py-4">
+              <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">{m.label}</dt>
+              <dd className="mt-1 font-mono text-sm tabular-nums text-signal">{m.value}</dd>
             </div>
-            <div className="flex justify-between border-b border-white/5 pb-2">
-              <dt className="text-muted">Cabinet</dt>
-              <dd>{example.cab}</dd>
-            </div>
-            <div className="flex justify-between border-b border-white/5 pb-2">
-              <dt className="text-muted">Pickup</dt>
-              <dd>{example.pickup}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted">Gain</dt>
-              <dd>{example.gain}%</dd>
-            </div>
-          </dl>
-        </div>
-
-        <div>
-          <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
-            effects chain
-          </div>
-          <ul className="mt-3 space-y-2">
-            {example.effects.map((fx) => (
-              <li
-                key={fx}
-                className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-2.5 font-body text-sm"
-              >
-                {fx}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-8 space-y-4">
-            <EQBar label="Bass" value={example.eq.bass} />
-            <EQBar label="Mid" value={example.eq.mid} />
-            <EQBar label="Treble" value={example.eq.treble} />
-          </div>
-        </div>
-      </motion.div>
+          ))}
+        </dl>
+        <p className="mt-3 font-mono text-[11px] text-muted">measured from the recording · the recipe above is inferred from these</p>
+      </Reveal>
     </section>
   );
 }

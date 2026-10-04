@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import UploadPanel from "@/components/audio/UploadPanel";
 import { requirePageUserId } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Analyze a song" };
 
 export default async function AnalyzePage() {
   await requirePageUserId("/analyze");

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePageUserId } from "@/lib/session";
 import AnalysisRunner from "@/components/tone/AnalysisRunner";
 import type { EngineAnalysis } from "@/types/engine";
+
+export const metadata: Metadata = { title: "Tone profile" };
 
 export default async function SongStatusPage({
   params,

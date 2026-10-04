@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, type Variants } from "framer-motion";
 import { ChevronRight, RotateCcw } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
 import type { StoredToneData } from "@/lib/tone-recipe";
@@ -8,6 +9,15 @@ import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 import SignalMonitor from "@/components/tone/SignalMonitor";
+import { spring } from "@/lib/motion";
+
+// The moment analysis lands: panels assemble down the signal path, one
+// after another. Reduced motion keeps the fade and drops the movement.
+const assemble: Variants = { show: { transition: { staggerChildren: 0.09 } } };
+const panel: Variants = {
+  hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: spring.enter },
+};
 
 function ChainStep({ label, detail }: { label: string; detail?: string }) {
   return (
@@ -50,10 +60,14 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
   const activePedals = recipe.pedalboard.filter((p) => p.enabled).length;
 
   return (
-    <div className="space-y-6">
-      {recipe.audioUrl && <SignalMonitor audioUrl={recipe.audioUrl} />}
+    <motion.div variants={assemble} initial="hidden" animate="show" className="space-y-6">
+      {recipe.audioUrl && (
+        <motion.div variants={panel}>
+          <SignalMonitor audioUrl={recipe.audioUrl} />
+        </motion.div>
+      )}
 
-      <section className="glass rounded-panel p-6" aria-labelledby="chain-heading">
+      <motion.section variants={panel} className="glass rounded-panel p-6" aria-labelledby="chain-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="chain-heading" className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
             signal chain
@@ -85,9 +99,9 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
             Drag a pedal by its grip to change the order. Click the footswitch to bypass it.
           </p>
         )}
-      </section>
+      </motion.section>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <motion.div variants={panel} className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <AmpPanel
           amp={recipe.amp}
           cabinet={recipe.cabinet}
@@ -96,9 +110,9 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
           onPickupChange={(pickup) => update({ pickup })}
         />
         <RecipeSummary recipe={recipe} />
-      </div>
+      </motion.div>
 
-      <div className="glass flex flex-wrap items-center gap-3 rounded-panel p-4">
+      <motion.div variants={panel} className="glass flex flex-wrap items-center gap-3 rounded-panel p-4">
         <label htmlFor="tone-name" className="sr-only">
           Tone name
         </label>
@@ -106,7 +120,7 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
           id="tone-name"
           value={toneName}
           onChange={(e) => setToneName(e.target.value)}
-          className="focus-ring min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-sm outline-none"
+          className="focus-ring min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-base sm:text-sm outline-none"
           placeholder="Name this tone"
         />
         <button
@@ -116,8 +130,15 @@ export default function ToneDashboard({ songId, initialRecipe }: { songId: strin
         >
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save to library"}
         </button>
-        {saveState === "error" && <p className="w-full font-body text-sm text-danger">Couldn&apos;t save. Try again.</p>}
-      </div>
-    </div>
+        <p role="status" className="sr-only">
+          {saveState === "saved" ? "Saved to your library." : ""}
+        </p>
+        {saveState === "error" && (
+          <p role="alert" className="w-full font-body text-sm text-danger">
+            Couldn&apos;t save. Try again.
+          </p>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }

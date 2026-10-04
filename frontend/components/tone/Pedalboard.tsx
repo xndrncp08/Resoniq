@@ -4,6 +4,7 @@ import { Reorder, useDragControls } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import type { PedalSlot } from "@/types/tone";
 import RotaryKnob from "@/components/tone/RotaryKnob";
+import { spring } from "@/lib/motion";
 
 const KNOBS = ["drive", "tone", "level"] as const;
 type KnobKey = (typeof KNOBS)[number];
@@ -21,7 +22,7 @@ function PedalBody({
 
   return (
     <div
-      className={`flex h-full w-[168px] flex-col rounded-2xl border p-4 transition-colors ${
+      className={`flex h-full w-[168px] flex-col rounded-2xl border p-4 transition-colors duration-200 ${
         pedal.enabled ? "border-copper/40 bg-copper/[0.05]" : "border-white/[0.06] bg-white/[0.015]"
       }`}
     >
@@ -86,7 +87,8 @@ function DraggablePedal({
       dragControls={controls}
       onDragEnd={onDragEnd}
       className="relative flex-shrink-0"
-      whileDrag={{ scale: 1.03, zIndex: 10 }}
+      transition={spring.layout}
+      whileDrag={{ scale: 1.03, zIndex: 10, boxShadow: "0 16px 40px -12px rgba(0,0,0,0.6)" }}
     >
       <PedalBody
         pedal={pedal}
@@ -96,7 +98,7 @@ function DraggablePedal({
             type="button"
             aria-label={`Drag to reorder ${pedal.name}`}
             onPointerDown={(e) => controls.start(e)}
-            className="focus-ring -mr-1 cursor-grab touch-none rounded p-0.5 text-muted hover:text-ink active:cursor-grabbing"
+            className="focus-ring -mr-2 -mt-1 cursor-grab touch-none rounded p-1.5 text-muted hover:text-ink active:cursor-grabbing"
           >
             <GripVertical size={14} />
           </button>
