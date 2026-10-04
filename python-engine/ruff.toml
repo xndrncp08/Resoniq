@@ -1,0 +1,9 @@
+target-version = "py311"
+line-length = 120
+extend-exclude = [".venv"]
+
+[lint]
+# pyflakes, pycodestyle, bugbear
+select = ["F", "E", "W", "B"]
+# Line length is left to review; the recipe prompt is prose and reads better unwrapped.
+ignore = ["E501"]
