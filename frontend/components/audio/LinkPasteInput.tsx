@@ -18,9 +18,9 @@ export default function LinkPasteInput() {
         className="focus-ring mx-auto mt-4 block w-full max-w-sm rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-center font-body text-sm outline-none"
       />
       <p className="mx-auto mt-4 max-w-sm font-body text-xs text-muted">
-        Link-based analysis (YouTube / Spotify / SoundCloud) isn't wired up yet
+        Link-based analysis (YouTube / Spotify / SoundCloud) isn&apos;t wired up yet
         — pulling audio from those platforms directly runs into real licensing
-        and terms-of-service limits we're still working through properly. File
+        and terms-of-service limits we&apos;re still working through properly. File
         upload above works today.
       </p>
     </div>

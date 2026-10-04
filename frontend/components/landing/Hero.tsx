@@ -46,12 +46,18 @@ export default function Hero() {
           transition={{ delay: 0.5, duration: 0.6 }}
           className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
-          <button className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition hover:scale-[1.03]">
+          <Link
+            href="/analyze"
+            className="focus-ring shadow-glow rounded-full bg-copper px-8 py-3.5 font-body text-sm font-semibold text-bg transition hover:scale-[1.03]"
+          >
             Analyze A Song
-          </button>
-          <button className="focus-ring glass rounded-full px-8 py-3.5 font-body text-sm font-medium text-ink transition hover:bg-white/[0.08]">
+          </Link>
+          <a
+            href="#example-tone"
+            className="focus-ring glass rounded-full px-8 py-3.5 font-body text-sm font-medium text-ink transition hover:bg-white/[0.08]"
+          >
             Explore Tones
-          </button>
+          </a>
         </motion.div>
       </div>
     </section>

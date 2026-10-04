@@ -14,7 +14,7 @@ export default async function AnalyzePage() {
           Upload a song
         </h1>
         <p className="mt-3 font-body text-sm text-muted">
-          We'll pull out the guitar tone and build a signal chain from it.
+          We&apos;ll pull out the guitar tone and build a signal chain from it.
         </p>
       </div>
 
