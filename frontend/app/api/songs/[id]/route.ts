@@ -4,7 +4,7 @@ import { ApiError, requireUserId, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** One song for its owner: metadata and analysis status (polled while a job runs, loaded by Studio windows). */
+/** One song for its owner: metadata and analysis status (polled while a job runs). */
 export const GET = route<Ctx>("songs.status", async (_req, { params }) => {
   const userId = await requireUserId();
   const { id } = await params;

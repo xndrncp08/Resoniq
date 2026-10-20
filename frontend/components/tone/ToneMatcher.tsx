@@ -1,22 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { RotateCcw } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import type { IProject, ISheet } from "@theatre/core";
 import { gainsFromAmp, logFrequencies, MAX_DB, responseDb, xForHz } from "@/lib/eq";
-import {
-  MATCHER_LENGTH_S,
-  MATCHER_OBJECT,
-  MATCHER_PROJECT_ID,
-  MATCHER_PROPS,
-  MATCHER_SHEET,
-  matcherState,
-  type MatcherProp,
-} from "@/lib/theatre/matcher-sequence";
+import { gsap } from "@/lib/gsap";
 import type { AmpSettings } from "@/types/tone";
 
-type Values = Record<MatcherProp, number>;
+/** 0..1 progress channels, one per stage of the reveal. */
+type Values = { inputs: number; flow: number; outputs: number; eq: number; confidence: number; glow: number };
+const START: Values = { inputs: 0, flow: 0, outputs: 0, eq: 0, confidence: 0, glow: 0 };
+const END: Values = { inputs: 1, flow: 1, outputs: 1, eq: 1, confidence: 1, glow: 0.35 };
+
+/** The reveal's timing: [channel, start s, duration s, target]. */
+const TIMELINE: [keyof Values, number, number, number][] = [
+  ["inputs", 0, 0.8, 1], // measurements light up
+  ["flow", 0.45, 1.25, 1], // signal paths travel from inputs to outputs
+  ["outputs", 1.25, 1.15, 1], // amp settings fill
+  ["eq", 1.5, 1.3, 1], // EQ curve bends from flat to the recipe
+  ["confidence", 2.3, 0.8, 1], // confidence resolves last
+  ["glow", 2.55, 0.3, 1], // a settle-in pulse on the result
+  ["glow", 2.85, 0.65, 0.35],
+];
 
 const INPUTS = [
   { key: "brightness", label: "brightness" },
@@ -52,25 +57,6 @@ const OUT_BAR_X = 740;
 const EQ = { x: 260, y: 214, w: 380, h: 70 };
 const EQ_FREQS = logFrequencies(64);
 
-// Theatre projects are global singletons per id; create it once per page load.
-let projectPromise: Promise<{ project: IProject; sheet: ISheet }> | null = null;
-
-function loadProject() {
-  projectPromise ??= (async () => {
-    if (process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).has("theatre")) {
-      // Dev-only authoring UI. AGPL-licensed: this branch is dropped from
-      // production builds and must stay that way.
-      const studio = (await import("@theatre/studio")).default;
-      studio.initialize();
-    }
-    const { getProject } = await import("@theatre/core");
-    const project = getProject(MATCHER_PROJECT_ID, { state: matcherState() });
-    await project.ready;
-    return { project, sheet: project.sheet(MATCHER_SHEET) };
-  })();
-  return projectPromise;
-}
-
 function inputsFrom(features: Record<string, number | null>): Record<InputKey, number> {
   return {
     brightness: features.brightness ?? 0,
@@ -90,9 +76,8 @@ const fmt = (n: number) => n.toFixed(1);
  * flow from them into the amp settings they drive, the EQ curve bends from
  * flat into the recipe's shape, and the heuristic confidence resolves last.
  *
- * Timing lives in a Theatre.js sequence (lib/theatre/matcher-sequence.ts);
- * this component only paints its six 0..1 channels onto the SVG through
- * refs, so playback never re-renders React.
+ * A GSAP timeline drives six 0..1 channels (TIMELINE); paint writes them
+ * onto the SVG through refs, so playback never re-renders React.
  */
 export default function ToneMatcher({
   features,
@@ -105,8 +90,7 @@ export default function ToneMatcher({
 }) {
   const reduce = useReducedMotion();
   const svg = useRef<SVGSVGElement>(null);
-  const sheetRef = useRef<ISheet | null>(null);
-  const [ready, setReady] = useState(false);
+  const timeline = useRef<gsap.core.Timeline | null>(null);
 
   const inputs = inputsFrom(features);
 
@@ -155,44 +139,19 @@ export default function ToneMatcher({
   );
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-    loadProject()
-      .then(({ sheet }) => {
-        if (cancelled) return;
-        const obj = sheet.object(
-          MATCHER_OBJECT,
-          Object.fromEntries(MATCHER_PROPS.map((p) => [p, 0])) as Values,
-          { reconfigure: true },
-        );
-        unsubscribe = obj.onValuesChange((v) => paint(v as Values));
-        sheetRef.current = sheet;
-        setReady(true);
-        if (reduce) {
-          sheet.sequence.position = MATCHER_LENGTH_S;
-        } else {
-          sheet.sequence.position = 0;
-          void sheet.sequence.play();
-        }
-      })
-      .catch((err) => {
-        // The reveal is decoration; if Theatre fails to load, show the end state.
-        console.error("[matcher] could not load the sequence", err);
-        paint({ inputs: 1, flow: 1, outputs: 1, eq: 1, confidence: 1, glow: 0 });
-      });
+    if (reduce) {
+      paint(END);
+      return;
+    }
+    const v = { ...START };
+    const tl = gsap.timeline({ onUpdate: () => paint(v) });
+    for (const [key, at, duration, to] of TIMELINE) tl.to(v, { [key]: to, duration, ease: "expo.out" }, at);
+    timeline.current = tl;
     return () => {
-      cancelled = true;
-      unsubscribe?.();
-      sheetRef.current?.sequence.pause();
+      tl.kill();
+      timeline.current = null;
     };
   }, [paint, reduce]);
-
-  function replay() {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    sheet.sequence.position = 0;
-    void sheet.sequence.play();
-  }
 
   const outRow = (k: OutputKey) => OUTPUTS.indexOf(k);
   const inRow = (k: InputKey) => INPUTS.findIndex((i) => i.key === k);
@@ -205,8 +164,8 @@ export default function ToneMatcher({
         </h2>
         <button
           type="button"
-          onClick={replay}
-          disabled={!ready || !!reduce}
+          onClick={() => timeline.current?.restart()}
+          disabled={!!reduce}
           className="focus-ring flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink disabled:opacity-40"
         >
           <RotateCcw size={12} aria-hidden /> replay

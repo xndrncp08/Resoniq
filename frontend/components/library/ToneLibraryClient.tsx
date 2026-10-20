@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, ViewTransition } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { Search, Star, Pencil, Trash2, Link2 } from "lucide-react";
@@ -218,13 +218,10 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
                 ) : (
                   <Link
                     href={`/t/${tone.id}`}
-                    transitionTypes={["nav-deeper"]}
                     className="focus-ring rounded font-display text-base font-medium hover:text-copper"
                   >
                     {/* Morphs into the heading on the tone's page (same name there). */}
-                    <ViewTransition name={`tone-title-${tone.id}`} share="morph" default="none">
-                      <span className="inline-block">{tone.title}</span>
-                    </ViewTransition>
+                    <span className="inline-block">{tone.title}</span>
                   </Link>
                 )}
                 <button
