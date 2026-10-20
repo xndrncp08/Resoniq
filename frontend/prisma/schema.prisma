@@ -1,7 +1,5 @@
 // Resoniq database schema
 // Auth models follow the shape NextAuth's Prisma adapter expects.
-// `Tone` is a placeholder for Phase 8 (tone library) — wired up now so
-// user accounts have somewhere to attach saved tones later.
 
 generator client {
   provider = "prisma-client-js"
@@ -25,7 +23,6 @@ model User {
   sessions Session[]
   tones     Tone[]
   songs     Song[]
-  workspace UserWorkspace?
 }
 
 model Account {
@@ -80,8 +77,8 @@ model Tone {
   @@index([userId, favorite, createdAt])
 }
 
-// An uploaded track, pending or completed analysis (Phase 6 does the
-// analysis itself — this just tracks the upload + its lifecycle status).
+// An uploaded track and its analysis job: status moves
+// UPLOADED -> ANALYZING -> ANALYZED | FAILED (see /api/analyze).
 model Song {
   id           String     @id @default(cuid())
   userId       String
@@ -104,16 +101,6 @@ model Song {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-// The Studio desktop's window layout for a user (one row per user). `layout`
-// is a WorkspaceLayout (lib/studio/types.ts), validated before every write.
-model UserWorkspace {
-  userId    String   @id
-  layout    Json
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum SourceType {

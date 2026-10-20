@@ -14,7 +14,6 @@ import MeasurementsPanel from "@/components/tone/MeasurementsPanel";
 import ToneMatcher from "@/components/tone/ToneMatcher";
 import type { EngineAnalysis } from "@/types/engine";
 import Feedback from "@/components/ui/Feedback";
-import { notifyDataChanged } from "@/lib/studio/events";
 import { spring } from "@/lib/motion";
 
 // The moment analysis lands: panels assemble down the signal path, one
@@ -59,14 +58,13 @@ export default function ToneDashboard({
         body: JSON.stringify({ songId, name: toneName.trim() || initialRecipe.title, data }),
       });
       setSaveState(res.ok ? "saved" : "error");
-      if (res.ok) notifyDataChanged();
     } catch {
       setSaveState("error");
     }
   }
 
   return (
-    // @container: panels lay out by the space they get (a Studio window or the page), not the viewport.
+    // @container: panels lay out by the space they get, not the viewport.
     <motion.div variants={assemble} initial="hidden" animate="show" className="@container space-y-6">
       {measurements && (
         <motion.div variants={panel}>

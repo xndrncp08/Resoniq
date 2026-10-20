@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { animate, createSpring, stagger, type Target } from "animejs";
 import { useReducedMotion } from "motion/react";
+import { gsap } from "@/lib/gsap";
 import type { EngineAnalysis } from "@/types/engine";
 
 type Metric = {
@@ -33,8 +33,8 @@ const METRICS: Metric[] = [
 
 /**
  * The raw audio measurements the recipe was inferred from, so the numbers
- * behind the guess are visible. Rows stagger in and meters fill with
- * Anime.js; with reduced motion they render in their final state.
+ * behind the guess are visible. Rows stagger in and meters fill (GSAP);
+ * with reduced motion they render in their final state.
  */
 export default function MeasurementsPanel({ features }: { features: EngineAnalysis["raw_features"] }) {
   const root = useRef<HTMLDListElement>(null);
@@ -46,22 +46,13 @@ export default function MeasurementsPanel({ features }: { features: EngineAnalys
     if (!el || reduce) return;
     const items = el.querySelectorAll<HTMLElement>("[data-metric]");
     const meters = el.querySelectorAll<HTMLElement>("[data-meter]");
-    const enter = animate(items, {
-      opacity: [0, 1],
-      translateY: [8, 0],
-      delay: stagger(35),
-      duration: 420,
-      ease: "outCubic",
-    });
-    const fill = animate(meters, {
-      scaleX: { from: 0, to: (target?: Target) => Number((target as HTMLElement).dataset.meter) },
-      delay: stagger(35, { start: 120 }),
-      ease: createSpring({ stiffness: 140, damping: 18 }),
-    });
+    const enter = gsap.from(items, { opacity: 0, y: 8, duration: 0.42, ease: "power3.out", stagger: 0.035 });
+    // From empty to each meter's inline scaleX.
+    const fill = gsap.from(meters, { scaleX: 0, duration: 0.7, ease: "back.out(1.4)", stagger: 0.035, delay: 0.12 });
     return () => {
       // Leave elements in their final state rather than mid-animation.
-      enter.complete();
-      fill.complete();
+      enter.progress(1).kill();
+      fill.progress(1).kill();
     };
   }, [reduce]);
 
@@ -84,7 +75,7 @@ export default function MeasurementsPanel({ features }: { features: EngineAnalys
               {level !== undefined && (
                 <div className="mt-2 h-0.5 overflow-hidden rounded-full bg-white/[0.06]">
                   <div
-                    data-meter={level}
+                    data-meter
                     className="h-full origin-left rounded-full bg-signal shadow-[0_0_6px_var(--color-signal)]"
                     style={{ transform: `scaleX(${level})` }}
                   />

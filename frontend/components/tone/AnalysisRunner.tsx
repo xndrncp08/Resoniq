@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnalysisProgress from "@/components/tone/AnalysisProgress";
 import ToneDashboard from "@/components/tone/ToneDashboard";
-import { sceneState } from "@/components/scene/state";
-import { stageProgress, type StageEvent } from "@/lib/analysis-stages";
+import type { StageEvent } from "@/lib/analysis-stages";
 import { NDJSON, readNdjson } from "@/lib/ndjson";
 import { recipeFromAnalysis, type SongMeta } from "@/lib/tone-recipe";
 import type { EngineAnalysis } from "@/types/engine";
@@ -23,13 +22,11 @@ export default function AnalysisRunner({
   initialStatus,
   initialError,
   initialData,
-  onStatusChange,
 }: {
   song: SongMeta;
   initialStatus: string;
   initialError: string | null;
   initialData: EngineAnalysis | null;
-  onStatusChange?: (status: string) => void;
 }) {
   const songId = song.id;
   const [status, setStatus] = useState(initialStatus);
@@ -40,9 +37,6 @@ export default function AnalysisRunner({
   const [following, setFollowing] = useState(initialStatus === "ANALYZING");
   const started = useRef(false);
 
-  useEffect(() => {
-    onStatusChange?.(status);
-  }, [status, onStatusChange]);
   // Stable identity, so the dashboard's one-shot reveal doesn't restart on re-render.
   const recipe = useMemo(() => (data?.tone_profile ? recipeFromAnalysis(data, song) : null), [data, song]);
 
@@ -131,20 +125,7 @@ export default function AnalysisRunner({
     return () => clearInterval(timer);
   }, [following, status, songId, adopt]);
 
-  // Drive the background scene: brighter and quicker as the analysis runs.
-  const busy = status === "ANALYZING" || status === "UPLOADED";
-  const progress = stage ? stageProgress(stage.index, stage.total) : 0;
-  useEffect(() => {
-    sceneState.energy = busy ? (stage ? 0.35 + 0.65 * progress : 0.35) : 0;
-  }, [busy, stage, progress]);
-  useEffect(
-    () => () => {
-      sceneState.energy = 0;
-    },
-    [],
-  );
-
-  if (busy) {
+  if (status === "ANALYZING" || status === "UPLOADED") {
     return <AnalysisProgress stage={following ? null : stage} />;
   }
 

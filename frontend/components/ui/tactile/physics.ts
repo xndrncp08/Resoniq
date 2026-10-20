@@ -104,7 +104,7 @@ export function nearestDetent(angle: number, detents: number[]): number {
 
 /** A tiny vibration where the hardware supports it (most Android browsers); a no-op elsewhere. */
 export function haptic(pattern: number | number[] = 8) {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator && hapticsEnabled()) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
       navigator.vibrate(pattern);
     } catch {
@@ -112,9 +112,3 @@ export function haptic(pattern: number | number[] = 8) {
     }
   }
 }
-
-let hapticsOn = true;
-export const setHapticsEnabled = (on: boolean) => {
-  hapticsOn = on;
-};
-export const hapticsEnabled = () => hapticsOn;

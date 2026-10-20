@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
 import type { ToneRecipe } from "@/types/tone";
 
-/** A user's saved tones as ToneRecipes, favorites first. Used by /library and the Studio. */
+/** A user's saved tones as ToneRecipes, favorites first. Used by /library. */
 export async function loadLibrary(userId: string): Promise<ToneRecipe[]> {
   const tones = await prisma.tone.findMany({
     where: { userId },
