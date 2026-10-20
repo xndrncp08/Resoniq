@@ -10,6 +10,22 @@ import { localStorageDriver, sniffAudio } from "@/lib/storage";
 import { parseStoredToneData, ValidationError } from "@/lib/tone-validation";
 import { recipeFromStoredTone, songAudioUrl } from "@/lib/tone-recipe";
 import { validRecipe } from "./fixtures";
+import { recoverAnalysisStatus, STALE_ANALYSIS_MS } from "@/lib/analysis-status";
+
+describe("analysis recovery", () => {
+  it.each([null, new Date(Date.now() - STALE_ANALYSIS_MS - 1000)])("makes an abandoned job retryable (%s)", (analysisStartedAt) => {
+    const song = { status: "ANALYZING", analysisStartedAt, analysisError: null };
+    expect(recoverAnalysisStatus(song)).toMatchObject({ status: "FAILED", analysisError: "Analysis was interrupted. Try again." });
+    expect(song.status).toBe("ANALYZING");
+  });
+
+  it("leaves active and settled jobs alone", () => {
+    const active = { status: "ANALYZING", analysisStartedAt: new Date(), analysisError: null };
+    const finished = { status: "ANALYZED", analysisStartedAt: null, analysisError: null };
+    expect(recoverAnalysisStatus(active)).toBe(active);
+    expect(recoverAnalysisStatus(finished)).toBe(finished);
+  });
+});
 
 describe("tone validation", () => {
   it("clamps knobs, trims text and renumbers slots", () => {

@@ -32,6 +32,7 @@ const tone = await import("@/app/api/tones/[id]/route");
 const upload = await import("@/app/api/upload/route");
 const analyze = await import("@/app/api/analyze/route");
 const audio = await import("@/app/api/songs/[id]/audio/route");
+const songStatus = await import("@/app/api/songs/[id]/route");
 const { EngineError } = await import("@/lib/engine");
 
 const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
@@ -60,6 +61,7 @@ describe("auth guard", () => {
     ["POST /api/upload", () => upload.POST(new Request("http://localhost", { method: "POST" }), undefined)],
     ["POST /api/analyze", () => analyze.POST(json({ songId: "s" }), undefined)],
     ["GET /api/songs/[id]/audio", () => audio.GET(new Request("http://localhost"), ctx("s"))],
+    ["GET /api/songs/[id]", () => songStatus.GET(new Request("http://localhost"), ctx("s"))],
   ])("%s requires a session", async (_name, call) => {
     const res = await call();
     expect(res.status).toBe(401);
@@ -222,6 +224,25 @@ describe("GET /api/songs/[id]/audio", () => {
   });
 });
 
+describe("GET /api/songs/[id]", () => {
+  it("exposes an abandoned analysis as retryable to its owner without caching it", async () => {
+    signedIn("user-a");
+    db.song.findFirst.mockResolvedValue({ id: "s1", status: "ANALYZING", analysisStartedAt: new Date(0), analysisError: null });
+    const res = await songStatus.GET(new Request("http://localhost"), ctx("s1"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).song).toMatchObject({ status: "FAILED", analysisError: "Analysis was interrupted. Try again." });
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(db.song.findFirst.mock.calls[0][0].where).toEqual({ id: "s1", userId: "user-a" });
+    expect(db.song.update).not.toHaveBeenCalled();
+  });
+
+  it("does not reveal missing or unowned songs", async () => {
+    signedIn();
+    db.song.findFirst.mockResolvedValue(null);
+    expect((await songStatus.GET(new Request("http://localhost"), ctx("other"))).status).toBe(404);
+  });
+});
+
 describe("cross-site protection", () => {
   it("refuses mutations from another origin", async () => {
     signedIn("user-a");
@@ -280,6 +301,20 @@ describe("POST /api/analyze (streaming)", () => {
     expect(events).toEqual([{ type: "error", error: "Analysis was interrupted. Try again." }]);
     expect(JSON.stringify(events)).not.toContain("10.0.0.3");
     expect(db.song.update.mock.calls[0][0].data.status).toBe("FAILED");
+  });
+
+  it("ends the stream with a safe error even when saving the failure also fails", async () => {
+    analyzeAudioStream.mockRejectedValue(new Error("engine unavailable"));
+    db.song.update.mockRejectedValue(new Error("database unavailable"));
+    const events = await readAll(await analyze.POST(streamReq(), undefined));
+    expect(events).toEqual([{ type: "error", error: "Analysis failed. Try again." }]);
+  });
+
+  it("reports persistence failures instead of claiming the analysis was saved", async () => {
+    analyzeAudioStream.mockResolvedValue({ tone_profile: {}, raw_features: {} });
+    db.song.update.mockRejectedValue(new Error("database unavailable"));
+    const events = await readAll(await analyze.POST(streamReq(), undefined));
+    expect(events).toEqual([{ type: "error", error: "Analysis failed. Try again." }]);
   });
 
   it("keeps going and saves the result when the browser disconnects mid-stream", async () => {

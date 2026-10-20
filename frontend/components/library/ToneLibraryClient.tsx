@@ -9,6 +9,7 @@ import { recipeSearchText, recipeTags } from "@/lib/recipe-tags";
 import Feedback from "@/components/ui/Feedback";
 import ShareDialog from "@/components/library/ShareDialog";
 import { spring, STAGGER_S } from "@/lib/motion";
+import { MAX_TONE_NAME_LENGTH } from "@/lib/tone-validation";
 
 const FAVORITES = "Favorites";
 
@@ -207,6 +208,7 @@ export default function ToneLibraryClient({ initialTones }: { initialTones: Tone
                     autoFocus
                     aria-label="Tone name"
                     value={draftName}
+                    maxLength={MAX_TONE_NAME_LENGTH}
                     onChange={(e) => setDraftName(e.target.value)}
                     onBlur={() => commitRename(tone)}
                     onKeyDown={(e) => {

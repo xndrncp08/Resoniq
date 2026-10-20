@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiError, requireUserId, route } from "@/lib/api";
+import { recoverAnalysisStatus } from "@/lib/analysis-status";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -11,8 +12,8 @@ export const GET = route<Ctx>("songs.status", async (_req, { params }) => {
 
   const song = await prisma.song.findFirst({
     where: { id, userId },
-    select: { id: true, title: true, artist: true, createdAt: true, status: true, analysisData: true, analysisError: true },
+    select: { id: true, title: true, artist: true, createdAt: true, status: true, analysisData: true, analysisError: true, analysisStartedAt: true },
   });
   if (!song) throw new ApiError(404, "Song not found.");
-  return NextResponse.json({ song });
+  return NextResponse.json({ song: recoverAnalysisStatus(song) }, { headers: { "Cache-Control": "private, no-store" } });
 });

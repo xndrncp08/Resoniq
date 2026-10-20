@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageUserId } from "@/lib/session";
 import AnalysisRunner from "@/components/tone/AnalysisRunner";
 import type { EngineAnalysis } from "@/types/engine";
+import { recoverAnalysisStatus } from "@/lib/analysis-status";
 
 export const metadata: Metadata = { title: "Tone profile" };
 
@@ -15,8 +16,9 @@ export default async function SongStatusPage({
   const { id } = await params;
   const userId = await requirePageUserId(`/analyze/${id}`);
 
-  const song = await prisma.song.findFirst({ where: { id, userId } });
-  if (!song) notFound();
+  const stored = await prisma.song.findFirst({ where: { id, userId } });
+  if (!stored) notFound();
+  const song = recoverAnalysisStatus(stored);
 
   return (
     <main className="min-h-screen px-6 py-32">

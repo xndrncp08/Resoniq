@@ -7,12 +7,10 @@ import type { StageEvent } from "@/lib/analysis-stages";
 import { NDJSON } from "@/lib/ndjson";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { getStorage } from "@/lib/storage";
+import { STALE_ANALYSIS_MS } from "@/lib/analysis-status";
 
 // Analysis of a long track can take a while; don't let a platform default cut it off.
 export const maxDuration = 300;
-
-// A job still ANALYZING after this long was abandoned (e.g. the server restarted mid-run).
-const STALE_ANALYSIS_MS = 10 * 60_000;
 
 type Outcome =
   | { ok: true; song: { id: string; status: string; analysisData: Prisma.JsonValue } }
@@ -27,7 +25,12 @@ type Outcome =
 async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (event: StageEvent) => void): Promise<Outcome> {
   const fail = async (detail: unknown, error: string): Promise<Outcome> => {
     console.error(`[api] analyze ${job.id} failed`, detail);
-    await prisma.song.update({ where: { id: job.id }, data: { status: "FAILED", analysisError: error } });
+    try {
+      await prisma.song.update({ where: { id: job.id }, data: { status: "FAILED", analysisError: error } });
+    } catch (err) {
+      // A database outage must still settle the response; stale jobs remain retryable.
+      console.error(`[api] analyze ${job.id} could not save failure`, err);
+    }
     return { ok: false, error };
   };
 

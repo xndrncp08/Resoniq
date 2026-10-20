@@ -1,16 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Inter, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { auth } from "@/auth";
 import SessionProvider from "@/components/providers/SessionProvider";
 import MotionProvider from "@/components/providers/MotionProvider";
 import Nav from "@/components/landing/Nav";
 
-// Self-hosted at build time by next/font: no request to Google at runtime,
-// and the CSP can keep font-src to 'self'.
-const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-space-grotesk" });
-const body = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
+// Bundled fonts keep builds offline and font-src limited to 'self'.
+const display = localFont({ src: "../public/fonts/space-grotesk-latin.woff2", weight: "500 700", variable: "--font-space-grotesk", display: "swap" });
+const body = localFont({ src: "../public/fonts/inter-latin.woff2", weight: "400 600", variable: "--font-inter", display: "swap" });
+const mono = localFont({
+  src: [
+    { path: "../public/fonts/ibm-plex-mono-latin-400.woff2", weight: "400" },
+    { path: "../public/fonts/ibm-plex-mono-latin-500.woff2", weight: "500" },
+  ],
+  variable: "--font-plex-mono",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: "#0A0D12",

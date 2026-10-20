@@ -10,3 +10,5 @@ __pycache__/
 next-env.d.ts
 .ruff_cache/
 .storage/
+AGENTS.md
+CLAUDE.md

@@ -49,6 +49,9 @@ Two animation libraries, each with one job:
 Both honor `prefers-reduced-motion`. GSAP is free to use under its own
 [standard license](https://gsap.com/standard-license) (not open source).
 
+Fonts are bundled under `frontend/public/fonts` with their SIL Open Font
+License, so builds don't need to contact Google Fonts.
+
 ## Running it
 
 ### With Docker

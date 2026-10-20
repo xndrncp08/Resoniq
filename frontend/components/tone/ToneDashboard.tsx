@@ -15,6 +15,7 @@ import ToneMatcher from "@/components/tone/ToneMatcher";
 import type { EngineAnalysis } from "@/types/engine";
 import Feedback from "@/components/ui/Feedback";
 import { spring } from "@/lib/motion";
+import { MAX_TONE_NAME_LENGTH } from "@/lib/tone-validation";
 
 // The moment analysis lands: panels assemble down the signal path, one
 // after another. Reduced motion keeps the fade and drops the movement.
@@ -34,7 +35,7 @@ export default function ToneDashboard({
   measurements?: EngineAnalysis["raw_features"];
 }) {
   const [recipe, setRecipe] = useState<ToneRecipe>(initialRecipe);
-  const [toneName, setToneName] = useState(initialRecipe.title);
+  const [toneName, setToneName] = useState(initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveAttempts, setSaveAttempts] = useState(0);
 
@@ -55,7 +56,7 @@ export default function ToneDashboard({
       const res = await fetch("/api/tones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ songId, name: toneName.trim() || initialRecipe.title, data }),
+        body: JSON.stringify({ songId, name: toneName.trim() || initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH), data }),
       });
       setSaveState(res.ok ? "saved" : "error");
     } catch {
@@ -131,7 +132,11 @@ export default function ToneDashboard({
         <input
           id="tone-name"
           value={toneName}
-          onChange={(e) => setToneName(e.target.value)}
+          maxLength={MAX_TONE_NAME_LENGTH}
+          onChange={(e) => {
+            setToneName(e.target.value);
+            if (saveState === "saved") setSaveState("idle");
+          }}
           className="focus-ring min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 font-body text-base sm:text-sm outline-none"
           placeholder="Name this tone"
         />
