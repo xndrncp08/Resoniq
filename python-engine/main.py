@@ -2,6 +2,10 @@ import hmac
 import io
 import logging
 import os
+import json
+import queue
+import threading
+from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -9,10 +13,10 @@ import librosa
 import numpy as np
 import soundfile as sf
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.schemas import AnalyzeRequest, AnalyzeResponse
-from app.features import extract_features
+from app.features import FEATURE_STEPS, extract_features
 from app.fetch import BlockedURLError, FetchError, TooLargeError, fetch_audio
 from app.heuristics import build_tone_profile
 from app.recipe import generate_recipe
@@ -82,7 +86,14 @@ def _audio_duration_s(audio_bytes: bytes) -> float | None:
     return info.frames / info.samplerate if info.samplerate else None
 
 
-def analyze_bytes(audio_bytes: bytes) -> AnalyzeResponse:
+# Stages of an analysis, in order, as reported by /analyze/file/stream.
+STAGES = ("decoding", *(f"features.{s}" for s in FEATURE_STEPS), "inference", "recipe")
+
+
+def analyze_bytes(audio_bytes: bytes, on_stage: Callable[[str], None] | None = None) -> AnalyzeResponse:
+    """Decode, measure, infer, write the recipe. `on_stage` hears each stage as it starts (see STAGES)."""
+    stage = on_stage or (lambda _name: None)
+    stage("decoding")
     too_long = HTTPException(
         status_code=413, detail=f"Audio is longer than {int(MAX_AUDIO_SECONDS // 60)} minutes."
     )
@@ -105,8 +116,10 @@ def analyze_bytes(audio_bytes: bytes) -> AnalyzeResponse:
     if y.size < sr * 1:  # less than 1 second of audio
         raise HTTPException(status_code=422, detail="Audio is too short to analyze.")
 
-    raw_features = extract_features(y, sr)
+    raw_features = extract_features(y, sr, on_step=lambda step: stage(f"features.{step}"))
+    stage("inference")
     tone_profile = build_tone_profile(raw_features)
+    stage("recipe")
     recipe = generate_recipe(raw_features, tone_profile)
 
     return AnalyzeResponse(raw_features=raw_features, tone_profile=tone_profile, recipe=recipe)
@@ -135,11 +148,52 @@ def analyze(req: AnalyzeRequest):
 
 @app.post("/analyze/file", response_model=AnalyzeResponse, dependencies=[Depends(require_engine_key)])
 def analyze_file(file: Annotated[UploadFile, File()]):
-    """Analyze an uploaded audio file. This is the path the Next.js app uses."""
+    """Analyze an uploaded audio file in one response."""
+    return analyze_bytes(_read_upload(file))
+
+
+def _read_upload(file: UploadFile) -> bytes:
     chunks, total = [], 0
     while chunk := file.file.read(UPLOAD_CHUNK_BYTES):
         total += len(chunk)
         if total > MAX_AUDIO_BYTES:
             raise HTTPException(status_code=413, detail="Audio file too large.")
         chunks.append(chunk)
-    return analyze_bytes(b"".join(chunks))
+    return b"".join(chunks)
+
+
+def _stream_analysis(audio_bytes: bytes) -> Iterator[str]:
+    """
+    Runs the analysis on a worker thread and yields NDJSON events as it goes:
+    {"type":"stage","stage":...,"index":i,"total":n} for each stage as it
+    starts, then one {"type":"result","data":...} or {"type":"error",
+    "status":...,"detail":...}. The HTTP status is already 200 by then, so
+    failures are reported in-band, with the same safe messages as /analyze/file.
+    """
+    events: queue.Queue[dict | None] = queue.Queue()
+
+    def run():
+        try:
+            def on_stage(name: str):
+                events.put({"type": "stage", "stage": name, "index": STAGES.index(name), "total": len(STAGES)})
+
+            result = analyze_bytes(audio_bytes, on_stage=on_stage)
+            events.put({"type": "result", "data": result.model_dump(mode="json", by_alias=True)})
+        except HTTPException as e:
+            events.put({"type": "error", "status": e.status_code, "detail": e.detail})
+        except Exception:
+            logger.exception("Streaming analysis failed")
+            events.put({"type": "error", "status": 500, "detail": "Internal error."})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=run, daemon=True).start()
+    while (event := events.get()) is not None:
+        yield json.dumps(event) + "\n"
+
+
+@app.post("/analyze/file/stream", dependencies=[Depends(require_engine_key)])
+def analyze_file_stream(file: Annotated[UploadFile, File()]):
+    """Like /analyze/file, but streams real progress (NDJSON) before the result."""
+    audio_bytes = _read_upload(file)
+    return StreamingResponse(_stream_analysis(audio_bytes), media_type="application/x-ndjson")

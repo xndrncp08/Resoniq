@@ -121,3 +121,35 @@ def test_startup_warm_up_runs_the_full_pipeline(monkeypatch):
     with TestClient(main.app) as c:  # entering the context runs the lifespan
         assert c.get("/health").status_code == 200
     assert calls == [SR]
+
+
+def _events(res):
+    return [__import__("json").loads(line) for line in res.text.splitlines() if line.strip()]
+
+
+def test_stream_reports_every_stage_in_order_then_the_same_result(client):
+    audio = wav_bytes(plucked_notes())
+    files = {"file": ("song.wav", audio, "audio/wav")}
+    res = client.post("/analyze/file/stream", files=files, headers=AUTH)
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("application/x-ndjson")
+    events = _events(res)
+    stages = [e["stage"] for e in events if e["type"] == "stage"]
+    assert stages == list(main.STAGES)
+    assert [e["index"] for e in events if e["type"] == "stage"] == list(range(len(main.STAGES)))
+    assert events[-1]["type"] == "result"
+    plain = client.post("/analyze/file", files={"file": ("song.wav", audio, "audio/wav")}, headers=AUTH).json()
+    assert events[-1]["data"] == plain
+
+
+def test_stream_reports_failures_in_band(client):
+    res = client.post("/analyze/file/stream", files={"file": ("x.wav", b"not audio", "audio/wav")}, headers=AUTH)
+    assert res.status_code == 200
+    events = _events(res)
+    assert events[0] == {"type": "stage", "stage": "decoding", "index": 0, "total": len(main.STAGES)}
+    assert events[-1] == {"type": "error", "status": 422, "detail": "Could not decode audio file."}
+
+
+def test_stream_requires_the_engine_key(client):
+    res = client.post("/analyze/file/stream", files={"file": ("x.wav", b"x", "audio/wav")})
+    assert res.status_code == 401

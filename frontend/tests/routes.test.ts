@@ -20,9 +20,11 @@ vi.mock("@/lib/storage", async (importOriginal) => ({
 }));
 
 const analyzeAudio = vi.fn();
+const analyzeAudioStream = vi.fn();
 vi.mock("@/lib/engine", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/engine")>()),
   analyzeAudio: (...args: unknown[]) => analyzeAudio(...args),
+  analyzeAudioStream: (...args: unknown[]) => analyzeAudioStream(...args),
 }));
 
 const register = await import("@/app/api/register/route");
@@ -284,5 +286,65 @@ describe("/api/workspace", () => {
     const huge = { version: 1, windows: [{ ...win, title: "x".repeat(70 * 1024) }], focusedId: null };
     expect((await put(huge)).status).toBe(413);
     expect(db.userWorkspace.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/analyze (streaming)", () => {
+  const streamReq = () =>
+    json({ songId: "s1" }, { headers: { accept: "application/x-ndjson" } });
+  const readAll = async (res: Response) => (await res.text()).trim().split("\n").map((l) => JSON.parse(l));
+
+  beforeEach(() => {
+    signedIn("user-a");
+    db.song.findFirst.mockResolvedValue({ id: "s1", userId: "user-a", storageKey: "user-a/x.wav" });
+    db.song.updateMany.mockResolvedValue({ count: 1 });
+    storage.get.mockResolvedValue({ bytes: Buffer.from("x"), contentType: "audio/wav" });
+  });
+
+  it("relays engine stages in order, then the saved song", async () => {
+    analyzeAudioStream.mockImplementation(async (_b, _f, _c, onStage: (e: unknown) => void) => {
+      onStage({ type: "stage", stage: "decoding", index: 0, total: 9 });
+      onStage({ type: "stage", stage: "inference", index: 7, total: 9 });
+      return { tone_profile: {}, raw_features: {} };
+    });
+    db.song.update.mockResolvedValue({ id: "s1", status: "ANALYZED", analysisData: {} });
+    const res = await analyze.POST(streamReq(), undefined);
+    expect(res.headers.get("content-type")).toBe("application/x-ndjson");
+    const events = await readAll(res);
+    expect(events.map((e) => e.stage ?? e.type)).toEqual(["decoding", "inference", "done"]);
+    expect(events.at(-1).song.status).toBe("ANALYZED");
+    expect(db.song.update.mock.calls[0][0].data.status).toBe("ANALYZED");
+    expect(analyzeAudio).not.toHaveBeenCalled();
+  });
+
+  it("reports engine failures in-band with the safe message and marks the song failed", async () => {
+    analyzeAudioStream.mockRejectedValue(new EngineError("socket hang up at 10.0.0.3", "Analysis was interrupted. Try again."));
+    const events = await readAll(await analyze.POST(streamReq(), undefined));
+    expect(events).toEqual([{ type: "error", error: "Analysis was interrupted. Try again." }]);
+    expect(JSON.stringify(events)).not.toContain("10.0.0.3");
+    expect(db.song.update.mock.calls[0][0].data.status).toBe("FAILED");
+  });
+
+  it("keeps going and saves the result when the browser disconnects mid-stream", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    analyzeAudioStream.mockImplementation(async (_b, _f, _c, onStage: (e: unknown) => void) => {
+      await gate;
+      onStage({ type: "stage", stage: "inference", index: 7, total: 9 });
+      return { tone_profile: {}, raw_features: {} };
+    });
+    db.song.update.mockResolvedValue({ id: "s1", status: "ANALYZED", analysisData: {} });
+    const res = await analyze.POST(streamReq(), undefined);
+    await res.body!.cancel();
+    release();
+    await vi.waitFor(() => expect(db.song.update).toHaveBeenCalled());
+    expect(db.song.update.mock.calls[0][0].data.status).toBe("ANALYZED");
+  });
+
+  it("still answers a job already in progress with a plain 409", async () => {
+    db.song.updateMany.mockResolvedValue({ count: 0 });
+    const res = await analyze.POST(streamReq(), undefined);
+    expect(res.status).toBe(409);
+    expect(analyzeAudioStream).not.toHaveBeenCalled();
   });
 });
