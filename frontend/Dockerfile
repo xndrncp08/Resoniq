@@ -26,8 +26,10 @@ CMD ["npx", "prisma", "migrate", "deploy"]
 # directly with tsx from the builder's full node_modules.
 FROM builder AS worker
 ENV NODE_ENV=production
-RUN mkdir -p /data/songs && chown node:node /data/songs
-USER node
+# Same uid as the runner: both write to the shared song volume.
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs \
+    && mkdir -p /data/songs && chown nextjs:nodejs /data/songs
+USER nextjs
 CMD ["npx", "tsx", "worker/index.ts"]
 
 FROM base AS runner
