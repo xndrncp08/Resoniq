@@ -114,6 +114,7 @@ describe("account status", () => {
 
 describe("POST /api/register", () => {
   it("answers identically for new and existing emails", async () => {
+    db.user.create.mockResolvedValue({ id: "new-user" });
     db.user.findFirst.mockResolvedValueOnce(null);
     const fresh = await register.POST(json({ email: "New@Example.com", password: "long-enough-1" }), undefined);
     db.user.findFirst.mockResolvedValueOnce({ id: "existing" });

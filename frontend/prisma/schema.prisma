@@ -60,6 +60,8 @@ model User {
 
   // Profile banner, served from /api/media (avatars reuse `image`).
   bannerUrl String?
+  // Bumped on password reset: every JWT minted before it stops working (lib/authz.ts).
+  sessionVersion Int @default(0)
 }
 
 enum Role {

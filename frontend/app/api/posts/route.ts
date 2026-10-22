@@ -4,11 +4,13 @@ import { requireActor } from "@/lib/authz";
 import { attachMedia } from "@/lib/media/service";
 import { createPost, parsePostInput, type PostAttachHook, type PostInput } from "@/lib/posts";
 import { RATE_LIMITS } from "@/lib/rate-limit";
+import { assertCanPublish } from "@/lib/verification";
 
 /** Body: { title?, body?, category?, community?, toneId?, mediaIds? } */
 export const POST = route("posts.create", async (req) => {
   const actor = await requireActor({ write: true });
   enforceRateLimit("post-write", actor.id, RATE_LIMITS.postWrite);
+  await assertCanPublish(actor.id);
   const input = parsePostInput(await readJson(req, 64 * 1024)) as PostInput;
   const mediaIds = input.mediaIds ?? [];
   if (!input.body && !input.title && !mediaIds.length && !input.toneId) throw new ApiError(400, "Write something, attach media or share a tone.");

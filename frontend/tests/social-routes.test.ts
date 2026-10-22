@@ -51,6 +51,7 @@ describe("social routes", () => {
   });
 
   it("rejects bad votes and post types with a 400", async () => {
+    db.featureFlag.findMany.mockResolvedValue([]);
     authMock.mockResolvedValue({ user: { id: "u" } });
     db.user.findUnique.mockResolvedValue({ id: "u", handle: "u_1", role: "USER", status: "ACTIVE", suspendedUntil: null });
     expect((await vote.PUT(json({ value: 2 }, "PUT"), id({ id: "p" }))).status).toBe(400);

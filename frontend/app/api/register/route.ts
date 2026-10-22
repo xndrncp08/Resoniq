@@ -6,6 +6,7 @@ import { BCRYPT_ROUNDS, MAX_NAME_LENGTH, normalizeEmail, passwordProblem } from 
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { assignHandle, handleFromName } from "@/lib/handles";
 import { isUniqueViolation } from "@/lib/validation";
+import { sendVerificationEmail } from "@/lib/email-tokens";
 
 /**
  * Creates an email/password account.
@@ -37,13 +38,16 @@ export const POST = route("register", async (req) => {
     try {
       const base = handleFromName(displayName);
       const handle = base ? await assignHandle(prisma, base) : undefined;
+      let created: { id: string };
       try {
-        await prisma.user.create({ data: { name: displayName, email, passwordHash, handle } });
+        created = await prisma.user.create({ data: { name: displayName, email, passwordHash, handle }, select: { id: true } });
       } catch (err) {
         // Lost a handle race: fall back to the database's random handle.
         if (!handle || !isUniqueViolation(err, "handle")) throw err;
-        await prisma.user.create({ data: { name: displayName, email, passwordHash } });
+        created = await prisma.user.create({ data: { name: displayName, email, passwordHash }, select: { id: true } });
       }
+      // A failed email mustn't fail signup; they can resend from Settings.
+      await sendVerificationEmail(created.id).catch((err) => console.error("[register] verification email failed", err));
     } catch (err) {
       // Lost a race with a concurrent signup for the same email: same answer as above.
       if (!isUniqueViolation(err)) throw err;

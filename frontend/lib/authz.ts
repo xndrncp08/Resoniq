@@ -15,10 +15,14 @@ export async function getActor(): Promise<Actor | null> {
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, handle: true, role: true, status: true, suspendedUntil: true },
+    select: { id: true, handle: true, role: true, status: true, suspendedUntil: true, sessionVersion: true },
   });
+  // Sessions issued before the last password reset are dead.
+  if (!user || (user.sessionVersion ?? 0) !== (session?.user?.sv ?? 0)) return null;
+  const { sessionVersion: _v, ...actor } = user;
+  return actor;
 }
 
 /** Suspensions with an end date in the past no longer apply. */

@@ -78,12 +78,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return found?.status !== "BANNED" || "/login?error=account_disabled";
     },
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        // Stamp the session with the account's current version; a password reset bumps it.
+        const row = await prisma.user.findUnique({ where: { id: user.id! }, select: { sessionVersion: true } });
+        token.sv = row?.sessionVersion ?? 0;
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.sv = typeof token.sv === "number" ? token.sv : 0;
       }
       return session;
     },

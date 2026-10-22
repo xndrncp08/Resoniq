@@ -4,6 +4,7 @@ import { requirePageActor } from "@/lib/session";
 import { isSuspended } from "@/lib/authz";
 import { PageHeader } from "@/components/app/ui";
 import { DangerZone, ProfileForm } from "@/components/social/SettingsForms";
+import { ResendVerification } from "@/components/auth/TokenForms";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -26,6 +27,8 @@ export default async function SettingsPage() {
       <section className="panel space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Sign-in</h2>
         <p className="font-body text-sm text-muted">Email: <span className="text-ink">{u.email ?? "—"}</span> {u.email && (u.emailVerified ? <span className="text-signal">· verified</span> : <span className="text-amber">· not verified</span>)}</p>
+        {u.email && !u.emailVerified && u.passwordHash && <ResendVerification />}
+        {u.passwordHash && <p className="font-body text-sm text-muted">Forgot your password? <a href="/forgot" className="text-copper hover:underline">Reset it by email</a>. Resetting signs you out everywhere.</p>}
         <p className="font-body text-sm text-muted">Member since {u.createdAt.toLocaleDateString("en", { month: "long", year: "numeric" })}. Your email is never shown on your profile.</p>
       </section>
       <section className="panel space-y-2 p-5">

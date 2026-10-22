@@ -30,6 +30,8 @@ export const RATE_LIMITS = {
   moderation: { limit: 600, windowMs: 60 * 60_000 },
   mediaUpload: { limit: 60, windowMs: 60 * 60_000 },
   mediaRead: { limit: 1200, windowMs: 60_000 },
+  emailSend: { limit: 5, windowMs: 60 * 60_000 },
+  tokenUse: { limit: 20, windowMs: 15 * 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 const MAX_KEYS = 10_000;

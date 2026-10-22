@@ -165,6 +165,11 @@ export default function AuthForm({
           placeholder="••••••••"
         />
       </label>
+      {mode === "login" && (
+        <p className="text-right">
+          <Link href="/forgot" className="focus-ring rounded font-body text-xs text-muted hover:text-ink">Forgot password?</Link>
+        </p>
+      )}
 
       {error && (
         <Feedback tone="error" trigger={attempts} className="mt-3 font-body text-sm">

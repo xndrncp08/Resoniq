@@ -21,3 +21,16 @@ describe("isSuspended", () => {
     expect(isSuspended({ status: "ACTIVE", suspendedUntil: null }, now)).toBe(false);
   });
 });
+
+describe("session version", () => {
+  it("treats sessions issued before a password reset as signed out", async () => {
+    const { auth } = await import("@/auth");
+    const { getActor } = await import("@/lib/authz");
+    const { prisma } = await import("@/lib/prisma");
+    vi.mocked(auth).mockResolvedValue({ user: { id: "u1", sv: 0 }, expires: "" } as never);
+    vi.spyOn(prisma.user, "findUnique").mockResolvedValue({ id: "u1", handle: "a", role: "USER", status: "ACTIVE", suspendedUntil: null, sessionVersion: 1 } as never);
+    expect(await getActor()).toBeNull();
+    vi.mocked(auth).mockResolvedValue({ user: { id: "u1", sv: 1 }, expires: "" } as never);
+    expect(await getActor()).toMatchObject({ id: "u1" });
+  });
+});
