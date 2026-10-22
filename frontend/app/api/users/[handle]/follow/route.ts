@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireActor } from "@/lib/authz";
 import { follow, unfollow } from "@/lib/follows";
+import { notify } from "@/lib/notify";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 
 type Ctx = { params: Promise<{ handle: string }> };
@@ -21,7 +22,9 @@ export const PUT = route<Ctx>("users.follow", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
   enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
   const id = await target((await params).handle, actor.id);
-  const { created: _created, ...result } = await follow(actor.id, id);
+  const { created, ...result } = await follow(actor.id, id);
+  // Only a newly created follow edge notifies, so repeated clicks stay quiet.
+  if (created) await notify({ userId: id, type: "FOLLOW", actorId: actor.id });
   return NextResponse.json(result);
 });
 
