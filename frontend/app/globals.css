@@ -17,7 +17,32 @@
   --color-ink: #F3EFE8;
   --color-danger: #FF5D5D;
 
+  /* Surface ramp: the chassis (bg-0) up to raised controls (surface-3). */
+  --color-bg-0: #06080B;
+  --color-surface: #151A22;
+  --color-surface-2: #1B212B;
+  --color-surface-3: #232A36;
+  --color-line: #262D39;
+  --color-line-strong: #343D4C;
+  --color-ink-dim: #C9C3B8;
+  --color-copper-soft: #FFB680;
+  --color-copper-deep: #7A3A10;
+  --color-signal-dim: #1C8F7D;
+  --color-amber: #FFC24D;
+  --color-success: #5BD68B;
+
   --radius-panel: 22px;
+  --radius-control: 12px;
+
+  /* Editorial display sizes for hero and page headers. */
+  --text-display-xl: clamp(3.5rem, 11vw, 10.5rem);
+  --text-display-xl--line-height: 0.86;
+  --text-display-lg: clamp(2.75rem, 7vw, 6.5rem);
+  --text-display-lg--line-height: 0.9;
+  --text-display-md: clamp(2rem, 4.2vw, 3.75rem);
+  --text-display-md--line-height: 0.95;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 
   --shadow-glow: 0 0 40px -10px rgba(255, 138, 61, 0.35);
   --shadow-panel: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
@@ -62,6 +87,43 @@ body {
   .focus-ring:focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 3px;
+  }
+
+  /* Instrument-panel primitives: a machined panel, an engraved label, a hairline. */
+  .panel {
+    background: linear-gradient(180deg, var(--color-surface) 0%, color-mix(in oklab, var(--color-surface) 82%, var(--color-bg)) 100%);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+  }
+  .panel-inset {
+    background: var(--color-bg-0);
+    border: 1px solid var(--color-line);
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+  }
+  .label-engraved {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .hairline {
+    border-color: var(--color-line);
+  }
+  /* Faint grille texture, like speaker cloth, for hero blocks and banners. */
+  .grille {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.2px);
+    background-size: 6px 6px;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  /* Keeps tap targets from flashing on mobile Safari. */
+  .tap-clean {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
