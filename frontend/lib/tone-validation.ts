@@ -1,4 +1,5 @@
 import type { StoredToneData } from "@/lib/tone-recipe";
+import { fail } from "@/lib/validation";
 import type { AmpSettings, PedalSlot, PickupPosition, RecipeCore } from "@/types/tone";
 
 /**
@@ -15,11 +16,7 @@ const MAX_ARTISTS = 8;
 const PICKUPS: PickupPosition[] = ["Bridge", "Middle", "Neck", "Bridge/Middle", "Neck/Middle"];
 const PEDAL_TYPES = ["dynamics", "drive", "modulation", "time"];
 
-export class ValidationError extends Error {}
-
-function fail(message: string): never {
-  throw new ValidationError(message);
-}
+export { ValidationError } from "@/lib/validation";
 
 function obj(v: unknown, field: string): Record<string, unknown> {
   if (typeof v !== "object" || v === null || Array.isArray(v)) fail(`${field} must be an object.`);

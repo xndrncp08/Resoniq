@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { Prisma } from "@prisma/client";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
 import { parseRecipeCore } from "@/lib/tone-validation";
 import { validRecipe } from "../fixtures";
@@ -23,7 +24,7 @@ describe("stored tone compatibility", () => {
     await prisma.tone.create({
       data: { userId: user.id, name: "legacy", data: { profile, amp: { gain: 70, bass: 40, mid: 55, treble: 60, presence: 50 } } },
     });
-    await prisma.tone.create({ data: { userId: user.id, name: "v2", data: { version: 2, recipe: parseRecipeCore(validRecipe()) } } });
+    await prisma.tone.create({ data: { userId: user.id, name: "v2", data: { version: 2, recipe: parseRecipeCore(validRecipe()) } as unknown as Prisma.InputJsonValue } });
 
     const tones = await prisma.tone.findMany({ orderBy: { name: "asc" } });
     const recipes = tones.map((t) => recipeFromStoredTone(t, null));

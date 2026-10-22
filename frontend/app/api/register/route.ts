@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, readJson, route } from "@/lib/api";
 import { BCRYPT_ROUNDS, MAX_NAME_LENGTH, normalizeEmail, passwordProblem } from "@/lib/credentials";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { assignHandle, handleFromName } from "@/lib/handles";
+import { isUniqueViolation } from "@/lib/validation";
 
 /**
  * Creates an email/password account.
@@ -33,10 +35,18 @@ export const POST = route("register", async (req) => {
   });
   if (!existing) {
     try {
-      await prisma.user.create({ data: { name: displayName, email, passwordHash } });
+      const base = handleFromName(displayName);
+      const handle = base ? await assignHandle(prisma, base) : undefined;
+      try {
+        await prisma.user.create({ data: { name: displayName, email, passwordHash, handle } });
+      } catch (err) {
+        // Lost a handle race: fall back to the database's random handle.
+        if (!handle || !isUniqueViolation(err, "handle")) throw err;
+        await prisma.user.create({ data: { name: displayName, email, passwordHash } });
+      }
     } catch (err) {
       // Lost a race with a concurrent signup for the same email: same answer as above.
-      if ((err as { code?: string }).code !== "P2002") throw err;
+      if (!isUniqueViolation(err)) throw err;
     }
   }
 
