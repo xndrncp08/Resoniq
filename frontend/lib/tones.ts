@@ -87,6 +87,9 @@ export function toToneView(t: ToneRow, viewerId: string | null, saved = false): 
   };
 }
 
+/** Rows for building ToneViews by id (callers have already applied visibility). */
+export const getToneRows = (ids: string[]) => prisma.tone.findMany({ where: { id: { in: ids } }, select: TONE_SELECT });
+
 /** Direct access: public and unlisted tones by anyone, private ones by their owner; never a banned owner's. */
 export function viewableToneWhere(viewerId: string | null): Prisma.ToneWhereInput {
   return {

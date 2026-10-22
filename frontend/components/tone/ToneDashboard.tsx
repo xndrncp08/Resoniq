@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState } from "react";
 import { motion, type Variants } from "motion/react";
 import { RotateCcw } from "lucide-react";
@@ -38,6 +40,7 @@ export default function ToneDashboard({
   const [toneName, setToneName] = useState(initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveAttempts, setSaveAttempts] = useState(0);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   function update(patch: Partial<ToneRecipe>) {
     setRecipe((r) => ({ ...r, ...patch }));
@@ -59,6 +62,7 @@ export default function ToneDashboard({
         body: JSON.stringify({ songId, name: toneName.trim() || initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH), data }),
       });
       setSaveState(res.ok ? "saved" : "error");
+      if (res.ok) setSavedId(((await res.json()) as { tone: { id: string } }).tone.id);
     } catch {
       setSaveState("error");
     }
@@ -145,11 +149,19 @@ export default function ToneDashboard({
           disabled={saveState === "saving"}
           className="focus-ring shadow-glow whitespace-nowrap rounded-full bg-copper px-6 py-2.5 font-body text-sm font-semibold text-bg transition hover:bg-copper/90 disabled:opacity-60"
         >
-          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save to library"}
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save to vault"}
         </button>
         <p role="status" className="sr-only">
           {saveState === "saved" ? "Saved to your library." : ""}
         </p>
+        {saveState === "saved" && savedId && (
+          <div className="flex w-full flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3 font-body text-sm">
+            <span className="text-muted">Saved as unlisted. Next:</span>
+            <Link href={`/t/${savedId}/edit`} className="focus-ring rounded-full border border-white/10 px-3 py-1.5 hover:border-copper/50">Add your real rig</Link>
+            <Link href={`/new?tone=${savedId}&category=TONE_COMPARISON`} className="focus-ring rounded-full bg-copper/15 px-3 py-1.5 text-copper hover:bg-copper/25">Share it as a post</Link>
+            <Link href={`/t/${savedId}`} className="focus-ring rounded-full px-3 py-1.5 text-muted hover:text-ink">Open tone page</Link>
+          </div>
+        )}
         {saveState === "error" && (
           <Feedback tone="error" trigger={saveAttempts} className="w-full font-body text-sm">
             Couldn&apos;t save. Try again.

@@ -4,7 +4,6 @@ import "./globals.css";
 import { auth } from "@/auth";
 import SessionProvider from "@/components/providers/SessionProvider";
 import MotionProvider from "@/components/providers/MotionProvider";
-import Nav from "@/components/landing/Nav";
 
 // Bundled fonts keep builds offline and font-src limited to 'self'.
 const display = localFont({ src: "../public/fonts/space-grotesk-latin.woff2", weight: "500 700", variable: "--font-space-grotesk", display: "swap" });
@@ -27,7 +26,7 @@ export const metadata: Metadata = {
   title: { default: "Resoniq — Recreate Any Guitar Tone", template: "%s — Resoniq" },
   description:
     "Upload a song and get a starting-point guitar tone recipe — amp, pedals, EQ, and effects — inferred from the recording.",
-  icons: { icon: "/logo.svg" },
+  icons: { icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }], apple: "/brand/app-icon-180.png" },
 };
 
 export default async function RootLayout({
@@ -42,7 +41,9 @@ export default async function RootLayout({
       <body className="antialiased selection:bg-copper/30 selection:text-ink">
         <SessionProvider session={session}>
           <MotionProvider>
-            <Nav />
+            <a href="#main" className="focus-ring sr-only z-[100] rounded-full bg-copper px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+              Skip to content
+            </a>
             {children}
           </MotionProvider>
         </SessionProvider>

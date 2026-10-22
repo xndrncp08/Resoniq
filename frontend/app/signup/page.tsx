@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuthForm from "@/components/auth/AuthForm";
+import Nav from "@/components/landing/Nav";
 import { googleEnabled } from "@/auth";
 import { safeCallbackPath } from "@/lib/safe-redirect";
 
@@ -12,8 +13,11 @@ export default async function SignupPage({
 }) {
   const { callbackUrl } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <AuthForm mode="signup" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/analyze")} />
+    <>
+    <Nav />
+    <main id="main" className="flex min-h-screen items-center justify-center px-6">
+      <AuthForm mode="signup" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/feed")} />
     </main>
+    </>
   );
 }
