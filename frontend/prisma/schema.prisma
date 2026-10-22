@@ -54,8 +54,12 @@ model User {
   reportsResolved    Report[]          @relation("resolver")
   appeals            Appeal[]          @relation("appellant")
   appealsDecided     Appeal[]          @relation("decider")
-  gearItems          GearItem[]
+  gearSubmitted      GearItem[]
   toneSaves          ToneSave[]
+  media              Media[]
+
+  // Profile banner, served from /api/media (avatars reuse `image`).
+  bannerUrl String?
 }
 
 enum Role {
@@ -264,7 +268,8 @@ model Song {
   analysisStartedAt DateTime?
   createdAt         DateTime   @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media?
 
   @@index([userId])
 }
@@ -404,6 +409,7 @@ model Post {
   comments  Comment[]
   votes     PostVote[]
   bookmarks Bookmark[]
+  media     Media[]
 
   @@index([status, hotRank, id])
   @@index([status, createdAt, id])
@@ -624,4 +630,65 @@ model FeatureFlag {
   description String   @default("")
   updatedById String?
   updatedAt   DateTime @updatedAt
+}
+
+// ── Media ──────────────────────────────────────────────────────────────
+
+enum MediaKind {
+  VIDEO
+  AUDIO
+  IMAGE
+}
+
+enum MediaPurpose {
+  POST
+  AVATAR
+  BANNER
+}
+
+// UPLOADING → PROCESSING (worker) → READY | FAILED. REMOVED by moderation or the owner;
+// its files are purged by a delayed media.purge job so a reversed appeal can restore them.
+enum MediaStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  REMOVED
+}
+
+model Media {
+  id            String       @id @default(cuid())
+  ownerId       String
+  postId        String?
+  purpose       MediaPurpose @default(POST)
+  position      Int          @default(0)
+  kind          MediaKind
+  status        MediaStatus  @default(UPLOADING)
+  mime          String
+  // Declared at upload start, then replaced by the stored size.
+  sizeBytes     Int
+  originalKey   String
+  playbackKey   String?
+  posterKey     String?
+  previewKey    String?
+  peaksKey      String?
+  width         Int?
+  height        Int?
+  durationSec   Float?
+  alt           String?
+  // The audio track, extracted as a Song so the analysis engine can infer its tone.
+  songId        String?      @unique
+  error         String?
+  removedReason String?
+  removedAt     DateTime?
+  readyAt       DateTime?
+  createdAt     DateTime     @default(now())
+
+  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  post  Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  song  Song? @relation(fields: [songId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, createdAt])
+  @@index([postId, position])
+  @@index([status, createdAt])
 }

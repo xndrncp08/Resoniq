@@ -4,6 +4,7 @@
  */
 import { hostname } from "node:os";
 import { requeueStale } from "@/lib/jobs/queue";
+import { sweepMedia } from "@/lib/media/process";
 import { runOnce } from "./run";
 
 const workerId = `${hostname()}:${process.pid}`;
@@ -27,6 +28,8 @@ async function main() {
         lastSweep = Date.now();
         const requeued = await requeueStale();
         if (requeued) console.log(`[worker] requeued ${requeued} stale job(s)`);
+        const swept = await sweepMedia();
+        if (swept) console.log(`[worker] cleaned up ${swept} abandoned upload(s)`);
       }
       if ((await runOnce(workerId)) === "idle") await new Promise((r) => setTimeout(r, IDLE_MS));
     } catch (err) {

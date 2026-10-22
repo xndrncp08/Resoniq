@@ -1,5 +1,8 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { getSupabaseAdmin, SONGS_BUCKET } from "@/lib/supabase";
 
 /**
@@ -21,11 +24,34 @@ export interface SongStorage {
   put(key: string, bytes: Buffer, contentType: string): Promise<void>;
   get(key: string): Promise<StoredObject | null>;
   remove(key: string): Promise<void>;
+  /** Size in bytes, or null when the object doesn't exist. */
+  stat(key: string): Promise<{ size: number } | null>;
+  /** Copies an object to a local file (the worker processes media from disk). */
+  downloadTo(key: string, file: string): Promise<void>;
+  uploadFrom(key: string, file: string, contentType: string): Promise<void>;
 }
 
-// Keys are generated server-side as `${userId}/${uuid}.${ext}`; anything
-// else is refused so a bad key can never address a path outside the root.
+/** Local disk: uploads stream through the app, reads support byte ranges. */
+export interface LocalStorage extends SongStorage {
+  readonly driver: "local";
+  /** Streams a body to storage, failing (and leaving nothing behind) past maxBytes. Returns the byte count. */
+  putStream(key: string, body: ReadableStream<Uint8Array>, maxBytes: number): Promise<number>;
+  readStream(key: string, range?: { start: number; end: number }): ReadableStream<Uint8Array>;
+}
+
+/** Supabase: the browser uploads to a signed URL and media is served through short-lived signed URLs. */
+export interface RemoteStorage extends SongStorage {
+  readonly driver: "supabase";
+  createUploadUrl(key: string): Promise<string>;
+  signedUrl(key: string, ttlS: number): Promise<string>;
+}
+
+// Keys are generated server-side; anything else is refused so a bad key can
+// never address a path outside the root.
+//   songs: `${userId}/${uuid}.${ext}`
+//   media: `media/${userId}/${mediaId}/${variant}.${ext}`
 const KEY_PATTERN = /^[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\.(mp3|wav|flac)$/;
+const MEDIA_KEY_PATTERN = /^media\/[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\/[a-z0-9_-]{1,32}\.(mp4|mov|webm|mkv|jpg|png|webp|m4a|mp3|wav|flac|json)$/;
 
 export const CONTENT_TYPES = {
   mp3: "audio/mpeg",
@@ -34,15 +60,32 @@ export const CONTENT_TYPES = {
 } as const;
 export type AudioExt = keyof typeof CONTENT_TYPES;
 
+const MEDIA_TYPES: Record<string, string> = {
+  ...CONTENT_TYPES,
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  mkv: "video/x-matroska",
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  m4a: "audio/mp4",
+  json: "application/json",
+};
+
+export const isValidKey = (key: string) => KEY_PATTERN.test(key) || MEDIA_KEY_PATTERN.test(key);
+
 function assertKey(key: string) {
-  if (!KEY_PATTERN.test(key)) throw new Error(`Invalid storage key: ${key}`);
+  if (!isValidKey(key)) throw new Error(`Invalid storage key: ${key}`);
 }
 
-function contentTypeFor(key: string): string {
-  return CONTENT_TYPES[key.split(".").pop() as AudioExt] ?? "application/octet-stream";
+export function contentTypeFor(key: string): string {
+  return MEDIA_TYPES[key.split(".").pop() ?? ""] ?? "application/octet-stream";
 }
 
-export function localStorageDriver(root: string): SongStorage {
+export class UploadTooLarge extends Error {}
+
+export function localStorageDriver(root: string): LocalStorage {
   const fileFor = (key: string) => {
     assertKey(key);
     const file = path.resolve(root, key);
@@ -67,10 +110,50 @@ export function localStorageDriver(root: string): SongStorage {
     async remove(key) {
       await rm(fileFor(key), { force: true });
     },
+    async stat(key) {
+      try {
+        return { size: (await stat(fileFor(key))).size };
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw err;
+      }
+    },
+    async downloadTo(key, file) {
+      await copyFile(fileFor(key), file);
+    },
+    async uploadFrom(key, file) {
+      const dest = fileFor(key);
+      await mkdir(path.dirname(dest), { recursive: true });
+      await copyFile(file, dest);
+    },
+    async putStream(key, body, maxBytes) {
+      const dest = fileFor(key);
+      await mkdir(path.dirname(dest), { recursive: true });
+      // Write to a temp name and rename on success, so a cut-off upload never looks complete.
+      const tmp = `${dest}.part`;
+      let bytes = 0;
+      const cap = new Transform({
+        transform(chunk: Buffer, _enc, done) {
+          bytes += chunk.length;
+          done(bytes > maxBytes ? new UploadTooLarge("Upload exceeds its size limit.") : null, chunk);
+        },
+      });
+      try {
+        await pipeline(Readable.fromWeb(body as import("node:stream/web").ReadableStream<Uint8Array>), cap, createWriteStream(tmp, { flags: "wx" }));
+        await rename(tmp, dest);
+        return bytes;
+      } catch (err) {
+        await rm(tmp, { force: true });
+        throw err;
+      }
+    },
+    readStream(key, range) {
+      return Readable.toWeb(createReadStream(fileFor(key), range)) as ReadableStream<Uint8Array>;
+    },
   };
 }
 
-function supabaseDriver(): SongStorage {
+function supabaseDriver(): RemoteStorage {
   const bucket = () => getSupabaseAdmin().storage.from(SONGS_BUCKET);
   return {
     driver: "supabase",
@@ -94,12 +177,44 @@ function supabaseDriver(): SongStorage {
       const { error } = await bucket().remove([key]);
       if (error) throw new Error(`Supabase delete failed: ${error.message}`);
     },
+    async stat(key) {
+      assertKey(key);
+      const dir = key.slice(0, key.lastIndexOf("/"));
+      const name = key.slice(key.lastIndexOf("/") + 1);
+      const { data, error } = await bucket().list(dir, { search: name, limit: 1 });
+      if (error) throw new Error(`Supabase stat failed: ${error.message}`);
+      const hit = data?.find((o) => o.name === name);
+      return hit ? { size: Number((hit.metadata as { size?: number } | null)?.size ?? 0) } : null;
+    },
+    // shortcut: Supabase downloads are buffered in memory (fine to ~500 MB per worker); stream via signed URL if that's too much.
+    async downloadTo(key, file) {
+      const obj = await this.get(key);
+      if (!obj) throw new Error(`Missing object: ${key}`);
+      await writeFile(file, obj.bytes);
+    },
+    async uploadFrom(key, file, contentType) {
+      assertKey(key);
+      const { error } = await bucket().upload(key, await readFile(file), { contentType, upsert: true });
+      if (error) throw new Error(`Supabase upload failed: ${error.message}`);
+    },
+    async createUploadUrl(key) {
+      assertKey(key);
+      const { data, error } = await bucket().createSignedUploadUrl(key);
+      if (error || !data) throw new Error(`Supabase signed upload failed: ${error?.message}`);
+      return data.signedUrl;
+    },
+    async signedUrl(key, ttlS) {
+      assertKey(key);
+      const { data, error } = await bucket().createSignedUrl(key, ttlS);
+      if (error || !data) throw new Error(`Supabase signed URL failed: ${error?.message}`);
+      return data.signedUrl;
+    },
   };
 }
 
-let storage: SongStorage | null = null;
+let storage: LocalStorage | RemoteStorage | null = null;
 
-export function getStorage(): SongStorage {
+export function getStorage(): LocalStorage | RemoteStorage {
   if (!storage) {
     const configured = process.env.RESONIQ_STORAGE;
     const useSupabase =

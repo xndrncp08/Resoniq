@@ -11,6 +11,10 @@ import { prisma } from "@/lib/prisma";
 /** Every job type and its payload. Handlers live in lib/jobs/handlers.ts. */
 export type JobPayloads = {
   "storage.delete": { key: string };
+  /** Probe, validate and transcode an upload (worker/media.ts). */
+  "media.process": { mediaId: string };
+  /** Delete a removed upload's files and row. */
+  "media.purge": { mediaId: string };
 };
 export type JobType = keyof JobPayloads;
 

@@ -28,6 +28,8 @@ export const RATE_LIMITS = {
   report: { limit: 20, windowMs: 60 * 60_000 },
   communityCreate: { limit: 5, windowMs: 24 * 60 * 60_000 },
   moderation: { limit: 600, windowMs: 60 * 60_000 },
+  mediaUpload: { limit: 60, windowMs: 60 * 60_000 },
+  mediaRead: { limit: 1200, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 const MAX_KEYS = 10_000;
