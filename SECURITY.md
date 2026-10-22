@@ -1,5 +1,16 @@
 # Security
 
+The [22 October production takeover report](docs/production-takeover.md) records
+the subsequent fixes, actual validation and launch gates. In particular, rate
+limit cardinality is now bounded, JSON bodies are capped while streaming,
+credential session versions survive reset/login races, token updates are
+transactional, and media settlement respects concurrent removal. Account
+deletion preserves other members' replies and repairs related counters.
+
+Access-checked media responses now use `private, no-store`. A Supabase signed
+URL already issued to a client can still work for its remaining five-minute
+lifetime; application takedowns do not revoke that bearer URL retroactively.
+
 This file describes what Resoniq does to protect users and the service, and,
 just as importantly, what it does **not** do yet. Nothing here makes the app
 "secure" in an absolute sense; it lowers specific risks and leaves others open.

@@ -53,7 +53,22 @@ in the folder untouched.
 
 ## Not done
 
-No Figma or Canva files were made for this work: no Canva integration was
-available in the build environment, and Figma needed an account sign-in. The
-identity, illustrations and templates exist as the SVG and PNG files above and
-as React components (`components/icons/Icon.tsx`, `components/landing/art/*`).
+No Figma or Canva files were made. During the final takeover, Canva search
+found no Resoniq designs and its exploration tool returned an empty
+recommendation; no Figma connector was available. The original icon/wordmark
+family remains the source of the identity.
+
+## Photographic direction
+
+The landing's decorative SVG instrument components were replaced by three
+original generated studio photographs, exported to seven local WebP files in
+`public/images/`: `studio-guitar-*`, `studio-bassist-*`, `studio-pedals-*`.
+They share copper practical lighting, restrained teal highlights, dark studio
+surfaces and credible equipment textures. These images are illustrative;
+they do not document an actual musician's rig or reproduce the Sketchfab model.
+
+`public/brand/og-studio.jpg` is the new 1200×630 default social image, composed
+with the original wordmark. Rebuild it with `node scripts/brand-social.mjs`
+from `frontend/`. Existing reusable SVG social templates remain available.
+See [the takeover report](production-takeover.md) for source, model usage and
+validation details.

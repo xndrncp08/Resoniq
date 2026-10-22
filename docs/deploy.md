@@ -1,5 +1,11 @@
 # Deploying Resoniq
 
+See the [production takeover report](production-takeover.md) for current
+validation and unresolved launch gates. The standalone frontend, local
+PostgreSQL/worker/FFmpeg stack and real analysis engine were exercised locally;
+Docker images and real email/OAuth/Supabase delivery still need staging
+acceptance. Deploy the commits as a unit and run the existing CI stack job.
+
 Nothing is hosted yet. This is what a deployment needs. Everything below is
 configuration, with no code changes required.
 

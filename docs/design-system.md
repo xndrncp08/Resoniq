@@ -51,9 +51,12 @@ hardware (pedal enclosures, rack units, pick shapes, pole pieces).
 ## Motion
 
 Motion handles layout and presence; GSAP handles render loops (unchanged).
-New surfaces use short springs for state changes and CSS keyframes for ambient
-motion (`float`, `marquee`). The global `prefers-reduced-motion` rule
-neutralises all of them.
+New surfaces use short springs for state changes. The public landing is
+static; its former floating gear and marquee were removed. The detailed
+analysis example and the Sketchfab viewer load on explicit request. Motion
+configuration is scoped to the application, authentication form, dialogs and
+deferred example. Reduced motion disables automatic video hover previews.
+The global `prefers-reduced-motion` rule also neutralises CSS movement.
 
 ## Responsive behavior
 
