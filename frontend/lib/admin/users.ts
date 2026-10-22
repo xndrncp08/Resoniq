@@ -76,12 +76,15 @@ export async function setUserStatus(actor: Actor, id: string, change: ReturnType
   const needed = change.status === "BANNED" ? "users.ban" : "users.suspend";
   if (!can(actor.role, needed)) throw new ApiError(403, "Not allowed.");
   if (id === actor.id) throw new ApiError(400, "You can't change your own account status.");
-  const target = await prisma.user.findUnique({ where: { id }, select: { role: true, status: true } });
-  if (!target) throw new ApiError(404, "User not found.");
-  if (target.role !== "USER" && actor.role !== "ADMIN") throw new ApiError(403, "Only admins can act on staff accounts.");
-  if (target.status === "BANNED" && change.status !== "BANNED" && !can(actor.role, "users.ban")) throw new ApiError(403, "Only admins can lift a ban.");
-
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' ORDER BY id FOR UPDATE`;
+    const target = await tx.user.findUnique({ where: { id }, select: { role: true, status: true } });
+    if (!target) throw new ApiError(404, "User not found.");
+    if (target.role !== "USER" && actor.role !== "ADMIN") throw new ApiError(403, "Only admins can act on staff accounts.");
+    if (target.status === "BANNED" && change.status !== "BANNED" && !can(actor.role, "users.ban")) throw new ApiError(403, "Only admins can lift a ban.");
+    if (target.role === "ADMIN" && target.status === "ACTIVE" && change.status !== "ACTIVE" && await tx.user.count({ where: { role: "ADMIN", status: "ACTIVE" } }) <= 1) {
+      throw new ApiError(400, "Resoniq needs at least one active admin.");
+    }
     await tx.user.update({
       where: { id },
       data: { status: change.status, suspendedUntil: change.status === "SUSPENDED" ? change.until : null, statusReason: change.status === "ACTIVE" ? null : change.reason },
@@ -105,6 +108,7 @@ export async function setUserRole(actor: Actor, id: string, role: Role) {
   if (!ROLES.includes(role)) throw new ApiError(400, "Unknown role.");
   if (id === actor.id) throw new ApiError(400, "Ask another admin to change your own role.");
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' ORDER BY id FOR UPDATE`;
     const target = await tx.user.findUnique({ where: { id }, select: { role: true } });
     if (!target) throw new ApiError(404, "User not found.");
     if (target.role === "ADMIN" && role !== "ADMIN") {

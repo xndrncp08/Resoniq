@@ -94,6 +94,8 @@ done
 curl -s "$BASE_URL/api/posts/$POST" | json 'd["post"]["status"]' | grep -qx PUBLISHED || fail "post not published after processing"
 code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-1023' "$BASE_URL/api/media/$MEDIA/playback")
 [ "$code" = 206 ] || fail "range playback returned $code"
+curl -s -D "$WORK/media-headers.txt" -o /dev/null -H 'Range: bytes=0-1023' "$BASE_URL/api/media/$MEDIA/playback"
+grep -qi '^cache-control:.*no-store' "$WORK/media-headers.txt" || fail "media can be cached after access is revoked"
 curl -s "$BASE_URL/api/posts/$POST" | json 'd["post"]["tone"]["declared"]["blocks"]' | grep -qx 2 || fail "tone summary missing on post"
 
 step "amp, comment, reply, bookmark"

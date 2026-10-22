@@ -109,21 +109,35 @@ export async function processMedia(mediaId: string): Promise<void> {
     if ((await stat(input)).size > MEDIA_LIMITS[media.kind].bytes) throw new MediaRejected(`${MEDIA_LIMITS[media.kind].label}.`);
     const { flac, ...out } = await processFile(media, dir, input);
 
-    let songId: string | null = null;
+    let audioKey: string | null = null;
     if (flac) {
-      const key = `${media.ownerId}/${randomUUID()}.flac`;
-      await store.uploadFrom(key, flac, "audio/flac");
-      const post = media.postId ? await prisma.post.findUnique({ where: { id: media.postId }, select: { title: true } }) : null;
-      songId = (await prisma.song.create({ data: { userId: media.ownerId, storageKey: key, title: post?.title ?? "Performance audio", durationSec: out.durationSec ?? null }, select: { id: true } })).id;
+      audioKey = `${media.ownerId}/${randomUUID()}.flac`;
+      await store.uploadFrom(audioKey, flac, "audio/flac");
     }
-    await prisma.media.update({ where: { id: media.id }, data: { ...out, songId, status: "READY", readyAt: new Date(), error: null } });
+    const ready = await prisma.$transaction(async (tx) => {
+      // A concurrent removal or account deletion wins over a completed transcode.
+      const { count } = await tx.media.updateMany({ where: { id: media.id, status: "PROCESSING" }, data: { ...out, status: "READY", readyAt: new Date(), error: null } });
+      if (!count) return null;
+      const current = await tx.media.findUniqueOrThrow({ where: { id: media.id }, select: { postId: true } });
+      if (audioKey) {
+        const post = current.postId ? await tx.post.findUnique({ where: { id: current.postId }, select: { title: true } }) : null;
+        const song = await tx.song.create({ data: { userId: media.ownerId, storageKey: audioKey, title: post?.title ?? "Performance audio", durationSec: out.durationSec ?? null }, select: { id: true } });
+        await tx.media.update({ where: { id: media.id }, data: { songId: song.id } });
+      }
+      return current;
+    });
+    if (!ready) {
+      for (const key of [out.playbackKey, out.posterKey, out.previewKey, out.peaksKey, audioKey]) if (key) await store.remove(key);
+      return;
+    }
     // The original can carry location metadata; only stripped derivatives are kept.
     await store.remove(media.originalKey);
-    await settlePost(media.postId);
-    await notify({ userId: media.ownerId, type: "MEDIA_READY", postId: media.postId, data: { mediaId: media.id, kind: media.kind } });
+    await settlePost(ready.postId);
+    await notify({ userId: media.ownerId, type: "MEDIA_READY", postId: ready.postId, data: { mediaId: media.id, kind: media.kind } });
   } catch (err) {
     if (!(err instanceof MediaRejected)) throw err;
-    await prisma.media.update({ where: { id: media.id }, data: { status: "FAILED", error: err.message } });
+    const { count } = await prisma.media.updateMany({ where: { id: media.id, status: "PROCESSING" }, data: { status: "FAILED", error: err.message } });
+    if (!count) return;
     await store.remove(media.originalKey);
     await settlePost(media.postId);
     await notify({ userId: media.ownerId, type: "MEDIA_FAILED", postId: media.postId, data: { mediaId: media.id, kind: media.kind, error: err.message } });

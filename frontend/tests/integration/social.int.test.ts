@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { clearRuleCache } from "@/lib/automod";
-import { createComment, deleteComment, listComments, voteComment } from "@/lib/comments";
+import { createComment, deleteComment, editComment, listComments, voteComment } from "@/lib/comments";
 import { canCreateCommunity, join } from "@/lib/communities";
 import { follow } from "@/lib/follows";
 import { moderatePost } from "@/lib/moderation";
@@ -150,6 +150,20 @@ describe("comments", () => {
 });
 
 describe("moderation, reports and appeals", () => {
+  it("removes an edited comment from published counters when automod holds it", async () => {
+    await seed(prisma);
+    const author = await makeActor();
+    const p = await createPost(author, { ...base, body: "A riff" });
+    const parent = await createComment(author, p.id, { body: "Top", parentId: null });
+    const reply = await createComment(author, p.id, { body: "Reply", parentId: parent.id });
+    await prisma.moderationRule.updateMany({ where: { kind: "BLOCKED_TERM" }, data: { config: { terms: ["blocked words"] } } });
+    clearRuleCache();
+    await editComment(author, reply.id, "blocked words");
+    await editComment(author, reply.id, "still blocked words");
+    expect((await prisma.post.findUniqueOrThrow({ where: { id: p.id } })).commentCount).toBe(1);
+    expect((await prisma.comment.findUniqueOrThrow({ where: { id: parent.id } })).replyCount).toBe(0);
+    expect((await listComments(p.id, null)).map((c) => c.id)).toEqual([parent.id]);
+  });
   it("limits community moderators to their own community", async () => {
     await seed(prisma);
     const author = await makeActor();

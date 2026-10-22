@@ -40,6 +40,15 @@ describe("email verification", () => {
 });
 
 describe("password reset", () => {
+  it("allows only one concurrent use of a reset link", async () => {
+    const u = await makeActor({ email: "race@test.dev" });
+    await prisma.user.update({ where: { id: u.id }, data: { passwordHash: "old" } });
+    await requestPasswordReset("race@test.dev");
+    const token = tokenFrom(sent[0].text);
+    const results = await Promise.allSettled([resetPassword(token, "password-one"), resetPassword(token, "password-two")]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).sessionVersion).toBe(1);
+  });
   it("is silent for unknown emails, works once, and bumps the session version", async () => {
     await requestPasswordReset("nobody@test.dev");
     expect(sent).toHaveLength(0);

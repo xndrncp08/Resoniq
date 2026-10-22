@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { platformCounts, risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
 import { createPost, votePost } from "@/lib/posts";
 import { searchAll, searchCommunities, searchGearItems, searchMusicians, searchPosts, searchTones } from "@/lib/search";
 import { createTone } from "@/lib/tones";
 import { seed } from "@/prisma/seed";
 import { makeActor, prisma, resetDb } from "./db";
+
+// Each case replaces the database contents; cache behavior has its own unit tests.
+vi.mock("@/lib/memo", () => ({ memo: (_key: string, _ttl: number, load: () => Promise<unknown>) => load() }));
 
 const base = { title: null, category: "DISCUSSION" as const, communitySlug: null, toneId: null };
 
@@ -14,6 +17,14 @@ beforeEach(async () => {
 });
 
 describe("discovery", () => {
+  it("excludes banned accounts from refreshed public aggregates", async () => {
+    const banned = await makeActor();
+    await createPost(banned, { ...base, body: "A hidden #bancheck" });
+    await createTone(banned, { name: "Hidden tone", rig: { chain: [], notes: "x" }, visibility: "PUBLIC" });
+    await prisma.user.update({ where: { id: banned.id }, data: { status: "BANNED" } });
+    expect(await trendingTags(3)).toEqual([]);
+    expect(await platformCounts()).toMatchObject({ posts: 0, tones: 0 });
+  });
   it("computes trending tags, rising musicians and suggestions from real rows only", async () => {
     const a = await makeActor({ handle: "mia_strat" });
     const fan = await makeActor();

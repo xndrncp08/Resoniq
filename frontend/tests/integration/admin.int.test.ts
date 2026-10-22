@@ -23,6 +23,15 @@ beforeEach(async () => {
 });
 
 describe("account actions", () => {
+  it("serializes concurrent demotions so an active admin always remains", async () => {
+    const actor = await staff("ADMIN");
+    await prisma.user.update({ where: { id: actor.id }, data: { status: "SUSPENDED" } });
+    const a = await staff("ADMIN");
+    const b = await staff("ADMIN");
+    const results = await Promise.allSettled([setUserRole(actor, a.id, "USER"), setUserRole(actor, b.id, "USER")]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await prisma.user.count({ where: { role: "ADMIN", status: "ACTIVE" } })).toBe(1);
+  });
   it("lets moderators suspend but not ban, and never act on themselves or on staff", async () => {
     const mod = await staff("MODERATOR");
     const admin = await staff("ADMIN");

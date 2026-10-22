@@ -42,13 +42,31 @@ export function enforceRateLimit(bucket: string, key: string, rule: RateLimitRul
  * (it can't set that type without a CORS preflight, which this app never grants).
  */
 export async function readJson(req: Request, maxBytes = 16 * 1024): Promise<Record<string, unknown>> {
-  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (req.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
     throw new ApiError(415, "Expected an application/json body.");
   }
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) throw new ApiError(413, "Request body too large.");
-  const text = await req.text();
-  if (Buffer.byteLength(text) > maxBytes) throw new ApiError(413, "Request body too large.");
+  const reader = req.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (reader) {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) {
+          await reader.cancel();
+          throw new ApiError(413, "Request body too large.");
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+  const text = Buffer.concat(chunks).toString("utf8");
   try {
     const body: unknown = JSON.parse(text);
     if (typeof body === "object" && body !== null && !Array.isArray(body)) return body as Record<string, unknown>;
@@ -68,6 +86,11 @@ function assertSameOrigin(req: Request) {
   if (req.method === "GET" || req.method === "HEAD") return;
   const origin = req.headers.get("origin");
   if (!origin) return;
+  const configuredOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  if (configuredOrigin) {
+    if (origin !== new URL(configuredOrigin).origin) throw new ApiError(403, "Cross-site request refused.");
+    return;
+  }
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   let originHost: string | null = null;
   try {

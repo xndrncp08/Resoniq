@@ -48,6 +48,8 @@ export function rateLimit(bucket: string, key: string, rule: RateLimitRule, now 
   let w = windows.get(id);
   if (!w || w.resetAt <= now) {
     if (windows.size >= MAX_KEYS) sweep(now);
+    // Keep live budgets intact under a flood of distinct keys; never evict them to make room.
+    if (!windows.has(id) && windows.size >= MAX_KEYS) return { ok: false, retryAfterS: 60 };
     w = { count: 0, resetAt: now + rule.windowMs };
     windows.set(id, w);
   }

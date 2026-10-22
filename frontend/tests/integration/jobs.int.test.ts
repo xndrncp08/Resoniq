@@ -2,7 +2,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { claimNext, enqueue, failJob, requeueStale, retryJob } from "@/lib/jobs/queue";
+import { claimNext, completeJob, enqueue, failJob, heartbeatJob, requeueStale, retryJob } from "@/lib/jobs/queue";
 import { localStorageDriver } from "@/lib/storage";
 import { prisma, resetDb } from "./db";
 
@@ -62,6 +62,20 @@ describe("job queue", () => {
     expect(await runOnce("w")).toBe("succeeded");
     expect(await readdir(path.join(root, "user1"))).toEqual([]);
     expect(await runOnce("w")).toBe("idle");
+  });
+
+  it("renews long-running leases and ignores updates from an old worker", async () => {
+    const id = await enqueue("storage.delete", { key: "a/b.mp3" });
+    const old = (await claimNext("old"))!;
+    await prisma.job.update({ where: { id }, data: { lockedAt: new Date(Date.now() - 20 * 60_000) } });
+    await heartbeatJob(id, "old");
+    expect(await requeueStale()).toBe(0);
+    await prisma.job.update({ where: { id }, data: { lockedAt: new Date(0) } });
+    expect(await requeueStale()).toBe(1);
+    await claimNext("new");
+    await completeJob(id, "old");
+    await failJob(old, new Error("late error"));
+    expect(await prisma.job.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: "RUNNING", lockedBy: "new" });
   });
 
   it("fails unknown job types instead of crashing", async () => {

@@ -66,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           image: user.image,
+          sv: user.sessionVersion,
         };
       },
     }),
@@ -81,8 +82,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         // Stamp the session with the account's current version; a password reset bumps it.
-        const row = await prisma.user.findUnique({ where: { id: user.id! }, select: { sessionVersion: true } });
-        token.sv = row?.sessionVersion ?? 0;
+        if (typeof user.sv === "number") token.sv = user.sv;
+        else {
+          const row = await prisma.user.findUnique({ where: { id: user.id! }, select: { sessionVersion: true } });
+          token.sv = row?.sessionVersion ?? 0;
+        }
       }
       return token;
     },

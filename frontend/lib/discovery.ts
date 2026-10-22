@@ -13,6 +13,7 @@ async function loadTrendingTags(days: number, limit: number) {
   const rows = await prisma.$queryRaw<{ tag: string; uses: bigint }[]>`
     SELECT pt.tag, COUNT(*) AS uses FROM "PostTag" pt
     JOIN "Post" p ON p.id = pt."postId" AND p.status = 'PUBLISHED'
+    JOIN "User" u ON u.id = p."authorId" AND u.status <> 'BANNED'
     WHERE pt."createdAt" > (now() AT TIME ZONE 'UTC') - make_interval(days => ${days}::int)
     GROUP BY pt.tag ORDER BY uses DESC, pt.tag LIMIT ${limit}`;
   return rows.map((r) => ({ tag: r.tag, uses: Number(r.uses) }));
@@ -50,8 +51,8 @@ export function platformCounts() {
 async function loadPlatformCounts() {
   const [musicians, posts, tones, communities] = await Promise.all([
     prisma.user.count({ where: { status: "ACTIVE" } }),
-    prisma.post.count({ where: { status: "PUBLISHED" } }),
-    prisma.tone.count({ where: { visibility: "PUBLIC" } }),
+    prisma.post.count({ where: { status: "PUBLISHED", author: { status: { not: "BANNED" } } } }),
+    prisma.tone.count({ where: { visibility: "PUBLIC", user: { status: { not: "BANNED" } } } }),
     prisma.community.count({ where: { archivedAt: null } }),
   ]);
   return { musicians, posts, tones, communities };

@@ -132,14 +132,18 @@ export async function createComment(actor: Actor, postId: string, input: { body:
 }
 
 export async function editComment(actor: Actor, id: string, body: string): Promise<CommentView> {
-  const existing = await prisma.comment.findFirst({ where: { id, authorId: actor.id, status: { in: ["PUBLISHED", "HELD"] } }, select: { status: true } });
-  if (!existing) throw new ApiError(404, "Comment not found.");
   const author = await prisma.user.findUniqueOrThrow({ where: { id: actor.id }, select: { createdAt: true } });
   const screen = await screenText(body, author);
-  const row = await prisma.comment.update({
-    where: { id },
-    data: { body, editedAt: new Date(), ...(screen.hold && existing.status === "PUBLISHED" && { status: "HELD" }) },
-    select: COMMENT_SELECT,
+  const row = await prisma.$transaction(async (tx) => {
+    const [existing] = await tx.$queryRaw<{ status: ContentStatus; postId: string; parentId: string | null }[]>`
+      SELECT status, "postId", "parentId" FROM "Comment"
+      WHERE id = ${id} AND "authorId" = ${actor.id} AND status IN ('PUBLISHED', 'HELD') FOR UPDATE`;
+    if (!existing) throw new ApiError(404, "Comment not found.");
+    if (screen.hold && existing.status === "PUBLISHED") {
+      await tx.post.update({ where: { id: existing.postId }, data: { commentCount: { decrement: 1 } } });
+      if (existing.parentId) await tx.comment.update({ where: { id: existing.parentId }, data: { replyCount: { decrement: 1 } } });
+    }
+    return tx.comment.update({ where: { id }, data: { body, editedAt: new Date(), ...(screen.hold && { status: "HELD" }) }, select: COMMENT_SELECT });
   });
   return toView(row, actor.id) ?? (() => { throw new ApiError(404, "Comment not found."); })();
 }

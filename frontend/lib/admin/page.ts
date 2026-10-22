@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getActor, type Actor } from "@/lib/authz";
+import { getActor, isSuspended, type Actor } from "@/lib/authz";
 import { can, isStaff, type Permission } from "@/lib/permissions";
 
 /**
@@ -8,7 +8,7 @@ import { can, isStaff, type Permission } from "@/lib/permissions";
  */
 export async function requireStaffPage(permission?: Permission): Promise<Actor> {
   const actor = await getActor();
-  if (!actor || actor.status !== "ACTIVE" || !isStaff(actor.role)) notFound();
+  if (!actor || actor.status === "BANNED" || isSuspended(actor) || !isStaff(actor.role)) notFound();
   if (permission && !can(actor.role, permission)) notFound();
   return actor;
 }

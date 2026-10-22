@@ -67,6 +67,14 @@ describe("rate limit", () => {
     const req = new Request("http://x", { headers: { "x-forwarded-for": "6.6.6.6, 203.0.113.7" } });
     expect(clientIp(req)).toBe("203.0.113.7");
   });
+
+  it("refuses new keys at capacity without evicting live budgets, then recovers", () => {
+    const rule = { limit: 1, windowMs: 1000 };
+    for (let i = 0; i < 10_000; i++) expect(rateLimit("flood", String(i), rule, 0).ok).toBe(true);
+    expect(rateLimit("flood", "overflow", rule, 1).ok).toBe(false);
+    expect(rateLimit("flood", "0", rule, 1).ok).toBe(false);
+    expect(rateLimit("flood", "overflow", rule, 1001).ok).toBe(true);
+  });
 });
 
 describe("credentials", () => {

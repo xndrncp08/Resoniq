@@ -9,7 +9,7 @@ export class FfmpegError extends Error {}
 
 function run(bin: string, args: string[], { capture = false } = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { stdio: ["ignore", capture ? "pipe" : "ignore", "pipe"] });
+    const child = spawn(bin, ["-protocol_whitelist", "file,pipe", ...args], { stdio: ["ignore", capture ? "pipe" : "ignore", "pipe"] });
     const out: Buffer[] = [];
     let err = "";
     const timer = setTimeout(() => child.kill("SIGKILL"), TIMEOUT_MS);

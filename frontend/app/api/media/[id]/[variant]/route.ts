@@ -22,11 +22,11 @@ export const GET = route<Ctx>("media.serve", async (req, { params }) => {
   const key = media && keyFor(media, variant as MediaVariant);
   if (!media || !key || media.status === "REMOVED" || !(await canViewMedia(media, viewer))) throw new ApiError(404, "Not found.");
 
-  // Derivatives never change for a given id, but access can: cache privately and briefly.
-  const cache = media.status === "READY" ? "private, max-age=300" : "private, no-store";
+  // Access can change after a takedown or ban, even when the bytes do not.
+  const cache = "private, no-store";
   const storage = getStorage();
   if (storage.driver === "supabase") {
-    return NextResponse.redirect(await storage.signedUrl(key, 300), { status: 302, headers: { "Cache-Control": "private, max-age=240" } });
+    return NextResponse.redirect(await storage.signedUrl(key, 300), { status: 302, headers: { "Cache-Control": cache } });
   }
   const stat = await storage.stat(key);
   if (!stat) throw new ApiError(404, "Not found.");

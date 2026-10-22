@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetRateLimits } from "@/lib/rate-limit";
+import { isEnabled } from "@/lib/flags";
 import { validRecipe } from "./fixtures";
 
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: () => authMock() }));
+vi.mock("@/lib/flags", () => ({ isEnabled: vi.fn() }));
 
 const db = {
   user: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -66,6 +68,7 @@ const signedIn = (id = "user-a", extra: Record<string, unknown> = {}) => {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(isEnabled).mockResolvedValue(true);
   db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db));
   resetRateLimits();
   authMock.mockResolvedValue(null);
@@ -113,6 +116,11 @@ describe("account status", () => {
 });
 
 describe("POST /api/register", () => {
+  it("honors the administrator signup switch before creating an account", async () => {
+    vi.mocked(isEnabled).mockResolvedValue(false);
+    expect((await register.POST(json({ email: "a@b.co", password: "long-enough-1" }), undefined)).status).toBe(503);
+    expect(db.user.create).not.toHaveBeenCalled();
+  });
   it("answers identically for new and existing emails", async () => {
     db.user.create.mockResolvedValue({ id: "new-user" });
     db.user.findFirst.mockResolvedValueOnce(null);
@@ -290,6 +298,13 @@ describe("GET /api/songs/[id]", () => {
 });
 
 describe("cross-site protection", () => {
+  it("uses the configured public origin even if forwarded headers are forged", async () => {
+    vi.stubEnv("AUTH_URL", "https://resoniq.example");
+    try {
+      const req = json({}, { headers: { origin: "https://evil.example", host: "evil.example", "x-forwarded-host": "evil.example" } });
+      expect((await register.POST(req, undefined)).status).toBe(403);
+    } finally { vi.unstubAllEnvs(); }
+  });
   it("refuses mutations from another origin", async () => {
     signedIn("user-a");
     const req = json({ name: "x" }, { headers: { origin: "https://evil.example", host: "localhost:3000" } });

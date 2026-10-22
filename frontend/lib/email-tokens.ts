@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-error";
 import { BCRYPT_ROUNDS, passwordProblem } from "@/lib/credentials";
@@ -28,12 +29,12 @@ async function issue(purpose: "verify" | "reset", userId: string, ttlMs: number)
 }
 
 /** Consumes a token. Returns the user id, or null if it's unknown, used or expired. */
-async function consume(purpose: "verify" | "reset", token: string): Promise<string | null> {
+async function consume(db: Prisma.TransactionClient, purpose: "verify" | "reset", token: string): Promise<string | null> {
   if (typeof token !== "string" || token.length < 20 || token.length > 100) return null;
-  const row = await prisma.verificationToken.findUnique({ where: { token: hash(token) } });
+  const row = await db.verificationToken.findUnique({ where: { token: hash(token) } });
   if (!row || !row.identifier.startsWith(`${purpose}:`)) return null;
   // Delete first: a token works once even if two requests race.
-  const { count } = await prisma.verificationToken.deleteMany({ where: { token: row.token } });
+  const { count } = await db.verificationToken.deleteMany({ where: { token: row.token } });
   if (count !== 1 || row.expires < new Date()) return null;
   return row.identifier.slice(purpose.length + 1);
 }
@@ -50,9 +51,11 @@ export async function sendVerificationEmail(userId: string) {
 }
 
 export async function verifyEmail(token: string) {
-  const userId = await consume("verify", token);
-  if (!userId) throw new ApiError(400, "That link is invalid or has expired. Request a new one from Settings.");
-  await prisma.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
+  await prisma.$transaction(async (tx) => {
+    const userId = await consume(tx, "verify", token);
+    if (!userId) throw new ApiError(400, "That link is invalid or has expired. Request a new one from Settings.");
+    await tx.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
+  });
 }
 
 /** Always resolves the same way, so this can't be used to discover accounts. */
@@ -71,12 +74,14 @@ export async function requestPasswordReset(email: string) {
 export async function resetPassword(token: string, password: unknown) {
   const problem = passwordProblem(password);
   if (problem) throw new ApiError(400, problem);
-  const userId = await consume("reset", token);
-  if (!userId) throw new ApiError(400, "That reset link is invalid or has expired. Request a new one.");
   const passwordHash = await bcrypt.hash(password as string, BCRYPT_ROUNDS);
-  await prisma.user.update({
-    where: { id: userId },
-    // Clicking the emailed link also proves the address.
-    data: { passwordHash, sessionVersion: { increment: 1 }, emailVerified: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const userId = await consume(tx, "reset", token);
+    if (!userId) throw new ApiError(400, "That reset link is invalid or has expired. Request a new one.");
+    await tx.user.update({
+      where: { id: userId },
+      // Clicking the emailed link also proves the address.
+      data: { passwordHash, sessionVersion: { increment: 1 }, emailVerified: new Date() },
+    });
   });
 }

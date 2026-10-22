@@ -80,9 +80,9 @@ export async function completeUpload(actor: Actor, id: string) {
     throw new ApiError(413, `${MEDIA_LIMITS[media.kind].label}.`);
   }
   return prisma.$transaction(async (tx) => {
-    const m = await tx.media.update({ where: { id }, data: { status: "PROCESSING", sizeBytes: stored.size } });
-    await enqueue("media.process", { mediaId: id }, { db: tx, maxAttempts: 3 });
-    return m;
+    const { count } = await tx.media.updateMany({ where: { id, status: "UPLOADING" }, data: { status: "PROCESSING", sizeBytes: stored.size } });
+    if (count) await enqueue("media.process", { mediaId: id }, { db: tx, maxAttempts: 3 });
+    return tx.media.findUniqueOrThrow({ where: { id } });
   });
 }
 
@@ -92,8 +92,11 @@ export async function attachMedia(tx: Prisma.TransactionClient, ownerId: string,
   if (new Set(ids).size !== ids.length) throw new ApiError(400, "Each file can only be attached once.");
   const rows = await tx.media.findMany({ where: { id: { in: ids }, ownerId, purpose: "POST", postId: null, status: { in: ["PROCESSING", "READY"] } }, select: { id: true, status: true } });
   if (rows.length !== ids.length) throw new ApiError(400, "Some attachments aren't uploaded yet or can't be used.");
-  for (const [position, id] of ids.entries()) await tx.media.update({ where: { id }, data: { postId, position } });
-  return { processing: rows.some((r) => r.status === "PROCESSING") };
+  for (const [position, id] of ids.entries()) {
+    const { count } = await tx.media.updateMany({ where: { id, ownerId, postId: null, status: { in: ["PROCESSING", "READY"] } }, data: { postId, position } });
+    if (!count) throw new ApiError(409, "An attachment changed. Refresh and try again.");
+  }
+  return { processing: (await tx.media.count({ where: { postId, status: "PROCESSING" } })) > 0 };
 }
 
 // ── Access ─────────────────────────────────────────────────────────────

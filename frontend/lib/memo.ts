@@ -9,7 +9,7 @@ export function memo<T>(key: string, ttlMs: number, load: () => Promise<T>): Pro
   const hit = store.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.value as Promise<T>;
   const value = load().catch((err) => {
-    store.delete(key);
+    if (store.get(key)?.value === value) store.delete(key);
     throw err;
   });
   store.set(key, { at: Date.now(), value });

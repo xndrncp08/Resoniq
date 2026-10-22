@@ -54,6 +54,38 @@ const post = (actor: Awaited<ReturnType<typeof makeActor>>, mediaIds: string[]) 
   });
 
 describe.skipIf(!hasFfmpeg)("media processing", () => {
+  it("does not resurrect media removed while it is processing", async () => {
+    const owner = await makeActor();
+    const id = await upload(owner, fx("clip.mp4"), "VIDEO");
+    const put = storage.uploadFrom.bind(storage);
+    let removed = false;
+    const spy = vi.spyOn(storage, "uploadFrom").mockImplementation(async (key, file, type) => {
+      await put(key, file, type);
+      if (!removed) {
+        removed = true;
+        await removeMedia({ ...owner, role: "ADMIN" }, id, "Takedown during processing", { asModerator: true });
+      }
+    });
+    try { await processMedia(id); } finally { spy.mockRestore(); }
+    expect(await prisma.media.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: "REMOVED", playbackKey: null });
+    expect(await prisma.song.count()).toBe(0);
+    expect(await prisma.notification.count({ where: { type: "MEDIA_READY" } })).toBe(0);
+    expect(await storage.stat(`media/${owner.id}/${id}/playback.mp4`)).toBeNull();
+  });
+
+  it("publishes a post attached after the worker starts processing", async () => {
+    const owner = await makeActor();
+    const id = await upload(owner, fx("clip.mp4"), "VIDEO");
+    const put = storage.uploadFrom.bind(storage);
+    let postId: string | null = null;
+    const spy = vi.spyOn(storage, "uploadFrom").mockImplementation(async (key, file, type) => {
+      await put(key, file, type);
+      if (!postId) postId = (await post(owner, [id])).id;
+    });
+    try { await processMedia(id); } finally { spy.mockRestore(); }
+    expect((await getPost(postId!, null))?.status).toBe("PUBLISHED");
+  });
+
   it("turns a video upload into playable, stripped derivatives and publishes the post", async () => {
     const owner = await makeActor();
     const viewer = await makeActor();
@@ -132,6 +164,14 @@ describe.skipIf(!hasFfmpeg)("media processing", () => {
 });
 
 describe("upload rules", () => {
+  it("queues processing only once when completion requests race", async () => {
+    const owner = await makeActor();
+    const { id } = await createUpload(owner, { kind: "IMAGE", size: 3, mime: "image/png", purpose: "POST", alt: null });
+    const m = await prisma.media.findUniqueOrThrow({ where: { id } });
+    await storage.put(m.originalKey, Buffer.from("abc"), "image/png");
+    await Promise.all(Array.from({ length: 5 }, () => completeUpload(owner, id)));
+    expect(await prisma.job.count({ where: { type: "media.process" } })).toBe(1);
+  });
   it("enforces the daily allowance and only attaches your own finished uploads", async () => {
     const a = await makeActor();
     const b = await makeActor();
@@ -156,7 +196,7 @@ describe("upload rules", () => {
   it("queues every stored file for deletion with the account", async () => {
     const a = await makeActor();
     await prisma.media.create({ data: { ownerId: a.id, kind: "VIDEO", mime: "video/mp4", sizeBytes: 10, status: "READY", originalKey: `media/${a.id}/m1/original.mp4`, playbackKey: `media/${a.id}/m1/playback.mp4`, posterKey: `media/${a.id}/m1/poster.jpg` } });
-    expect((await deleteAccount(a.id)).queuedDeletes).toBe(2);
+    expect((await deleteAccount(a.id)).queuedDeletes).toBe(3);
   });
 });
 

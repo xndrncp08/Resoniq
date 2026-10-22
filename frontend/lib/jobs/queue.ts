@@ -44,9 +44,13 @@ export async function claimNext(workerId: string): Promise<Job | null> {
   return rows[0] ?? null;
 }
 
-export async function completeJob(id: string): Promise<void> {
-  await prisma.job.update({
-    where: { id },
+export async function heartbeatJob(id: string, workerId: string): Promise<void> {
+  await prisma.job.updateMany({ where: { id, status: "RUNNING", lockedBy: workerId }, data: { lockedAt: new Date() } });
+}
+
+export async function completeJob(id: string, workerId: string): Promise<void> {
+  await prisma.job.updateMany({
+    where: { id, status: "RUNNING", lockedBy: workerId },
     data: { status: "SUCCEEDED", finishedAt: new Date(), lockedAt: null, lockedBy: null },
   });
 }
@@ -56,11 +60,11 @@ export function backoffMs(attempts: number): number {
   return Math.min(30_000 * 2 ** (attempts - 1), 3_600_000);
 }
 
-export async function failJob(job: Pick<Job, "id" | "attempts" | "maxAttempts">, err: unknown, now = new Date()) {
+export async function failJob(job: Pick<Job, "id" | "attempts" | "maxAttempts" | "lockedBy">, err: unknown, now = new Date()) {
   const lastError = (err instanceof Error ? err.stack ?? err.message : String(err)).slice(0, 2000);
   const done = job.attempts >= job.maxAttempts;
-  await prisma.job.update({
-    where: { id: job.id },
+  await prisma.job.updateMany({
+    where: { id: job.id, status: "RUNNING", lockedBy: job.lockedBy },
     data: done
       ? { status: "FAILED", finishedAt: now, lastError, lockedAt: null, lockedBy: null }
       : { status: "QUEUED", runAt: new Date(now.getTime() + backoffMs(job.attempts)), lastError, lockedAt: null, lockedBy: null },
