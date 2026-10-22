@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import Feedback from "@/components/ui/Feedback";
 import { spring } from "@/lib/motion";
 
@@ -79,7 +79,7 @@ export default function AuthForm({
   }
 
   return (
-    <motion.form
+    <MotionConfig reducedMotion="user"><motion.form
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.enter}
@@ -206,6 +206,6 @@ export default function AuthForm({
           </>
         )}
       </p>
-    </motion.form>
+    </motion.form></MotionConfig>
   );
 }

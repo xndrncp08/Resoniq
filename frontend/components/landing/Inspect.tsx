@@ -1,4 +1,4 @@
-import GuitarArt from "@/components/landing/art/GuitarArt";
+import Image from "next/image";
 import Icon from "@/components/icons/Icon";
 import { Provenance } from "@/components/app/ui";
 
@@ -17,7 +17,10 @@ export default function Inspect() {
         <h2 id="inspect-title" className="max-w-5xl font-display text-display-lg font-semibold tracking-[-0.035em]">See someone play. <span className="text-copper">Open their signal chain.</span></h2>
       </div>
       <div className="relative mx-auto mt-6 max-w-[1700px]">
-        <GuitarArt className="w-[150%] max-w-none -translate-x-[12%] sm:w-[125%] lg:w-full lg:translate-x-0" title="An offset-body electric guitar" />
+        <div className="relative aspect-[4/3] overflow-hidden sm:aspect-[16/7]">
+          <Image src="/images/studio-bassist-1440.webp" alt="Bassist playing a walnut bass beside a tube amplifier, speaker cabinet and studio rack" fill sizes="100vw" className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-transparent to-transparent" />
+        </div>
         {CALLOUTS.map((c) => (
           <div key={c.label} className="absolute hidden lg:block" style={{ left: c.x, top: c.y }}>
             <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full border-2 border-signal bg-bg shadow-[0_0_16px_var(--color-signal)]" />

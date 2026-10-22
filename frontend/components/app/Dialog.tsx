@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { IconButton } from "@/components/app/ui";
 
@@ -20,7 +20,7 @@ function Panel({ title, onClose, children, wide }: { title: string; onClose: () 
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 24, opacity: 0 }}
         transition={{ type: "spring", stiffness: 420, damping: 36 }}
-        className={`panel max-h-[92dvh] w-full overflow-y-auto rounded-b-none p-5 sm:rounded-b-[22px] sm:p-6 ${wide ? "sm:max-w-2xl" : "sm:max-w-md"}`}
+        className={`panel max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-b-[22px] sm:p-6 ${wide ? "sm:max-w-2xl" : "sm:max-w-md"}`}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-semibold">{title}</h2>
@@ -35,5 +35,5 @@ function Panel({ title, onClose, children, wide }: { title: string; onClose: () 
 /** A modal (a bottom sheet on phones). Rendered in a portal so cards can open it. */
 export default function Dialog({ open, ...props }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   if (typeof document === "undefined") return null;
-  return createPortal(<AnimatePresence>{open && <Panel {...props} />}</AnimatePresence>, document.body);
+  return createPortal(<MotionConfig reducedMotion="user"><AnimatePresence>{open && <Panel {...props} />}</AnimatePresence></MotionConfig>, document.body);
 }

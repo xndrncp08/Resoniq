@@ -9,7 +9,7 @@ import Ecosystem from "@/components/landing/Ecosystem";
 import Inspect from "@/components/landing/Inspect";
 import GearWall from "@/components/landing/GearWall";
 import HowItWorks from "@/components/landing/HowItWorks";
-import ExampleTones from "@/components/landing/ExampleTones";
+import DeferredExample from "@/components/landing/DeferredExample";
 import LiveBoard from "@/components/landing/LiveBoard";
 import FinalCta from "@/components/landing/FinalCta";
 import Footer from "@/components/landing/Footer";
@@ -20,7 +20,7 @@ export default async function Home() {
     platformCounts(),
     prisma.community.findMany({ where: { archivedAt: null }, orderBy: [{ memberCount: "desc" }, { name: "asc" }], take: 6, select: { slug: true, name: true, memberCount: true, kind: true } }),
     prisma.gearItem.groupBy({ by: ["kind"], where: { status: "APPROVED" }, _count: true }),
-    prisma.gearItem.findMany({ where: { status: "APPROVED" }, orderBy: { slug: "asc" }, take: 60, select: { slug: true, brand: true, model: true, kind: true } }),
+    prisma.gearItem.findMany({ where: { status: "APPROVED" }, orderBy: { slug: "asc" }, take: 8, select: { slug: true, brand: true, model: true, kind: true } }),
     listTones(viewer?.id ?? null, { sort: "popular", cursor: null, limit: 4 }),
   ]);
   const gearTotal = gearByKind.reduce((s, g) => s + g._count, 0);
@@ -41,7 +41,7 @@ export default async function Home() {
         <Inspect />
         <LiveBoard tones={tones.items} viewerId={viewer?.id ?? null} />
         <HowItWorks />
-        <ExampleTones />
+        <DeferredExample />
         <FinalCta />
       </main>
       <Footer />

@@ -2,6 +2,7 @@ import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 import Reveal from "@/components/motion/Reveal";
+import MotionProvider from "@/components/providers/MotionProvider";
 import { EXAMPLE_MEASUREMENTS, EXAMPLE_RECIPE, EXAMPLE_SOURCE } from "@/lib/example-analysis";
 
 /**
@@ -10,7 +11,7 @@ import { EXAMPLE_MEASUREMENTS, EXAMPLE_RECIPE, EXAMPLE_SOURCE } from "@/lib/exam
  */
 export default function ExampleTones() {
   return (
-    <section id="example-tone" className="relative mx-auto max-w-6xl scroll-mt-28 px-6 py-32">
+    <MotionProvider><section id="example-tone" className="relative mx-auto max-w-6xl scroll-mt-28 px-6 py-32">
       <Reveal>
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">a real result</p>
         <h2 className="mt-3 max-w-xl text-balance font-display text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -51,6 +52,6 @@ export default function ExampleTones() {
         </dl>
         <p className="mt-3 font-mono text-[11px] text-muted">measured from the recording · the recipe above is inferred from these</p>
       </Reveal>
-    </section>
+    </section></MotionProvider>
   );
 }

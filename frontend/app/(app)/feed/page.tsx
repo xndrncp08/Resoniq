@@ -26,6 +26,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
 
   return (
     <div className="flex gap-8">
+      <h1 className="sr-only">Feed</h1>
       <div className="mx-auto w-full max-w-[680px] min-w-0 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs

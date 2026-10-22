@@ -66,6 +66,17 @@ body {
   font-family: var(--font-body);
 }
 
+button, a, input, select, textarea { touch-action: manipulation; }
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 3px;
+}
+select { color: var(--color-ink); background-color: var(--color-surface); }
+@media (pointer: coarse) {
+  :where(button, [role="button"], summary) { min-height: 44px; min-width: 44px; }
+  :where(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size: 16px; }
+}
+
 @layer utilities {
   .glass {
     background: rgba(255, 255, 255, 0.045);
@@ -144,15 +155,6 @@ body {
 }
 @keyframes fx-fade-up {
   from { opacity: 0; translate: 0 8px; }
-}
-
-/* Gentle hover for the landing composition. Reduced motion stops it (rule below). */
-@keyframes float {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -10px; }
-}
-@keyframes marquee {
-  to { translate: -50% 0; }
 }
 
 @keyframes skeleton-shimmer {

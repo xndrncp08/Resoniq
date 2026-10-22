@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { auth } from "@/auth";
 import SessionProvider from "@/components/providers/SessionProvider";
-import MotionProvider from "@/components/providers/MotionProvider";
 
 // Bundled fonts keep builds offline and font-src limited to 'self'.
 const display = localFont({ src: "../public/fonts/space-grotesk-latin.woff2", weight: "500 700", variable: "--font-space-grotesk", display: "swap" });
@@ -27,7 +26,7 @@ export const metadata: Metadata = {
   description:
     "The community for guitarists and bassists: post performances with the exact rig attached, browse and remix tones, and get starting-point recipes from recordings.",
   metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
-  openGraph: { siteName: "Resoniq", images: ["/brand/og.png"] },
+  openGraph: { siteName: "Resoniq", images: ["/brand/og-studio.jpg"] },
   icons: { icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }], apple: "/brand/app-icon-180.png" },
 };
 
@@ -42,12 +41,10 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="antialiased selection:bg-copper/30 selection:text-ink">
         <SessionProvider session={session}>
-          <MotionProvider>
-            <a href="#main" className="focus-ring sr-only z-[100] rounded-full bg-copper px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
-              Skip to content
-            </a>
-            {children}
-          </MotionProvider>
+          <a href="#main" className="focus-ring sr-only z-[100] rounded-full bg-copper px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+            Skip to content
+          </a>
+          {children}
         </SessionProvider>
       </body>
     </html>

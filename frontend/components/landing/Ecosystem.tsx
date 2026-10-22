@@ -1,7 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import Icon, { type IconName } from "@/components/icons/Icon";
 import { compact, Provenance } from "@/components/app/ui";
-import PedalArt from "@/components/landing/art/PedalArt";
 import { KIND_ICON, KIND_LABEL } from "@/components/tone/gear-icons";
 import type { GearKind } from "@prisma/client";
 
@@ -30,9 +30,8 @@ export default function Ecosystem({ communities, gearByKind, gearTotal }: { comm
         <Tile span="lg:col-span-4" eyebrow="Feed" title="Performances with the rig attached." href="/feed" cta="Open the feed">
           <div className="grid h-full gap-4 sm:grid-cols-[1.3fr_1fr]">
             <div className="panel-inset relative overflow-hidden rounded-2xl">
-              <div className="grille absolute inset-0" />
+              <Image src="/images/studio-bassist-768.webp" alt="A bassist playing beside their studio rig" fill sizes="(max-width: 640px) 90vw, 40vw" className="object-cover" />
               <div className="relative flex h-full min-h-[240px] items-center justify-center bg-gradient-to-br from-copper-deep/50 via-transparent to-signal-dim/30">
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-ink text-bg"><Icon name="play" size={26} className="translate-x-0.5" /></span>
                 <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 font-body text-xs"><Icon name="declared" size={14} className="text-copper" /> Rig: your guitar · your amp</span>
                 <span className="absolute bottom-3 left-3 label-engraved">Interface preview</span>
               </div>
@@ -58,11 +57,10 @@ export default function Ecosystem({ communities, gearByKind, gearTotal }: { comm
           </ul>
         </Tile>
         <Tile span="lg:col-span-2" eyebrow="Tone vault" title="Save, remix, compare." href="/tones" cta="Explore tones">
-          <div className="flex items-end gap-3">
-            <PedalArt className="w-20 -rotate-6" color="#C9C3B8" name="COMP" on={false} />
-            <PedalArt className="w-20 rotate-3" color="#FF8A3D" name="DRIVE" />
-            <div className="flex flex-col gap-1.5 pb-2"><Provenance kind="declared" /><Provenance kind="inferred" /></div>
+          <div className="relative h-44 overflow-hidden rounded-xl">
+            <Image src="/images/studio-pedals-768.webp" alt="Copper overdrive, teal delay and cream compressor connected on a pedalboard" fill sizes="(max-width: 1024px) 90vw, 30vw" className="object-cover" />
           </div>
+          <div className="mt-4 flex flex-wrap gap-2"><Provenance kind="declared" /><Provenance kind="inferred" /></div>
           <p className="mt-4 font-body text-sm text-ink-dim">Remixes credit the original creator, always. Export any tone as Resoniq JSON.</p>
         </Tile>
         <Tile span="lg:col-span-2" eyebrow="Gear catalog" title={`${gearTotal} pieces of gear, and room for yours.`} href="/gear" cta="Browse the catalog">

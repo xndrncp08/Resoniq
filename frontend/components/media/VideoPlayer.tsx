@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Icon from "@/components/icons/Icon";
+import { useReducedMotion } from "motion/react";
 import type { MediaView } from "@/lib/media/view";
 
 const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00");
@@ -20,6 +21,7 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(media.durationSec ?? 0);
   const [hover, setHover] = useState(false);
+  const reducedMotion = useReducedMotion();
   const ratio = media.width && media.height ? media.width / media.height : 16 / 9;
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
   }
 
   function onKey(e: React.KeyboardEvent) {
+    if (e.target instanceof HTMLElement && e.target.closest("button, input, textarea, select, a, [contenteditable='true']")) return;
     const v = ref.current;
     if (e.key === " " || e.key === "k") {
       e.preventDefault();
@@ -78,7 +81,7 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {media.poster && <img src={media.poster} alt={media.alt ?? ""} className="h-full w-full object-cover" loading="lazy" />}
-          {autoPreview && hover && media.preview && (
+          {autoPreview && reducedMotion === false && hover && media.preview && (
             <video src={media.preview} autoPlay muted loop playsInline className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden />
           )}
         </>
