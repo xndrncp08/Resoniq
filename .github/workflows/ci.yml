@@ -131,6 +131,10 @@ jobs:
           exit 1
       - name: End-to-end smoke test
         run: BASE_URL=http://localhost:3000 scripts/smoke-test.sh
+      - name: Install ffmpeg (generates the e2e test clip)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Platform end-to-end test (social, media worker, permissions)
+        run: BASE_URL=http://localhost:3000 scripts/e2e-platform.sh
       - name: Logs on failure
         if: failure()
         run: |

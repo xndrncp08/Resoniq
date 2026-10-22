@@ -52,6 +52,9 @@ services:
       DATABASE_URL: postgresql://resoniq:resoniq@postgres:5432/resoniq
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_TRUST_HOST: "true"
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESONIQ_EMAIL_FROM: ${RESONIQ_EMAIL_FROM:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SUPABASE_URL: ${SUPABASE_URL:-}

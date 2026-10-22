@@ -1,8 +1,21 @@
 # Resoniq
 
-Upload a song, get back a starting-point guitar tone recipe — amp, cabinet,
-pedal chain, EQ, gain, and pickup position — then tune it on an interactive
-dashboard and save it to your library.
+A community for guitarists and bassists built around the sound behind the
+playing. Musicians post performances, covers, gear demos and board tours with
+the exact rig attached: guitar, pickups, pedals in order, amp settings, cab.
+Others can watch the take, open the signal chain, save the tone, remix it
+(with credit) and compare it knob for knob. Communities, threaded
+discussions, follows, a gear catalog and search sit around that core.
+
+The original engine is still here: upload a recording and Resoniq infers a
+starting-point recipe (amp, cab, pedals, EQ, gain) you can tune on a tactile
+dashboard. What a player **declares** about their rig and what Resoniq's
+analysis **infers** from audio are stored apart and labelled apart, everywhere.
+
+- `docs/superpowers/specs/2026-10-22-platform-evolution-design.md`: design decisions
+- `docs/design-system.md`, `docs/brand.md`: tokens, components, icons, identity
+- `docs/deploy.md`: hosting requirements and credentials
+- `SECURITY.md`: what's protected, how, and the known gaps
 
 ## An honest note on what the analysis is
 
@@ -31,11 +44,22 @@ position is a brightness guess.
 ## Structure
 
 ```
-frontend/        Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4 + Framer Motion
-                 Pages, API routes (auth, upload, analyze, tones, audio), Prisma/Postgres
+frontend/        Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4 + Motion/GSAP
+  app/(app)/     The signed-in app: feed, explore, search, communities, posts, profiles,
+                 tones, gear, compare, composer, notifications, settings, analyze, vault
+  app/admin/     The control center (staff only)
+  app/api/       Route handlers: auth, social, tones, gear, media, search, admin, analysis
+  lib/           Domain logic (posts, comments, tones, media, moderation, jobs, authz, …)
+  worker/        Background worker: media processing (ffmpeg), purges, announcement fan-out
+  prisma/        Schema, migrations, structural seed (communities, rules, gear catalog)
 python-engine/   FastAPI service: feature extraction, heuristics, recipe
-scripts/         smoke-test.sh: end-to-end API test against a running stack
+scripts/         smoke-test.sh, e2e-platform.sh, new-migration.sh
 ```
+
+Services: **frontend** (Next), **worker** (same codebase, `tsx worker/index.ts`,
+needs ffmpeg), **python-engine** (internal only), and **Postgres 16** (with
+`pg_trgm`), which also holds the job queue. Files go to a private Supabase
+bucket or a local volume shared by frontend and worker.
 
 ## Motion
 
@@ -62,13 +86,21 @@ docker compose up --build
 # http://localhost:3000
 ```
 
-Compose runs Postgres, applies migrations, and starts the engine (internal
-only) and the frontend. Without Supabase settings, uploads are stored in the
-`song_data` volume.
+Compose runs Postgres, applies migrations and the structural seed, then
+starts the engine (internal only), the worker (with ffmpeg) and the frontend.
+Without Supabase settings, uploads live in the `song_data` volume shared by
+the frontend and the worker.
+
+Create the first admin (there's no UI path to it):
+
+```bash
+docker compose exec frontend true   # stack is up
+docker compose run --rm migrate npx tsx scripts/grant-role.ts --email you@example.com --role ADMIN
+```
 
 ### Without Docker
 
-Requires Node 22+, Python 3.11+, libsndfile, and Postgres 16.
+Requires Node 22+, Python 3.11+, libsndfile, ffmpeg/ffprobe, and Postgres 16.
 
 ```bash
 # python-engine
@@ -81,25 +113,48 @@ cd frontend
 cp .env.example .env   # DATABASE_URL, AUTH_SECRET, RESONIQ_ENGINE_SECRET=<same secret>
 npm install
 npx prisma migrate dev
+npm run db:seed        # communities, moderation rules, gear catalog (no users or posts)
 npm run dev
+
+# worker (a third terminal): processes uploads, purges, announcements
+cd frontend && npx tsx worker/index.ts
+
+# first admin
+cd frontend && npm run admin:grant -- --email you@example.com --role ADMIN
 ```
 
+Email: with `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM` set, verification and
+password-reset emails are sent. Without them in development, the links are
+printed to the frontend's log.
+
 Storage: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to use a
-**private** Supabase bucket named `songs`; otherwise files go to
-`frontend/.storage/`. Google sign-in appears only when `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET` are set.
+**private** Supabase bucket named `songs` (audio and media). Otherwise files
+go to `frontend/.storage/`. Google sign-in appears only when
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
+
+### Migrations
+
+`npx prisma migrate dev --name <name>` works in a terminal. Non-interactive
+environments (agents, CI) can generate the SQL with
+`SHADOW_DATABASE_URL=… scripts/new-migration.sh <name>`. Search indexes are
+expression indexes added by hand in the `search` migration (Prisma doesn't
+model them), so keep queries in `lib/search.ts` in sync with them.
 
 ## Checks
 
 ```bash
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build
+TEST_DATABASE_URL=postgresql://…/resoniq_test npm run test:int   # real Postgres; name must end in _test
 cd python-engine && .venv/bin/ruff check . && .venv/bin/pytest
-BASE_URL=http://localhost:3000 scripts/smoke-test.sh   # against a running stack
+BASE_URL=http://localhost:3000 scripts/smoke-test.sh     # analysis flow, needs the engine
+BASE_URL=http://localhost:3000 scripts/e2e-platform.sh   # social + media flow, needs the worker and ffmpeg
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of these on every push and PR,
-builds both Docker images, starts the compose stack, and runs the smoke test
-against it. There's no deploy stage yet because nothing is hosted.
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit and route tests,
+the Postgres integration suite with a migration-drift check, the build, the
+engine tests, then builds every image, starts the compose stack and runs both
+end-to-end scripts against it. There's no deploy stage yet: see
+`docs/deploy.md`.
 
 ## Security
 
@@ -107,6 +162,11 @@ See [SECURITY.md](SECURITY.md) for what's protected, how, and the known gaps.
 
 ## Not built, on purpose
 
-Link-based ingestion (YouTube / Spotify / SoundCloud) is a disabled
-placeholder. Pulling audio from those platforms runs into their terms of
-service and licensing, so it isn't implemented.
+- Link-based ingestion (YouTube / Spotify / SoundCloud) is a disabled
+  placeholder. Pulling audio from those platforms runs into their terms of
+  service and licensing, so it isn't implemented.
+- Exports are Resoniq JSON only. Resoniq doesn't write Helix, Quad Cortex,
+  Kemper or other proprietary preset formats.
+- No fake activity: seeds create structure (communities, rules, catalog),
+  never users, posts or engagement. Landing-page numbers come from the
+  database, and illustrative UI is labelled "Interface preview".

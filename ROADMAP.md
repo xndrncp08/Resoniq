@@ -24,16 +24,26 @@
    ownership-scoped queries, generic errors, Vitest and pytest suites, CI with
    a Docker Compose end-to-end smoke test. See `SECURITY.md`.
 
+10. **Community platform (Oct 2026)**: profiles and follows, communities,
+    posts with video/audio/images, threaded comments, voting, bookmarks,
+    mentions, hashtags, notifications, search, explore, declared rigs with
+    save/remix/compare/export, a gear catalog, a media pipeline on a Postgres
+    job queue and worker, reports, appeals, automod holds, and the admin
+    control center with audit log, analytics and system health.
+11. **Accounts**: email verification, password reset with session
+    revocation, live role/status checks, account deletion.
+
 ## Next
 
-- Email verification and password reset (closes the signup enumeration and
-  account-squatting gaps in `SECURITY.md`).
-- Shared rate-limit store before running more than one instance.
+- Configure an email provider and turn on enforced verification.
+- Shared rate-limit and cache store before running more than one instance.
+- HLS/adaptive video when bandwidth or mobile playback needs it (single MP4 rendition today).
+- Run analysis on the job queue too, so long tracks don't hold a request.
+- Blocking/muting between members; DMs are not planned yet.
 - Song management: list and delete uploads (deleting a tone keeps its audio).
 - Explicit share/unshare for tones instead of always-viewable-by-ID links.
 - Calibrate the heuristics against a labeled set of recordings; the modulation
   detector currently mistakes playing rhythm for tremolo.
-- Background job queue for analysis, so long tracks don't hold an HTTP request.
 - A deploy target, then a deploy stage in CI.
 
 ## Not planned

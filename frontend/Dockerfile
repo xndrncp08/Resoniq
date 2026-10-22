@@ -19,8 +19,9 @@ RUN npm run build
 
 # One-shot migration runner (docker-compose's `migrate` service): the
 # runner image below ships without the Prisma CLI.
+# Also seeds structure (communities, moderation rules, gear catalog); the seed is idempotent.
 FROM builder AS migrate
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts"]
 
 # Background worker (docker-compose's `worker` service): runs TypeScript
 # directly with tsx from the builder's full node_modules.

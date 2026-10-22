@@ -1,10 +1,15 @@
 import { prisma } from "@/lib/prisma";
+import { memo } from "@/lib/memo";
 import { AUTHOR_SELECT } from "@/lib/profiles";
 import { COMMUNITY_SELECT } from "@/lib/communities";
 
 /** Real activity only: everything here is computed from published content. */
 
 export async function trendingTags(days = 7, limit = 12) {
+  return memo(`trending:${days}:${limit}`, 60_000, () => loadTrendingTags(days, limit));
+}
+
+async function loadTrendingTags(days: number, limit: number) {
   const rows = await prisma.$queryRaw<{ tag: string; uses: bigint }[]>`
     SELECT pt.tag, COUNT(*) AS uses FROM "PostTag" pt
     JOIN "Post" p ON p.id = pt."postId" AND p.status = 'PUBLISHED'
@@ -38,7 +43,11 @@ export async function risingMusicians(viewerId: string | null, limit = 5) {
   return rows.flatMap((r) => (byId.has(r.id) ? [{ ...byId.get(r.id)!, amps: Number(r.amps) }] : []));
 }
 
-export async function platformCounts() {
+export function platformCounts() {
+  return memo("platform-counts", 60_000, loadPlatformCounts);
+}
+
+async function loadPlatformCounts() {
   const [musicians, posts, tones, communities] = await Promise.all([
     prisma.user.count({ where: { status: "ACTIVE" } }),
     prisma.post.count({ where: { status: "PUBLISHED" } }),

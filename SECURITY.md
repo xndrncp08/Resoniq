@@ -24,9 +24,49 @@ bounty.
 - A failed sign-in for an unknown email still runs a bcrypt comparison, so
   response time doesn't reveal whether the account exists.
 
+### Accounts, roles and live status
+- Sessions are JWTs, but every authenticated request re-reads the account by
+  primary key (`getActor()` in `frontend/lib/authz.ts`). A ban, suspension or
+  role change applies to the next request, not when the token expires.
+  Banned accounts are treated as signed out, can't sign in (credentials or
+  Google), and their content disappears from every query. Suspended accounts
+  can read, report and appeal, but every write route refuses them.
+- Roles are `USER`, `MODERATOR` and `ADMIN`, with a static permission map
+  (`frontend/lib/permissions.ts`). Every `/api/admin/*` handler and every
+  moderation endpoint calls `requirePermission()`. The `/admin` pages 404 for
+  anyone without staff permissions. Hiding UI is never the control.
+  Moderators can suspend and remove content; only admins ban, change roles,
+  edit platform config and see the audit log. Nobody can act on their own
+  account, staff can only be acted on by admins, the last active admin can't
+  be demoted, and the moderator who removed something can't decide its
+  appeal. The first admin is created with `npm run admin:grant` on the server.
+- Community moderators act only inside their community.
+- **Audit log.** Every staff action (role and status changes, removals and
+  restores, report dismissals, appeal decisions, rule, flag and curation
+  edits, job retries, community changes) writes an `AuditLog` row in the same
+  transaction as the change.
+- **Email verification and password reset** (`frontend/lib/email-tokens.ts`):
+  random 256-bit tokens, stored only as SHA-256 hashes, single-use (deleted
+  before use, so races can't reuse them), expiring after 24 h (verify) or 1 h
+  (reset). A new request invalidates older links. "Forgot password" answers
+  the same whether or not the account exists. A reset bumps the account's
+  `sessionVersion`, which kills every JWT issued before it. The
+  `auth.requireEmailVerification` flag gates posting and community creation
+  for email/password accounts.
+- **Account deletion** (`DELETE /api/me`, re-entering the handle, plus the
+  password for email accounts) removes everything in one transaction and
+  queues storage deletes for every file the account owned.
+
 ### Authorization
-- Every private API route goes through `requireUserId()` (`frontend/lib/api.ts`);
-  every private page goes through `requirePageUserId()` (`frontend/lib/session.ts`).
+- Every private API route goes through `requireActor()` / `requireUserId()`
+  (`frontend/lib/authz.ts`, `frontend/lib/api.ts`); every private page goes
+  through `requirePageActor()` (`frontend/lib/session.ts`).
+- Visibility is part of the query, not a filter applied afterwards:
+  `visiblePostWhere()` (published posts by non-banned authors, plus your own
+  held or processing posts), `viewableToneWhere()` / `listedToneWhere`
+  (public and unlisted tones by link, only public ones in listings, private
+  ones only for their owner), and `canViewMedia()` (ready media follows its
+  post's visibility).
 - Ownership is enforced inside the database queries themselves (`findFirst`,
   `updateMany`, `deleteMany` with `userId`), not by fetching a row and
   comparing afterward. Another user's resource is indistinguishable from a
@@ -71,6 +111,16 @@ In-memory, fixed-window, per server instance (`frontend/lib/rate-limit.ts`):
 | `POST /api/analyze` | user | 20 / hour |
 | `GET /api/tones` | user | 120 / min |
 | Tone create/rename/favorite/delete | user | 60 / min |
+| Posts / comments | user | 30 / hour, 120 / hour |
+| Votes, bookmarks, saves | user | 600 / hour |
+| Follows, joins | user | 120 / hour |
+| Reports, appeals, gear submissions | user | 20 / hour |
+| Community creation | user | 5 / day (plus: account ≥ 7 days old, ≤ 2 per 30 days) |
+| Media upload start | user | 60 / hour (plus a 3 GB rolling 24 h allowance) |
+| Media reads | client IP | 1200 / min |
+| Public reads (feeds, profiles, search) | client IP | 240 / min |
+| Verification / reset emails | user, IP and email | 5 / hour each |
+| Token use (verify, reset) | client IP | 20 / 15 min |
 
 Limited requests get `429` with `Retry-After`.
 
@@ -82,6 +132,41 @@ Limited requests get `429` with `Retry-After`.
   the server-side analysis call.
 - The public share page (`/t/[id]`) selects only the fields it renders,
   never includes the uploader's identity, email or audio, and is `noindex`.
+
+### Media uploads (`frontend/lib/media/*`, `frontend/worker`)
+- Typed by magic bytes, never by name or browser MIME (MP4/MOV, WebM/MKV,
+  JPEG, PNG, WebP, MP3/WAV/FLAC/M4A). Everything else is refused, including
+  GIF, HEIC and executables. The local upload route checks the first chunk
+  before accepting the rest.
+- Size caps are enforced three times: declared at reservation (413 before any
+  bytes move), while streaming (a byte-counting transform that aborts and
+  deletes the partial file), and again in the worker after download. Video is
+  ≤ 500 MB and ≤ 10 min, audio ≤ 50 MB, images ≤ 15 MB and ≤ 40 MP (checked
+  from probe dimensions before decoding, against decompression bombs). There
+  are at most 10 attachments per post and 3 GB per user per rolling 24 h.
+- ffmpeg runs in the worker only, with argument arrays (no shell), a 15-minute
+  kill timer and 2 threads. Files ffmpeg can't parse fail with a user-facing
+  message rather than retrying.
+- Derivatives are re-encoded (H.264/AAC MP4 with faststart, JPEG/PNG for
+  images) with metadata stripped, so camera and GPS data never reach other
+  users. The original is deleted once processing finishes or fails.
+- Storage keys are server-generated and pattern-checked
+  (`media/<user>/<media>/<variant>.<ext>`). Files are served only through
+  `/api/media/[id]/[variant]`, which checks visibility per request: local
+  storage streams with Range support, Supabase gets a 302 to a 5-minute signed
+  URL. Responses are `private`.
+- Takedowns (including copyright) block access immediately. Files are
+  purged by a delayed job after 30 days unless a moderator restores them on
+  appeal. Account deletion queues deletes for every stored file.
+
+### Moderation
+- Automod (`frontend/lib/automod.ts`) never deletes anything. Blocked terms,
+  links from accounts under 24 h old, mention floods, and N distinct reports
+  put content on hold for a human. Holds are visible to the author and staff
+  only.
+- User text is plain text. Mentions, hashtags and links are tokenized and
+  rendered as React nodes, never as HTML. Links get
+  `rel="noopener noreferrer nofollow ugc"`.
 
 ### python-engine
 - Not exposed publicly in `docker-compose.yml`, and every `/analyze*` call
@@ -112,55 +197,57 @@ as a user-safe message, never the raw error.
 
 ## Known gaps and residual risk
 
-**Rate limiting is per instance and in memory.** With N instances, the
-effective limit is N times higher, and restarts reset counters. Running more
-than one instance needs a shared store (Redis/Upstash/Postgres). The client
-IP comes from the rightmost `X-Forwarded-For` entry. Behind a proxy that sets
-or appends that header (Vercel, nginx, a load balancer) that's the real
-client. Served directly with no proxy, a client can send its own header and
-choose its rate-limit key.
+**Rate limiting and small caches are per instance and in memory.** With N
+instances the effective limit is N times higher, and restarts reset counters.
+Feature flags, automod rules and landing aggregates are cached for 30–60 s per
+instance. Running more than one instance needs a shared store. The client IP
+comes from the rightmost `X-Forwarded-For` entry. Behind a proxy that sets
+that header, that's the real client. Served directly, a client can choose its
+own rate-limit key.
 
-**Account enumeration through signup isn't fully preventable without email
-verification.** `/api/register` answers the same for new and existing emails,
-but the automatic sign-in that follows only succeeds for a new account. The
-same gap allows **account squatting**: anyone can register an email address
-they don't own. Both need email verification, which needs an email provider
-the project doesn't have yet. There's also no password reset and no MFA.
+**Email needs a provider.** Verification and reset emails go through Resend
+(`RESEND_API_KEY`, `RESONIQ_EMAIL_FROM`). Without them, production drops the
+emails (logged as errors), and verification can't be enforced without locking
+people out. Until a provider is configured, signup still permits
+registering an address you don't own, and `/api/register` still allows
+inference through the sign-in that follows. There's no MFA.
 
-**Shared tone links are bearer links.** Anyone with a tone's ID can view its
-recipe, signed in or not. IDs are CUIDs: hard to guess, but not
-cryptographic secrets. There's no "unshare" short of deleting the tone.
-Shared pages contain only the recipe and the name the owner gave it.
+**JWT sessions are only partly revocable.** Bans, suspensions, role changes
+and password resets apply immediately (live check plus `sessionVersion`).
+Signing out of one device doesn't sign out others, and a stolen cookie stays
+usable until it expires (30 days) or the password is reset.
 
-**Songs can't be deleted from the UI.** Deleting a tone doesn't delete the
-uploaded audio. Uploads are private, but they're kept until removed by hand
-from storage and the `Song` table.
+**Unlisted tones are bearer links.** Anyone with an unlisted tone's ID can
+view it. IDs are CUIDs: hard to guess, but not cryptographic secrets. Owners
+can now make a tone private, which closes the link.
 
-**JWT sessions can't be revoked server-side.** Signing out clears the cookie
-on that browser. A stolen cookie stays valid until it expires (NextAuth's
-default is 30 days).
+**Songs can't be deleted one by one from the UI.** They go with the account,
+or when their video post's media is removed. Uploads are private either way.
 
 **`style-src` allows `'unsafe-inline'`.** Framer Motion server-renders inline
 style attributes, which nonces can't cover. Script execution is still
 nonce-locked, so this allows injected CSS, not injected JavaScript.
 
+**Media processing trusts ffmpeg.** Uploads are type-checked and capped
+before decoding, but ffmpeg still parses untrusted files. Run the worker in
+its own container with no secrets beyond database and storage access, as
+compose does. There's no virus scanning. Moderation of images and video is
+human-only (reports, holds), with no automated NSFW or copyright matching.
+
 **The engine decodes untrusted audio** with libsndfile/audioread, and
 analysis runs synchronously in the request. The size and duration caps and
 per-user analyze limits bound the cost, but there's no per-engine
-concurrency limit. A burst from many accounts could exhaust engine CPU.
-The shared secret is static and has to be rotated by hand on both services.
+concurrency limit. The shared secret is static and has to be rotated by hand.
 
 **Optional LLM step.** With `ANTHROPIC_API_KEY` set, the engine sends the
 numeric audio measurements (not the audio) to Anthropic's API to write the
 recipe text. Output is schema-validated and clamped, and the engine falls
 back to its rule-based recipe on any error.
 
-**Dependency advisories.** `npm audit` still reports high-severity advisories
-in build and dev tooling (the `braces` chain under `eslint-config-next`, and
-`deepmerge-ts` under the Prisma CLI) with no non-breaking fix at the time of
-writing. CI fails the build on any **critical** advisory in runtime
+**Dependency advisories.** `npm audit` reports high-severity advisories in
+build and dev tooling only. CI fails on any **critical** advisory in runtime
 dependencies.
 
-**Not done.** No penetration test, no dependency or secret scanning beyond
-`npm audit`, no WAF or bot protection, no audit log, and no encryption at
-rest beyond what the storage provider does.
+**Not done.** No penetration test, no secret scanning, no WAF or bot
+protection beyond rate limits, and no encryption at rest beyond what the
+storage provider does.
