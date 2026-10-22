@@ -47,6 +47,42 @@ jobs:
       - name: Audit runtime dependencies (critical)
         run: npm audit --omit=dev --audit-level=critical
 
+  integration:
+    name: Frontend · integration tests (Postgres)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: resoniq
+          POSTGRES_PASSWORD: resoniq
+          POSTGRES_DB: resoniq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U resoniq"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://resoniq:resoniq@localhost:5432/resoniq_test
+      DATABASE_URL: postgresql://resoniq:resoniq@localhost:5432/resoniq_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Migration drift check
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$TEST_DATABASE_URL" --exit-code
+      - name: Integration tests
+        run: npm run test:int
+
   engine:
     name: Engine · lint, test
     runs-on: ubuntu-latest
