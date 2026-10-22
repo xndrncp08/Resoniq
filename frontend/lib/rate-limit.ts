@@ -22,6 +22,12 @@ export const RATE_LIMITS = {
   profileWrite: { limit: 20, windowMs: 60 * 60_000 },
   follow: { limit: 120, windowMs: 60 * 60_000 },
   socialRead: { limit: 240, windowMs: 60_000 },
+  postWrite: { limit: 30, windowMs: 60 * 60_000 },
+  commentWrite: { limit: 120, windowMs: 60 * 60_000 },
+  vote: { limit: 600, windowMs: 60 * 60_000 },
+  report: { limit: 20, windowMs: 60 * 60_000 },
+  communityCreate: { limit: 5, windowMs: 24 * 60 * 60_000 },
+  moderation: { limit: 600, windowMs: 60 * 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 const MAX_KEYS = 10_000;

@@ -16,7 +16,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  passwordHash  String?   // set for email/password signups, null for OAuth-only users
+  passwordHash  String? // set for email/password signups, null for OAuth-only users
   createdAt     DateTime  @default(now())
 
   // Public identity. The DB fills a random handle; a check constraint enforces ^[a-z0-9_]{3,30}$.
@@ -40,6 +40,20 @@ model User {
   followers Follow[]   @relation("following")
   following Follow[]   @relation("follower")
   auditLogs AuditLog[]
+
+  posts              Post[]
+  comments           Comment[]
+  postVotes          PostVote[]
+  commentVotes       CommentVote[]
+  bookmarks          Bookmark[]
+  memberships        CommunityMember[]
+  communitiesCreated Community[]
+  notifications      Notification[]    @relation("recipient")
+  notificationsSent  Notification[]    @relation("actor")
+  reports            Report[]          @relation("reporter")
+  reportsResolved    Report[]          @relation("resolver")
+  appeals            Appeal[]          @relation("appellant")
+  appealsDecided     Appeal[]          @relation("decider")
 }
 
 enum Role {
@@ -132,7 +146,8 @@ model Tone {
   favorite  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts Post[]
 
   @@index([userId, favorite, createdAt])
 }
@@ -140,23 +155,23 @@ model Tone {
 // An uploaded track and its analysis job: status moves
 // UPLOADED -> ANALYZING -> ANALYZED | FAILED (see /api/analyze).
 model Song {
-  id           String     @id @default(cuid())
-  userId       String
-  title        String?
-  artist       String?
+  id                String     @id @default(cuid())
+  userId            String
+  title             String?
+  artist            String?
   // Legacy public URL (uploads before private storage). New uploads leave
   // it null and set storageKey; audio is served by /api/songs/[id]/audio.
-  fileUrl      String?
-  storageKey   String?
-  durationSec  Float?
-  sourceType   SourceType @default(UPLOAD)
-  sourceUrl    String?
-  status       SongStatus @default(UPLOADED)
-  analysisData Json?
-  analysisError String?
+  fileUrl           String?
+  storageKey        String?
+  durationSec       Float?
+  sourceType        SourceType @default(UPLOAD)
+  sourceUrl         String?
+  status            SongStatus @default(UPLOADED)
+  analysisData      Json?
+  analysisError     String?
   // When the current analysis was claimed; lets a stuck ANALYZING job be retried.
   analysisStartedAt DateTime?
-  createdAt    DateTime   @default(now())
+  createdAt         DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -175,7 +190,6 @@ enum SongStatus {
   FAILED
 }
 
- 
 // Durable background work, claimed by the worker service with FOR UPDATE SKIP LOCKED (lib/jobs/queue.ts).
 model Job {
   id          String    @id @default(cuid())
@@ -200,4 +214,323 @@ enum JobStatus {
   RUNNING
   SUCCEEDED
   FAILED
+}
+
+// ── Social ─────────────────────────────────────────────────────────────
+
+enum CommunityKind {
+  GENRE
+  INSTRUMENT
+  GEAR
+  STYLE
+  TOPIC
+}
+
+model Community {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String        @default("")
+  kind        CommunityKind @default(TOPIC)
+  // [{ title, body }] shown on the community page and to moderators.
+  rules       Json?
+  memberCount Int           @default(0)
+  postCount   Int           @default(0)
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  createdBy User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  members   CommunityMember[]
+  posts     Post[]
+
+  @@index([memberCount])
+  @@index([createdById, createdAt])
+}
+
+enum CommunityRole {
+  MEMBER
+  MODERATOR
+}
+
+model CommunityMember {
+  userId      String
+  communityId String
+  role        CommunityRole @default(MEMBER)
+  joinedAt    DateTime      @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([userId, communityId])
+  @@index([communityId, role])
+}
+
+enum PostCategory {
+  DISCUSSION
+  QUESTION
+  PERFORMANCE
+  COVER
+  GEAR_DEMO
+  TONE_COMPARISON
+  TUTORIAL
+  PEDALBOARD
+}
+
+// PROCESSING: waiting on media. HELD: automod or report threshold, visible to the author and staff only.
+enum ContentStatus {
+  PUBLISHED
+  PROCESSING
+  HELD
+  REMOVED
+  DELETED
+}
+
+model Post {
+  id            String        @id @default(cuid())
+  authorId      String
+  communityId   String?
+  category      PostCategory  @default(DISCUSSION)
+  title         String?
+  body          String        @default("")
+  toneId        String?
+  status        ContentStatus @default(PUBLISHED)
+  removedReason String?
+  heldReasons   String[]      @default([])
+  score         Int           @default(0)
+  upCount       Int           @default(0)
+  commentCount  Int           @default(0)
+  bookmarkCount Int           @default(0)
+  // Stored hot rank (lib/ranking.ts): monotonic in time, so it can be indexed.
+  hotRank       Float         @default(0)
+  createdAt     DateTime      @default(now())
+  editedAt      DateTime?
+
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  tone      Tone?      @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  tags      PostTag[]
+  comments  Comment[]
+  votes     PostVote[]
+  bookmarks Bookmark[]
+
+  @@index([status, hotRank, id])
+  @@index([status, createdAt, id])
+  @@index([communityId, status, hotRank])
+  @@index([communityId, status, createdAt])
+  @@index([authorId, createdAt])
+  @@index([toneId])
+}
+
+model PostTag {
+  postId    String
+  tag       String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tag])
+  @@index([tag, createdAt])
+}
+
+model Comment {
+  id            String        @id @default(cuid())
+  postId        String
+  authorId      String
+  parentId      String?
+  depth         Int           @default(0)
+  body          String
+  status        ContentStatus @default(PUBLISHED)
+  removedReason String?
+  score         Int           @default(0)
+  replyCount    Int           @default(0)
+  createdAt     DateTime      @default(now())
+  editedAt      DateTime?
+
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment?      @relation("thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]     @relation("thread")
+  votes   CommentVote[]
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([parentId])
+}
+
+model PostVote {
+  userId    String
+  postId    String
+  value     Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId])
+}
+
+model CommentVote {
+  userId    String
+  commentId String
+  value     Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, commentId])
+  @@index([commentId])
+}
+
+model Bookmark {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  FOLLOW
+  MENTION
+  COMMENT
+  REPLY
+  TONE_SAVE
+  TONE_REMIX
+  MODERATION
+  ANNOUNCEMENT
+  MEDIA_READY
+  MEDIA_FAILED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  actorId   String?
+  postId    String?
+  commentId String?
+  toneId    String?
+  // Small display payload (e.g. moderation reason, announcement title). Never trusted as HTML.
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user  User  @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+enum ReportTarget {
+  POST
+  COMMENT
+  USER
+  MEDIA
+  COMMUNITY
+  TONE
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE
+  NSFW
+  VIOLENCE
+  COPYRIGHT
+  IMPERSONATION
+  MISINFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  targetType   ReportTarget
+  targetId     String
+  reason       ReportReason
+  details      String?
+  status       ReportStatus @default(OPEN)
+  resolvedById String?
+  resolution   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  reporter   User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId, status])
+  @@index([reporterId, targetType, targetId])
+}
+
+enum AppealTarget {
+  POST
+  COMMENT
+  ACCOUNT
+  MEDIA
+}
+
+enum AppealStatus {
+  OPEN
+  UPHELD
+  REVERSED
+}
+
+model Appeal {
+  id           String       @id @default(cuid())
+  userId       String
+  targetType   AppealTarget
+  targetId     String
+  body         String
+  status       AppealStatus @default(OPEN)
+  decidedById  String?
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime     @default(now())
+
+  user      User  @relation("appellant", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("decider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, targetType, targetId])
+}
+
+enum ModerationRuleKind {
+  BLOCKED_TERM
+  LINK_HOLD_NEW_ACCOUNTS
+  MAX_MENTIONS
+  REPORT_HOLD
+}
+
+// Automated moderation policy, edited in the admin console. `config` shape depends on kind (lib/automod.ts).
+model ModerationRule {
+  id        String             @id @default(cuid())
+  kind      ModerationRuleKind
+  label     String
+  config    Json
+  enabled   Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean
+  description String   @default("")
+  updatedById String?
+  updatedAt   DateTime @updatedAt
 }
