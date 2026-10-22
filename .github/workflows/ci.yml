@@ -63,13 +63,14 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U resoniq"
+          --health-cmd "pg_isready -U resoniq -d resoniq_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql://resoniq:resoniq@localhost:5432/resoniq_test
       DATABASE_URL: postgresql://resoniq:resoniq@localhost:5432/resoniq_test
+      SHADOW_DATABASE_URL: postgresql://resoniq:resoniq@localhost:5432/resoniq_shadow_test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -78,8 +79,10 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Create migration shadow database
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE resoniq_shadow_test;'
       - name: Migration drift check
-        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$TEST_DATABASE_URL" --exit-code
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
       - name: Integration tests
         run: npm run test:int
 
