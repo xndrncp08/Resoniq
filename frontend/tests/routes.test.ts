@@ -6,7 +6,8 @@ const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: () => authMock() }));
 
 const db = {
-  user: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+  user: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+  follow: { findUnique: vi.fn() },
   song: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   tone: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
 };
@@ -33,6 +34,9 @@ const upload = await import("@/app/api/upload/route");
 const analyze = await import("@/app/api/analyze/route");
 const audio = await import("@/app/api/songs/[id]/audio/route");
 const songStatus = await import("@/app/api/songs/[id]/route");
+const users = await import("@/app/api/users/[handle]/route");
+const followRoute = await import("@/app/api/users/[handle]/follow/route");
+const me = await import("@/app/api/me/route");
 const { EngineError } = await import("@/lib/engine");
 
 const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
@@ -43,6 +47,7 @@ const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> 
     headers: { "content-type": "application/json", ...headers },
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+const hctx = (handle: string) => ({ params: Promise.resolve({ handle }) });
 const actor = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   handle: id.replace(/-/g, "_"),
@@ -373,5 +378,63 @@ describe("POST /api/analyze (streaming)", () => {
     const res = await analyze.POST(streamReq(), undefined);
     expect(res.status).toBe(409);
     expect(analyzeAudioStream).not.toHaveBeenCalled();
+  });
+});
+
+describe("profiles and follows", () => {
+  const profileRow = {
+    id: "user-b",
+    handle: "user_b",
+    name: "B",
+    image: null,
+    bio: null,
+    instruments: [],
+    genres: [],
+    links: null,
+    followerCount: 0,
+    followingCount: 0,
+    reputation: 0,
+    createdAt: new Date("2026-01-01"),
+  };
+
+  it("never exposes email on a public profile", async () => {
+    db.user.findFirst.mockResolvedValue({ ...profileRow, email: "secret@x.dev" });
+    const res = await users.GET(new Request("http://localhost"), hctx("user_b"));
+    expect(res.status).toBe(200);
+    // The query must select fields explicitly; even if a row carried an email, the select excludes it.
+    const select = db.user.findFirst.mock.calls[0][0].select;
+    expect(select.email).toBeUndefined();
+  });
+
+  it("404s unknown handles", async () => {
+    db.user.findFirst.mockResolvedValue(null);
+    expect((await users.GET(new Request("http://localhost"), hctx("ghost"))).status).toBe(404);
+  });
+
+  it("refuses self-follows and requires a session", async () => {
+    expect((await followRoute.PUT(new Request("http://localhost", { method: "PUT" }), hctx("user_a"))).status).toBe(401);
+    signedIn("user-a");
+    db.user.findFirst.mockResolvedValue({ id: "user-a" });
+    expect((await followRoute.PUT(new Request("http://localhost", { method: "PUT" }), hctx("user_a"))).status).toBe(400);
+  });
+
+  it("answers 409 for a taken handle", async () => {
+    signedIn("user-a");
+    db.user.update.mockRejectedValue(Object.assign(new Error("dup"), { code: "P2002", meta: { target: ["handle"] } }));
+    const res = await me.PATCH(json({ handle: "taken_name" }, { method: "PATCH" }), undefined);
+    expect(res.status).toBe(409);
+  });
+
+  it("needs the handle typed out to delete an account", async () => {
+    signedIn("user-a");
+    const res = await me.DELETE(json({ confirmHandle: "someone_else" }, { method: "DELETE" }), undefined);
+    expect(res.status).toBe(400);
+  });
+
+  it("needs the password to delete an email/password account", async () => {
+    signedIn("user-a");
+    db.user.findUniqueOrThrow.mockResolvedValue({ passwordHash: "$2a$12$abcdefghijklmnopqrstuuJ6kO7zR9G1yCzO9xGQe3e3GQ5yW0yW" });
+    const res = await me.DELETE(json({ confirmHandle: "@user_a", password: "wrong-password" }, { method: "DELETE" }), undefined);
+    expect(res.status).toBe(403);
   });
 });
