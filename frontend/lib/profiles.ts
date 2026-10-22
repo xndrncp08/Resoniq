@@ -8,6 +8,7 @@ export type PublicProfile = {
   handle: string;
   name: string | null;
   image: string | null;
+  bannerUrl: string | null;
   bio: string | null;
   instruments: string[];
   genres: string[];
@@ -25,6 +26,7 @@ export const PUBLIC_USER_SELECT = {
   handle: true,
   name: true,
   image: true,
+  bannerUrl: true,
   bio: true,
   instruments: true,
   genres: true,

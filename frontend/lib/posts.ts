@@ -11,6 +11,7 @@ import { extractMentions, extractTags } from "@/lib/rich-text";
 import { fail } from "@/lib/validation";
 import { recipeCoreFromStored } from "@/lib/tone-recipe";
 import type { RigSpec } from "@/types/rig";
+import { toMediaView, type MediaView } from "@/lib/media/view";
 
 export const POST_CATEGORIES: PostCategory[] = [
   "DISCUSSION", "QUESTION", "PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON", "TUTORIAL", "PEDALBOARD",
@@ -18,7 +19,7 @@ export const POST_CATEGORIES: PostCategory[] = [
 export const MAX_TITLE = 200;
 export const MAX_BODY = 10_000;
 
-export type PostInput = { title: string | null; body: string; category: PostCategory; communitySlug: string | null; toneId: string | null };
+export type PostInput = { title: string | null; body: string; category: PostCategory; communitySlug: string | null; toneId: string | null; mediaIds?: string[] };
 
 export function parsePostInput(body: Record<string, unknown>, { partial = false } = {}): Partial<PostInput> {
   const out: Partial<PostInput> = {};
@@ -43,6 +44,10 @@ export function parsePostInput(body: Record<string, unknown>, { partial = false 
   if (!partial) {
     out.communitySlug = typeof body.community === "string" && body.community ? body.community.toLowerCase() : null;
     out.toneId = typeof body.toneId === "string" && body.toneId ? body.toneId : null;
+    if (body.mediaIds !== undefined) {
+      if (!Array.isArray(body.mediaIds) || !body.mediaIds.every((m) => typeof m === "string")) fail("mediaIds must be a list of ids.");
+      out.mediaIds = body.mediaIds as string[];
+    }
   }
   return out;
 }
@@ -70,6 +75,7 @@ export const POST_VIEW_SELECT = {
   community: { select: { id: true, slug: true, name: true, kind: true } },
   tags: { select: { tag: true } },
   tone: { select: { id: true, name: true, visibility: true, data: true, rig: true, recipeEdited: true, saveCount: true } },
+  media: { where: { status: { in: ["PROCESSING", "READY", "FAILED"] } }, orderBy: { position: "asc" } },
 } satisfies Prisma.PostSelect;
 
 /** What a post card shows about its attached tone. Private tones are never exposed through posts. */
@@ -114,6 +120,7 @@ export type PostView = {
   community: { slug: string; name: string; kind: string } | null;
   tags: string[];
   tone: PostTone | null;
+  media: MediaView[];
   viewer: { vote: -1 | 0 | 1; bookmarked: boolean; isAuthor: boolean };
 };
 
@@ -137,6 +144,8 @@ export function toPostView(row: PostRow, viewer: { vote?: number; bookmarked?: b
     community: row.community && { slug: row.community.slug, name: row.community.name, kind: row.community.kind },
     tags: row.tags.map((t) => t.tag),
     tone: toPostTone(row.tone),
+    // Others only ever see finished media; the author also sees what's processing or failed.
+    media: row.media.filter((m) => isAuthor || m.status === "READY").map((m) => toMediaView(m, viewer.viewerId ?? null)),
     viewer: { vote: (Math.sign(viewer.vote ?? 0) as -1 | 0 | 1), bookmarked: !!viewer.bookmarked, isAuthor },
   };
 }
@@ -205,7 +214,7 @@ export async function createPost(
     : null;
   if (input.communitySlug && !community) throw new ApiError(404, "Community not found.");
   if (community?.archivedAt) throw new ApiError(400, "This community is archived and read-only.");
-  if (opts.requireContent !== false && !input.body && !input.title && !opts.attach) throw new ApiError(400, "Write something or attach media.");
+  if (opts.requireContent !== false && !input.body && !input.title) throw new ApiError(400, "Write something first.");
 
   const text = [input.title, input.body].filter(Boolean).join("\n");
   const screen = await screenText(text, author);

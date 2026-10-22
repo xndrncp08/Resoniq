@@ -29,7 +29,7 @@ async function targetExists(type: ReportTarget, id: string): Promise<boolean> {
     USER: () => prisma.user.findFirst({ where: { id, status: { not: "BANNED" } }, select: { id: true } }),
     COMMUNITY: () => prisma.community.findFirst({ where: { id }, select: { id: true } }),
     TONE: () => prisma.tone.findFirst({ where: { id }, select: { id: true } }),
-    MEDIA: async () => null, // media arrives with the media pipeline
+    MEDIA: () => prisma.media.findFirst({ where: { id, status: "READY" }, select: { id: true } }),
   }[type]();
   return !!found;
 }
@@ -75,7 +75,7 @@ export async function fileAppeal(actor: Actor, input: ReturnType<typeof parseApp
     POST: () => prisma.post.findFirst({ where: { id: input.targetId, authorId: actor.id, status: { in: ["REMOVED", "HELD"] } } }),
     COMMENT: () => prisma.comment.findFirst({ where: { id: input.targetId, authorId: actor.id, status: { in: ["REMOVED", "HELD"] } } }),
     ACCOUNT: async () => (input.targetId === actor.id && isSuspended(actor) ? actor : null),
-    MEDIA: async () => null,
+    MEDIA: () => prisma.media.findFirst({ where: { id: input.targetId, ownerId: actor.id, status: "REMOVED" } }),
   }[input.targetType]();
   if (!ok) throw new ApiError(404, "Nothing to appeal there.");
   try {

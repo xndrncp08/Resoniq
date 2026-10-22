@@ -8,7 +8,7 @@ import { deleteAccount } from "@/lib/account";
 import { parseProfilePatch } from "@/lib/profile-validation";
 import { PUBLIC_USER_SELECT, toPublicProfile } from "@/lib/profiles";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import { isUniqueViolation, ValidationError } from "@/lib/validation";
+import { isUniqueViolation } from "@/lib/validation";
 
 export const GET = route("me.get", async () => {
   const actor = await requireActor();
@@ -23,18 +23,26 @@ export const GET = route("me.get", async () => {
 export const PATCH = route("me.update", async (req) => {
   const actor = await requireActor({ write: true });
   enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
-  let patch;
-  try {
-    patch = parseProfilePatch(await readJson(req));
-  } catch (err) {
-    if (err instanceof ValidationError) throw new ApiError(400, err.message);
-    throw err;
+  const body = await readJson(req);
+  const { links, ...rest } = parseProfilePatch(body);
+  // Avatars and banners are processed image uploads, served through the media route.
+  const images: { image?: string | null; bannerUrl?: string | null } = {};
+  for (const [field, purpose, target] of [["avatarMediaId", "AVATAR", "image"], ["bannerMediaId", "BANNER", "bannerUrl"]] as const) {
+    const v = body[field];
+    if (v === undefined) continue;
+    if (v === null) {
+      images[target] = null;
+      continue;
+    }
+    if (typeof v !== "string") throw new ApiError(400, `${field} must be an id.`);
+    const media = await prisma.media.findFirst({ where: { id: v, ownerId: actor.id, purpose, status: "READY" }, select: { id: true } });
+    if (!media) throw new ApiError(400, "That image isn't ready yet.");
+    images[target] = `/api/media/${media.id}/playback`;
   }
-  const { links, ...rest } = patch;
   try {
     const user = await prisma.user.update({
       where: { id: actor.id },
-      data: { ...rest, ...(links && { links: links as Prisma.InputJsonValue }) },
+      data: { ...rest, ...images, ...(links && { links: links as Prisma.InputJsonValue }) },
       select: PUBLIC_USER_SELECT,
     });
     return NextResponse.json({ profile: toPublicProfile(user, actor.id, false) });

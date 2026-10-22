@@ -13,20 +13,30 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * The other security headers are static and set in next.config.js.
  */
+function supabaseOrigin(): string {
+  try {
+    return process.env.SUPABASE_URL ? ` ${new URL(process.env.SUPABASE_URL).origin}` : "";
+  } catch {
+    return "";
+  }
+}
+
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
+  // With Supabase storage, media is redirected to signed URLs and uploads go straight to the bucket.
+  const storageOrigin = supabaseOrigin();
 
   const csp = [
     "default-src 'self'",
     // React needs eval in development only, for its debugging stack traces.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data:${storageOrigin}`,
     "font-src 'self'",
     // blob: for the upload preview (the waveform player loads a local File).
-    "media-src 'self' blob:",
-    "connect-src 'self' blob:",
+    `media-src 'self' blob:${storageOrigin}`,
+    `connect-src 'self' blob:${storageOrigin}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
