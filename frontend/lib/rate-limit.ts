@@ -19,6 +19,9 @@ export const RATE_LIMITS = {
   analyze: { limit: 20, windowMs: 60 * 60_000 },
   toneRead: { limit: 120, windowMs: 60_000 },
   toneWrite: { limit: 60, windowMs: 60_000 },
+  profileWrite: { limit: 20, windowMs: 60 * 60_000 },
+  follow: { limit: 120, windowMs: 60 * 60_000 },
+  socialRead: { limit: 240, windowMs: 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 const MAX_KEYS = 10_000;
