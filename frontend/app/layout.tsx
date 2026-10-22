@@ -23,9 +23,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: { default: "Resoniq — Recreate Any Guitar Tone", template: "%s — Resoniq" },
+  title: { default: "Resoniq: play it, share the rig, steal the tone", template: "%s — Resoniq" },
   description:
-    "Upload a song and get a starting-point guitar tone recipe — amp, pedals, EQ, and effects — inferred from the recording.",
+    "The community for guitarists and bassists: post performances with the exact rig attached, browse and remix tones, and get starting-point recipes from recordings.",
+  metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
+  openGraph: { siteName: "Resoniq", images: ["/brand/og.png"] },
   icons: { icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }], apple: "/brand/app-icon-180.png" },
 };
 

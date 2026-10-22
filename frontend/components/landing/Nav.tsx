@@ -1,90 +1,53 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
-import { useSession, signOut } from "next-auth/react";
-import { spring } from "@/lib/motion";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
-// Absolute so they work from any page, not just the landing page.
-const publicLinks = [
-  { label: "Product", href: "/#features" },
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "Example", href: "/#example-tone" },
-  { label: "Free access", href: "/#free-access" },
+const links = [
+  { label: "Platform", href: "/#ecosystem" },
+  { label: "Inspect a rig", href: "/#inspect" },
+  { label: "Analysis", href: "/#how-it-works" },
+  { label: "Communities", href: "/c" },
+  { label: "Tones", href: "/tones" },
 ];
 
-const appLinks = [
-  { label: "Analyze", href: "/analyze" },
-  { label: "Library", href: "/library" },
-];
-
+/** The marketing header: transparent over the hero, a solid bar once you scroll. */
 export default function Nav() {
-  const { data: session, status } = useSession();
-  const pathname = usePathname();
+  const { status } = useSession();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 24);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   const signedIn = status === "authenticated";
-  const links = signedIn ? appLinks : publicLinks;
-
   return (
-    <motion.header
-      initial={{ y: -16, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={spring.enter}
-      className="fixed top-0 z-50 w-full px-4"
-    >
-      <div className="glass mx-auto mt-4 flex max-w-6xl items-center justify-between gap-4 rounded-panel px-4 py-2.5 sm:px-6">
-        <Link href="/" className="focus-ring flex items-center gap-2 rounded-lg" aria-label="Resoniq home">
-          <Image src="/logo.svg" alt="" width={28} height={28} className="rounded-lg" />
-          <span className={`font-display text-lg font-semibold tracking-tight ${signedIn ? "hidden sm:inline" : ""}`}>
-            Resoniq
-          </span>
+    <header className={`fixed inset-x-0 top-0 z-50 transition-[background,border-color] duration-300 ${scrolled ? "border-b border-line bg-bg/85 backdrop-blur-xl" : "border-b border-transparent"}`}>
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-6 px-4 sm:px-8">
+        <Link href="/" className="focus-ring flex items-center gap-3 rounded-lg" aria-label="Resoniq home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/mark.svg" alt="" width={34} height={34} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/wordmark.svg" alt="" width={118} height={24} className="hidden h-[18px] w-auto sm:block" />
         </Link>
-
-        {/* Two app links fit on a phone; the four landing anchors don't. */}
-        <nav aria-label="Main" className={`items-center gap-1 font-body text-sm ${signedIn ? "flex" : "hidden md:flex"}`}>
-          {links.map((l) => {
-            const active = signedIn && (pathname === l.href || pathname.startsWith(`${l.href}/`));
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                aria-current={active ? "page" : undefined}
-                className={`focus-ring relative rounded-full px-3 py-1.5 transition-colors ${
-                  active ? "text-ink" : "text-muted hover:text-ink"
-                }`}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="nav-active"
-                    transition={spring.snappy}
-                    className="absolute inset-0 -z-10 rounded-full bg-white/[0.06]"
-                  />
-                )}
-                {l.label}
-              </Link>
-            );
-          })}
+        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} className="focus-ring rounded-full px-3.5 py-2 font-body text-sm text-ink-dim transition-colors hover:text-ink">{l.label}</Link>
+          ))}
         </nav>
-
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {signedIn ? (
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="focus-ring rounded-full border border-white/10 px-4 py-2 font-body text-sm text-muted transition-colors hover:text-ink"
-            >
-              <span className="hidden sm:inline">{session.user?.name?.split(" ")[0] ?? "Account"} · </span>Sign out
-            </button>
+            <Link href="/feed" className="focus-ring rounded-full bg-copper px-5 py-2.5 font-body text-sm font-semibold text-bg hover:bg-copper-soft">Open Resoniq</Link>
           ) : (
-            <Link
-              href="/analyze"
-              className="focus-ring rounded-full bg-copper px-4 py-2 font-body text-sm font-medium text-bg transition-colors hover:bg-copper/90 sm:px-5"
-            >
-              Analyze a song<span className="hidden sm:inline"> — free</span>
-            </Link>
+            <>
+              <Link href="/login" className="focus-ring hidden rounded-full px-4 py-2.5 font-body text-sm text-ink-dim hover:text-ink sm:block">Sign in</Link>
+              <Link href="/signup" className="focus-ring rounded-full bg-copper px-5 py-2.5 font-body text-sm font-semibold text-bg hover:bg-copper-soft">Join free</Link>
+            </>
           )}
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }
