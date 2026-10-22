@@ -22,6 +22,14 @@ RUN npm run build
 FROM builder AS migrate
 CMD ["npx", "prisma", "migrate", "deploy"]
 
+# Background worker (docker-compose's `worker` service): runs TypeScript
+# directly with tsx from the builder's full node_modules.
+FROM builder AS worker
+ENV NODE_ENV=production
+RUN mkdir -p /data/songs && chown node:node /data/songs
+USER node
+CMD ["npx", "tsx", "worker/index.ts"]
+
 FROM base AS runner
 ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs

@@ -68,6 +68,24 @@ services:
       python-engine:
         condition: service_healthy
 
+  worker:
+    build:
+      context: ./frontend
+      target: worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://resoniq:resoniq@postgres:5432/resoniq
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      RESONIQ_LOCAL_STORAGE_DIR: /data/songs
+      PYTHON_ENGINE_URL: http://python-engine:8000
+      RESONIQ_ENGINE_SECRET: ${RESONIQ_ENGINE_SECRET:?set RESONIQ_ENGINE_SECRET in .env}
+    volumes:
+      - song_data:/data/songs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   postgres_data:
   song_data:
