@@ -11,6 +11,10 @@ class RateLimited extends CredentialsSignin {
   code = "rate_limited";
 }
 
+class AccountDisabled extends CredentialsSignin {
+  code = "account_disabled";
+}
+
 export const googleEnabled = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -54,6 +58,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
+        // Only after the password matches, so this doesn't reveal which emails are banned.
+        if (user.status === "BANNED") throw new AccountDisabled();
 
         return {
           id: user.id,
@@ -65,6 +71,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    // Covers OAuth sign-ins; credentials sign-ins are refused in authorize().
+    async signIn({ user }) {
+      if (!user.id) return true;
+      const found = await prisma.user.findUnique({ where: { id: user.id }, select: { status: true } });
+      return found?.status !== "BANNED" || "/login?error=account_disabled";
+    },
     async jwt({ token, user }) {
       if (user) token.id = user.id;
       return token;

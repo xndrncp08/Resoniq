@@ -8,12 +8,14 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string | string[] }>;
+  searchParams: Promise<{ callbackUrl?: string | string[]; error?: string | string[] }>;
 }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, error } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
-      <AuthForm mode="login" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/analyze")} />
+      <AuthForm mode="login" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/analyze")}
+        initialError={typeof error === "string" ? error : undefined}
+      />
     </main>
   );
 }

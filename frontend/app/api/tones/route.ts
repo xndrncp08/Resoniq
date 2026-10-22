@@ -26,7 +26,7 @@ export const GET = route("tones.list", async (req) => {
 });
 
 export const POST = route("tones.create", async (req) => {
-  const userId = await requireUserId();
+  const userId = await requireUserId(undefined, { write: true });
   enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
 
   const body = await readJson(req, 64 * 1024);

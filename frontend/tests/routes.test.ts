@@ -6,7 +6,7 @@ const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: () => authMock() }));
 
 const db = {
-  user: { findFirst: vi.fn(), create: vi.fn() },
+  user: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   song: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   tone: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
 };
@@ -43,7 +43,18 @@ const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> 
     headers: { "content-type": "application/json", ...headers },
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
-const signedIn = (id = "user-a") => authMock.mockResolvedValue({ user: { id } });
+const actor = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  handle: id.replace(/-/g, "_"),
+  role: "USER",
+  status: "ACTIVE",
+  suspendedUntil: null,
+  ...extra,
+});
+const signedIn = (id = "user-a", extra: Record<string, unknown> = {}) => {
+  authMock.mockResolvedValue({ user: { id } });
+  db.user.findUnique.mockResolvedValue(actor(id, extra));
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -65,6 +76,30 @@ describe("auth guard", () => {
   ])("%s requires a session", async (_name, call) => {
     const res = await call();
     expect(res.status).toBe(401);
+  });
+});
+
+describe("account status", () => {
+  it("refuses writes from a banned user with a valid session", async () => {
+    signedIn("user-a", { status: "BANNED" });
+    const res = await tones.POST(json({ name: "x", recipe: validRecipe() }), undefined);
+    expect(res.status).toBe(403);
+    expect(db.tone.create).not.toHaveBeenCalled();
+  });
+
+  it("lets a suspended user read but not write", async () => {
+    signedIn("user-a", { status: "SUSPENDED", suspendedUntil: new Date(Date.now() + 86_400_000) });
+    db.tone.findMany.mockResolvedValue([]);
+    expect((await tones.GET(new Request("http://localhost/api/tones"), undefined)).status).toBe(200);
+    const res = await tones.POST(json({ name: "x", recipe: validRecipe() }), undefined);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/suspended until \d{4}-\d{2}-\d{2}/);
+  });
+
+  it("treats a session for a deleted user as signed out", async () => {
+    authMock.mockResolvedValue({ user: { id: "gone" } });
+    db.user.findUnique.mockResolvedValue(null);
+    expect((await tones.GET(new Request("http://localhost/api/tones"), undefined)).status).toBe(401);
   });
 });
 

@@ -10,22 +10,25 @@ import { spring } from "@/lib/motion";
 
 const SIGN_IN_ERRORS: Record<string, string> = {
   rate_limited: "Too many sign-in attempts. Wait a few minutes and try again.",
+  account_disabled: "This account has been disabled. If you think that's a mistake, contact support.",
 };
 
 export default function AuthForm({
   mode,
   googleEnabled,
   callbackUrl,
+  initialError,
 }: {
   mode: "login" | "signup";
   googleEnabled: boolean;
   callbackUrl: string;
+  initialError?: string;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>((initialError && SIGN_IN_ERRORS[initialError]) ?? null);
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
 

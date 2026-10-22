@@ -1,32 +1,25 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { ApiError } from "@/lib/api-error";
+import { requireActor } from "@/lib/authz";
 import { rateLimit, type RateLimitRule } from "@/lib/rate-limit";
+
+export { ApiError };
 
 /**
  * Shared plumbing for API route handlers: auth guard, rate limiting, body
  * parsing, and error responses that never carry internal detail.
  */
 
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly headers?: Record<string, string>,
-  ) {
-    super(message);
-  }
-}
-
 export function jsonError(status: number, message: string, headers?: Record<string, string>) {
   return NextResponse.json({ error: message }, { status, headers });
 }
 
-/** The signed-in user's id, or an ApiError(401). */
-export async function requireUserId(message = "Sign in required."): Promise<string> {
-  const session = await auth();
-  const id = session?.user?.id;
-  if (!id) throw new ApiError(401, message);
-  return id;
+/**
+ * The signed-in user's id, or an ApiError: 401 signed out, 403 banned, and
+ * 403 suspended when `write` is set. See lib/authz.ts.
+ */
+export async function requireUserId(message?: string, opts: { write?: boolean } = {}): Promise<string> {
+  return (await requireActor({ ...opts, message })).id;
 }
 
 export function enforceRateLimit(bucket: string, key: string, rule: RateLimitRule) {

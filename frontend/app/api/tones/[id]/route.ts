@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const notFound = () => new ApiError(404, "Tone not found.");
 
 export const PATCH = route<Ctx>("tones.update", async (req, { params }) => {
-  const userId = await requireUserId();
+  const userId = await requireUserId(undefined, { write: true });
   enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
   const { id } = await params;
 
@@ -36,7 +36,7 @@ export const PATCH = route<Ctx>("tones.update", async (req, { params }) => {
 });
 
 export const DELETE = route<Ctx>("tones.delete", async (_req, { params }) => {
-  const userId = await requireUserId();
+  const userId = await requireUserId(undefined, { write: true });
   enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
   const { id } = await params;
 
