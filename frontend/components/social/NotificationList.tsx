@@ -37,6 +37,9 @@ function describe(n: NotificationItem): { text: string; href: string } {
     case "MEDIA_FAILED": return { text: `Your ${String(d.kind ?? "upload").toLowerCase()} couldn't be processed: ${String(d.error ?? "")}`, href: n.postId ? `/p/${n.postId}` : "/new" };
     case "MODERATION": {
       const target = String(d.target ?? "content");
+      if (d.action === "suspend") return { text: `Your account was suspended${d.until ? ` until ${String(d.until).slice(0, 10)}` : ""}: ${String(d.reason ?? "")}`, href: "/appeals?type=ACCOUNT" };
+      if (d.action === "appeal_upheld") return { text: `Your appeal was reviewed and the decision stands: ${String(d.reason ?? "")}`, href: "/appeals" };
+      if (d.action === "unpublish") return { text: `A moderator took your tone out of discovery: ${String(d.reason ?? "")}`, href: `/t/${n.toneId}` };
       return d.action === "restore"
         ? { text: `A moderator restored your ${target}`, href: n.postId ? `/p/${n.postId}` : "/feed" }
         : { text: `A moderator removed your ${target}: ${String(d.reason ?? "")}. You can appeal.`, href: `/appeals?type=${target === "comment" ? "COMMENT" : target === "media" ? "MEDIA" : "POST"}&id=${target === "comment" ? n.commentId : target === "media" ? d.mediaId : n.postId}` };

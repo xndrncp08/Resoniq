@@ -7,6 +7,7 @@ import { EmptyState, LinkButton, Tabs } from "@/components/app/ui";
 import ComposerPrompt from "@/components/social/ComposerPrompt";
 import PostFeed from "@/components/social/PostFeed";
 import SideRail from "@/components/social/SideRail";
+import FeaturedStrip from "@/components/social/FeaturedStrip";
 
 export const metadata: Metadata = { title: "Feed" };
 
@@ -50,6 +51,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
             <LinkButton href="/signup" variant="primary">Join Resoniq</LinkButton>
           </div>
         )}
+        {tab === "for-you" && sort === "hot" && <FeaturedStrip placement="HOME" viewerId={viewer?.id ?? null} />}
         <PostFeed
           key={`${tab}-${sort}-${window}`}
           endpoint={`/api/feed?tab=${tab}&sort=${sort}&t=${window}&limit=15`}
