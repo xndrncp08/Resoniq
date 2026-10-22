@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { recipeFromStoredTone } from "@/lib/tone-recipe";
+import { optionalActor } from "@/lib/api";
+import { viewableToneWhere } from "@/lib/tones";
 import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
@@ -13,8 +15,9 @@ import RecipeSummary from "@/components/tone/RecipeSummary";
 // audio — so the queries select just what is rendered, and the song lookup
 // is scoped to the tone's owner.
 const loadRecipe = cache(async (id: string) => {
-  const tone = await prisma.tone.findUnique({
-    where: { id },
+  const viewer = await optionalActor();
+  const tone = await prisma.tone.findFirst({
+    where: { AND: [{ id }, viewableToneWhere(viewer?.id ?? null)] },
     select: { id: true, userId: true, songId: true, name: true, favorite: true, createdAt: true, data: true },
   });
   if (!tone) return null;

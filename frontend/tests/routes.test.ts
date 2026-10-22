@@ -8,8 +8,11 @@ vi.mock("@/auth", () => ({ auth: () => authMock() }));
 const db = {
   user: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   follow: { findUnique: vi.fn() },
+  toneGear: { deleteMany: vi.fn(), createMany: vi.fn() },
+  gearItem: { count: vi.fn() },
+  $transaction: vi.fn(),
   song: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-  tone: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+  tone: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
 };
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
@@ -63,6 +66,7 @@ const signedIn = (id = "user-a", extra: Record<string, unknown> = {}) => {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db));
   resetRateLimits();
   authMock.mockResolvedValue(null);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -156,7 +160,7 @@ describe("/api/tones", () => {
 
   it("stores the validated recipe, not the raw payload", async () => {
     signedIn("user-a");
-    db.tone.create.mockImplementation(async ({ data }) => ({ id: "t1", ...data }));
+    db.tone.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: "t1", ...data }));
     const res = await tones.POST(json({ name: " Mine ", data: { version: 2, recipe: { ...validRecipe(), extra: "x" } } }), undefined);
     expect(res.status).toBe(201);
     const stored = db.tone.create.mock.calls[0][0].data;
@@ -173,11 +177,12 @@ describe("/api/tones", () => {
 
   it("updates and deletes only the owner's tone", async () => {
     signedIn("user-b");
-    db.tone.updateMany.mockResolvedValue({ count: 0 });
+    db.tone.findFirst.mockResolvedValue(null);
     db.tone.deleteMany.mockResolvedValue({ count: 0 });
     expect((await tone.PATCH(json({ name: "pwned" }, { method: "PATCH" }), ctx("t1"))).status).toBe(404);
     expect((await tone.DELETE(new Request("http://localhost", { method: "DELETE" }), ctx("t1"))).status).toBe(404);
-    expect(db.tone.updateMany.mock.calls[0][0].where).toEqual({ id: "t1", userId: "user-b" });
+    expect(db.tone.findFirst.mock.calls[0][0].where).toMatchObject({ id: "t1", userId: "user-b" });
+    expect(db.tone.update).not.toHaveBeenCalled();
     expect(db.tone.deleteMany.mock.calls[0][0].where).toEqual({ id: "t1", userId: "user-b" });
   });
 });

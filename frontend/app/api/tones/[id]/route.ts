@@ -1,46 +1,36 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/lib/api";
-import { RATE_LIMITS } from "@/lib/rate-limit";
-import { parseToneName, ValidationError } from "@/lib/tone-validation";
+import { ApiError, enforceRateLimit, optionalActor, readJson, route } from "@/lib/api";
+import { requireActor } from "@/lib/authz";
+import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { getTone, parseToneInput, updateTone } from "@/lib/tones";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 const notFound = () => new ApiError(404, "Tone not found.");
 
-export const PATCH = route<Ctx>("tones.update", async (req, { params }) => {
-  const userId = await requireUserId(undefined, { write: true });
-  enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
-  const { id } = await params;
-
-  const { name, favorite } = await readJson(req);
-  const data: { name?: string; favorite?: boolean } = {};
-  try {
-    if (name !== undefined) data.name = parseToneName(name);
-  } catch (err) {
-    if (err instanceof ValidationError) throw new ApiError(400, err.message);
-    throw err;
-  }
-  if (favorite !== undefined) {
-    if (typeof favorite !== "boolean") throw new ApiError(400, "favorite must be a boolean.");
-    data.favorite = favorite;
-  }
-
-  // Scoping the write itself to the owner leaves no gap between check and update.
-  const { count } = await prisma.tone.updateMany({ where: { id, userId }, data });
-  if (count === 0) throw notFound();
-
-  const tone = await prisma.tone.findFirst({ where: { id, userId } });
+export const GET = route<Ctx>("tones.get", async (req, { params }) => {
+  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  const viewer = await optionalActor();
+  const tone = await getTone((await params).id, viewer?.id ?? null);
   if (!tone) throw notFound();
   return NextResponse.json({ tone });
 });
 
-export const DELETE = route<Ctx>("tones.delete", async (_req, { params }) => {
-  const userId = await requireUserId(undefined, { write: true });
-  enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
+/** Owner edits: name, favorite, recipe (`data`), declared `rig`, description, visibility. */
+export const PATCH = route<Ctx>("tones.update", async (req, { params }) => {
+  const actor = await requireActor({ write: true });
+  enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
   const { id } = await params;
+  const input = parseToneInput(await readJson(req, 64 * 1024), { partial: true });
+  return NextResponse.json({ tone: await updateTone(actor, id, input) });
+});
 
-  const { count } = await prisma.tone.deleteMany({ where: { id, userId } });
+export const DELETE = route<Ctx>("tones.delete", async (_req, { params }) => {
+  const actor = await requireActor({ write: true });
+  enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
+  const { id } = await params;
+  const { count } = await prisma.tone.deleteMany({ where: { id, userId: actor.id } });
   if (count === 0) throw notFound();
   return NextResponse.json({ ok: true });
 });

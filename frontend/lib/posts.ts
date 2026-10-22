@@ -9,6 +9,8 @@ import { AUTHOR_SELECT, type Author } from "@/lib/profiles";
 import { hotRank } from "@/lib/ranking";
 import { extractMentions, extractTags } from "@/lib/rich-text";
 import { fail } from "@/lib/validation";
+import { recipeCoreFromStored } from "@/lib/tone-recipe";
+import type { RigSpec } from "@/types/rig";
 
 export const POST_CATEGORIES: PostCategory[] = [
   "DISCUSSION", "QUESTION", "PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON", "TUTORIAL", "PEDALBOARD",
@@ -67,7 +69,31 @@ export const POST_VIEW_SELECT = {
   author: { select: AUTHOR_SELECT },
   community: { select: { id: true, slug: true, name: true, kind: true } },
   tags: { select: { tag: true } },
+  tone: { select: { id: true, name: true, visibility: true, data: true, rig: true, recipeEdited: true, saveCount: true } },
 } satisfies Prisma.PostSelect;
+
+/** What a post card shows about its attached tone. Private tones are never exposed through posts. */
+export type PostTone = {
+  id: string;
+  name: string;
+  saveCount: number;
+  declared: { instrument: string | null; amp: string | null; blocks: number } | null;
+  inferred: { amp: string; gain: number; edited: boolean } | null;
+};
+
+function toPostTone(t: PostRow["tone"]): PostTone | null {
+  if (!t || t.visibility === "PRIVATE") return null;
+  const rig = t.rig as RigSpec | null;
+  const core = recipeCoreFromStored(t.data);
+  const name = (r?: { brand?: string; model: string }) => (r ? [r.brand, r.model].filter(Boolean).join(" ") : null);
+  return {
+    id: t.id,
+    name: t.name,
+    saveCount: t.saveCount,
+    declared: rig && { instrument: name(rig.instrument?.ref) ?? (rig.instrument ? rig.instrument.kind.toLowerCase() : null), amp: name(rig.amp?.ref), blocks: rig.chain.length },
+    inferred: core && { amp: core.amp.model, gain: core.amp.gain, edited: t.recipeEdited },
+  };
+}
 
 type PostRow = Prisma.PostGetPayload<{ select: typeof POST_VIEW_SELECT }>;
 
@@ -87,7 +113,7 @@ export type PostView = {
   author: Author;
   community: { slug: string; name: string; kind: string } | null;
   tags: string[];
-  toneId: string | null;
+  tone: PostTone | null;
   viewer: { vote: -1 | 0 | 1; bookmarked: boolean; isAuthor: boolean };
 };
 
@@ -110,7 +136,7 @@ export function toPostView(row: PostRow, viewer: { vote?: number; bookmarked?: b
     author: row.author,
     community: row.community && { slug: row.community.slug, name: row.community.name, kind: row.community.kind },
     tags: row.tags.map((t) => t.tag),
-    toneId: row.toneId,
+    tone: toPostTone(row.tone),
     viewer: { vote: (Math.sign(viewer.vote ?? 0) as -1 | 0 | 1), bookmarked: !!viewer.bookmarked, isAuthor },
   };
 }

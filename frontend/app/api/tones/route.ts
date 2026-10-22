@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/lib/api";
+import { requireActor } from "@/lib/authz";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import { parseStoredToneData, parseToneName, ValidationError } from "@/lib/tone-validation";
+import { createTone, parseToneInput } from "@/lib/tones";
+import { recipeCoreFromAnalysis } from "@/lib/tone-recipe";
+import { parseRecipeCore } from "@/lib/tone-validation";
+import type { EngineAnalysis } from "@/types/engine";
 
 const MAX_QUERY_LENGTH = 100;
 
@@ -26,33 +29,28 @@ export const GET = route("tones.list", async (req) => {
 });
 
 export const POST = route("tones.create", async (req) => {
-  const userId = await requireUserId(undefined, { write: true });
-  enforceRateLimit("tones-write", userId, RATE_LIMITS.toneWrite);
+  const actor = await requireActor({ write: true });
+  enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
 
   const body = await readJson(req, 64 * 1024);
-  let name, data;
-  try {
-    name = parseToneName(body.name);
-    data = parseStoredToneData(body.data);
-  } catch (err) {
-    if (err instanceof ValidationError) throw new ApiError(400, err.message);
-    throw err;
-  }
+  const input = parseToneInput(body, { partial: false });
 
   let songId: string | null = null;
+  let recipeEdited = false;
   if (body.songId !== undefined && body.songId !== null) {
     if (typeof body.songId !== "string") throw new ApiError(400, "songId must be a string.");
     // Only link songs the user owns; otherwise a tone could surface someone
     // else's song title on the public /t/[id] page.
-    const song = await prisma.song.findFirst({ where: { id: body.songId, userId }, select: { id: true } });
+    const song = await prisma.song.findFirst({ where: { id: body.songId, userId: actor.id }, select: { id: true, analysisData: true } });
     if (!song) throw new ApiError(404, "Song not found.");
     songId = song.id;
+    // Knobs turned before saving mean this is no longer the raw analysis; label it honestly.
+    if (input.data && song.analysisData) {
+      const analyzed = parseRecipeCore(recipeCoreFromAnalysis(song.analysisData as unknown as EngineAnalysis));
+      recipeEdited = JSON.stringify(analyzed) !== JSON.stringify(input.data.recipe);
+    }
   }
 
-  const tone = await prisma.tone.create({
-    // StoredToneData is plain JSON once validated; Prisma's input type can't see that.
-    data: { userId, name, data: data as unknown as Prisma.InputJsonValue, songId },
-  });
-
-  return NextResponse.json({ tone }, { status: 201 });
+  const id = await createTone(actor, { ...input, songId, recipeEdited });
+  return NextResponse.json({ tone: { id } }, { status: 201 });
 });

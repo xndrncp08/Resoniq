@@ -165,12 +165,18 @@ function coreFromLegacy(data: LegacyToneData): RecipeCore | null {
   return core;
 }
 
+/** The inferred recipe stored in `Tone.data` (v2 or legacy), or null for hand-built tones. */
+export function recipeCoreFromStored(data: unknown): RecipeCore | null {
+  if (data === null || data === undefined) return null;
+  return isStored(data) ? data.recipe : coreFromLegacy(data as LegacyToneData);
+}
+
 /** A saved library tone. Returns null if `data` is in neither known format. */
 export function recipeFromStoredTone(
   tone: { id: string; name: string; favorite: boolean; createdAt: Date | string; data: unknown },
   song: SongMeta | null,
 ): ToneRecipe | null {
-  const core = isStored(tone.data) ? tone.data.recipe : coreFromLegacy((tone.data ?? {}) as LegacyToneData);
+  const core = recipeCoreFromStored(tone.data);
   if (!core) return null;
   return {
     ...core,

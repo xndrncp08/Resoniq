@@ -6,6 +6,7 @@
  *   npm run db:seed
  */
 import { PrismaClient, type CommunityKind, type ModerationRuleKind, type Prisma } from "@prisma/client";
+import { seedGear } from "./seed-gear";
 
 const COMMUNITIES: { slug: string; name: string; kind: CommunityKind; description: string }[] = [
   { slug: "electric-guitar", name: "Electric Guitar", kind: "INSTRUMENT", description: "Six strings, pickups and everything between the jack and the amp." },
@@ -45,12 +46,13 @@ export async function seed(prisma: PrismaClient) {
     const existing = await prisma.moderationRule.findFirst({ where: { kind: r.kind, label: r.label } });
     if (!existing) await prisma.moderationRule.create({ data: r });
   }
+  await seedGear(prisma);
 }
 
 if (process.argv[1]?.endsWith("seed.ts")) {
   const prisma = new PrismaClient();
   seed(prisma)
-    .then(() => console.log("Seeded communities and moderation rules."))
+    .then(() => console.log("Seeded communities, moderation rules and the gear catalog."))
     .catch((err) => {
       console.error(err);
       process.exitCode = 1;

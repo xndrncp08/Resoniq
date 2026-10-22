@@ -54,6 +54,8 @@ model User {
   reportsResolved    Report[]          @relation("resolver")
   appeals            Appeal[]          @relation("appellant")
   appealsDecided     Appeal[]          @relation("decider")
+  gearItems          GearItem[]
+  toneSaves          ToneSave[]
 }
 
 enum Role {
@@ -135,21 +137,110 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// A saved tone recipe. `data` holds StoredToneData (lib/tone-recipe.ts).
-// Anyone with the id can view it at /t/[id]; see SECURITY.md.
+// A tone. Two independent sources, never mixed:
+//   data — what Resoniq's analysis INFERRED (StoredToneData, lib/tone-recipe.ts); null for hand-built tones.
+//   rig  — what the creator DECLARED about their real setup (RigSpec, types/rig.ts); optional.
+// UNLISTED (the default, and every pre-existing tone) is viewable by link only; PUBLIC is listed
+// on profiles and discovery, and only ever set by the owner.
 model Tone {
-  id        String   @id @default(cuid())
-  userId    String
-  songId    String?
-  name      String
-  data      Json
-  favorite  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id           String         @id @default(cuid())
+  userId       String
+  songId       String?
+  name         String
+  data         Json?
+  rig          Json?
+  description  String?
+  visibility   ToneVisibility @default(UNLISTED)
+  // Set when the creator changed the inferred recipe's knobs after analysis.
+  recipeEdited Boolean        @default(false)
+  remixOfId    String?
+  favorite     Boolean        @default(false)
+  saveCount    Int            @default(0)
+  remixCount   Int            @default(0)
+  publishedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now()) @updatedAt
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  posts Post[]
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  remixOf Tone?      @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
+  remixes Tone[]     @relation("remix")
+  posts   Post[]
+  gear    ToneGear[]
+  saves   ToneSave[]
 
   @@index([userId, favorite, createdAt])
+  @@index([visibility, publishedAt])
+  @@index([visibility, saveCount])
+  @@index([remixOfId])
+}
+
+enum ToneVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum GearKind {
+  GUITAR
+  BASS
+  PICKUP
+  AMP
+  CAB
+  PEDAL
+  MULTIFX
+  MODELER
+  PLUGIN
+}
+
+enum GearStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+// The shared gear catalog. Creators can also name custom gear inline in a rig
+// without it ever entering the catalog; submissions arrive PENDING.
+model GearItem {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  kind        GearKind
+  brand       String
+  model       String
+  description String?
+  // Control names, e.g. ["Gain","Bass","Middle","Treble","Presence","Master"].
+  controls    String[]   @default([])
+  status      GearStatus @default(APPROVED)
+  createdById String?
+  createdAt   DateTime   @default(now())
+
+  createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  tones     ToneGear[]
+
+  @@index([kind, status])
+  @@index([status, createdAt])
+}
+
+model ToneGear {
+  toneId     String
+  gearItemId String
+
+  tone Tone     @relation(fields: [toneId], references: [id], onDelete: Cascade)
+  gear GearItem @relation(fields: [gearItemId], references: [id], onDelete: Cascade)
+
+  @@id([toneId, gearItemId])
+  @@index([gearItemId])
+}
+
+model ToneSave {
+  userId    String
+  toneId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tone Tone @relation(fields: [toneId], references: [id], onDelete: Cascade)
+
+  @@id([userId, toneId])
+  @@index([userId, createdAt])
 }
 
 // An uploaded track and its analysis job: status moves
