@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>Direction D — Decay</title>
+  <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#FF8A3D"/><stop offset="1" stop-color="#37E6C9"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="#0A0D12"/>
+  <g fill="none" stroke="url(#g)" stroke-width="22" stroke-linecap="round">
+    <path d="M112 136h288"/><path d="M112 196c96 0 96-28 192-28s48 28 96 28"/><path d="M112 256c64 0 64-44 128-44s64 44 128 44"/>
+    <path d="M112 316c48 0 48-56 96-56s48 56 96 56"/><path d="M112 376c32 0 32-64 64-64s32 64 64 64h160"/>
+  </g>
+  <path d="M112 136v240" stroke="#F3EFE8" stroke-width="22" stroke-linecap="round"/>
+</svg>

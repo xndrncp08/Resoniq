@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 64" role="img"><title>Resoniq</title>
+  <image href="mark.svg" x="0" y="0" width="64" height="64"/>
+  <g transform="translate(90 13) scale(0.98)">
+    <g fill="none" stroke="#F3EFE8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 40V0h13a10 10 0 0 1 0 20H0M12 20l12 20"/><path d="M60 0H36v40h24M36 20h18"/>
+      <path d="M96 7c-3-5-8-7-13-7-7 0-12 4-12 10 0 13 25 7 25 20 0 6-5 10-12 10-6 0-11-2-14-7"/>
+      <circle cx="126" cy="20" r="20"/><path d="M160 40V0l26 40V0"/><path d="M200 0v40"/><circle cx="232" cy="20" r="20"/>
+    </g>
+    <path d="M232 20l21 14" stroke="#FF8A3D" stroke-width="6" stroke-linecap="round"/><circle cx="232" cy="20" r="4" fill="#FF8A3D"/>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>Direction C — Patch Cable</title>
+  <rect width="512" height="512" fill="#F3EFE8"/>
+  <g fill="none" stroke="#0A0D12" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 372V140h70a54 54 0 0 1 0 108h-70M180 248l60 124"/>
+  </g>
+  <path d="M240 372c40 0 52-40 92-40" fill="none" stroke="#FF8A3D" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="352" cy="256" r="74" fill="none" stroke="#0A0D12" stroke-width="34"/>
+  <rect x="318" y="318" width="48" height="26" rx="6" fill="#0A0D12" transform="rotate(35 342 331)"/>
+  <circle cx="352" cy="256" r="12" fill="#37E6C9"/>
+</svg>

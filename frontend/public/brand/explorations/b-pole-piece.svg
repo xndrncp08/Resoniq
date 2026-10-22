@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>Direction B — Pole Piece</title>
+  <rect width="512" height="512" fill="#0A0D12"/>
+  <rect x="76" y="176" width="360" height="160" rx="80" fill="#151A22" stroke="#343D4C" stroke-width="6"/>
+  <g fill="#C9C3B8"><circle cx="146" cy="256" r="18"/><circle cx="190" cy="256" r="18"/><circle cx="234" cy="256" r="18"/><circle cx="322" cy="256" r="18"/><circle cx="366" cy="256" r="18"/></g>
+  <circle cx="278" cy="256" r="22" fill="#FF8A3D"/>
+  <g fill="none" stroke="#37E6C9" stroke-width="8" stroke-linecap="round"><path d="M278 196c26-36 26-80 0-116" opacity=".9"/><path d="M278 316c-26 36-26 80 0 116" opacity=".9"/><path d="M308 186c40-46 40-110 0-156" opacity=".45"/><path d="M248 326c-40 46-40 110 0 156" opacity=".45"/></g>
+</svg>
