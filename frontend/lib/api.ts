@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/api-error";
-import { requireActor } from "@/lib/authz";
+import { getActor, requireActor } from "@/lib/authz";
 import { rateLimit, type RateLimitRule } from "@/lib/rate-limit";
+import { ValidationError } from "@/lib/validation";
 
 export { ApiError };
 
@@ -20,6 +21,12 @@ export function jsonError(status: number, message: string, headers?: Record<stri
  */
 export async function requireUserId(message?: string, opts: { write?: boolean } = {}): Promise<string> {
   return (await requireActor({ ...opts, message })).id;
+}
+
+/** The viewer for public reads: signed-in and not banned, else null. */
+export async function optionalActor() {
+  const actor = await getActor();
+  return actor && actor.status !== "BANNED" ? actor : null;
 }
 
 export function enforceRateLimit(bucket: string, key: string, rule: RateLimitRule) {
@@ -84,6 +91,7 @@ export function route<C = unknown>(name: string, handler: Handler<C>): Handler<C
       return await handler(req, ctx);
     } catch (err) {
       if (err instanceof ApiError) return jsonError(err.status, err.message, err.headers);
+      if (err instanceof ValidationError) return jsonError(400, err.message);
       console.error(`[api] ${name} failed`, err);
       return jsonError(500, "Something went wrong. Try again.");
     }
