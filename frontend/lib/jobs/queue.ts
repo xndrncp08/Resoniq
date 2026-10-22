@@ -15,6 +15,8 @@ export type JobPayloads = {
   "media.process": { mediaId: string };
   /** Delete a removed upload's files and row. */
   "media.purge": { mediaId: string };
+  /** Fan an announcement out to every active account as a notification. */
+  "announcement.notify": { announcementId: string; afterId?: string };
 };
 export type JobType = keyof JobPayloads;
 

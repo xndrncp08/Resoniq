@@ -692,3 +692,52 @@ model Media {
   @@index([postId, position])
   @@index([status, createdAt])
 }
+
+// ── Platform operations (admin console) ──────────────────────────────
+
+enum FeaturedPlacement {
+  LANDING
+  HOME
+  EXPLORE
+}
+
+enum FeaturedKind {
+  POST
+  TONE
+  USER
+  COMMUNITY
+}
+
+// Staff curation. Rendered only while the target is still visible to the viewer.
+model FeaturedSlot {
+  id          String            @id @default(cuid())
+  placement   FeaturedPlacement
+  kind        FeaturedKind
+  targetId    String
+  position    Int               @default(0)
+  note        String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdById String?
+  createdAt   DateTime          @default(now())
+
+  @@index([placement, position])
+}
+
+enum AnnouncementLevel {
+  INFO
+  WARN
+}
+
+model Announcement {
+  id          String            @id @default(cuid())
+  title       String
+  body        String            @default("")
+  level       AnnouncementLevel @default(INFO)
+  startsAt    DateTime          @default(now())
+  endsAt      DateTime?
+  createdById String?
+  createdAt   DateTime          @default(now())
+
+  @@index([startsAt, endsAt])
+}
