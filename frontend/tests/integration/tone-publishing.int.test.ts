@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { seed } from "@/prisma/seed";
+import { TANK_G_PRESETS } from "@/lib/tank-g-presets";
 import { generateDrafts, editDraft, editManagedCreator, importInitialTones, INITIAL_IMPORT_CONFIRMATION, INITIAL_PRESET_KEYS, publishDraft, publishScheduledTones, reviewDraft, scheduleDraft, setPublishingPaused, unpublishDraft } from "@/lib/tone-drafts";
 import { getTone, listTones, remixTone, setToneSaved, updateTone } from "@/lib/tones";
 import { getPost } from "@/lib/posts";
@@ -36,12 +37,12 @@ describe("managed tone publishing", () => {
   it("generates validated drafts once and never overwrites genuine accounts or content", async () => {
     const member = await makeActor({ handle: "real_musician", name: "Real musician" });
     const { admin, drafts } = await setup();
-    expect(drafts).toHaveLength(28);
+    expect(drafts).toHaveLength(28 + TANK_G_PRESETS.length);
     expect(await prisma.managedCreator.count()).toBe(6);
     expect(await generateDrafts(admin)).toEqual({ created: 0 });
     expect(await prisma.tone.count()).toBe(0);
     expect(await prisma.user.findUnique({ where: { id: member.id } })).toMatchObject({ name: "Real musician", kind: "PERSON" });
-    expect(await prisma.gearItem.count()).toBe(137);
+    expect(await prisma.gearItem.count()).toBe(138);
     expect(await prisma.community.count()).toBe(20);
     expect(await prisma.tonePublishingControl.findUnique({ where: { id: "default" } })).toMatchObject({ paused: true });
   });
@@ -182,7 +183,7 @@ describe("managed tone publishing", () => {
     expect(result.imported).toBe(26);
     expect((await importInitialTones(admin, INITIAL_IMPORT_CONFIRMATION)).imported).toBe(0);
     expect(await prisma.tone.count({ where: { origin: "GENERATED", visibility: "PUBLIC" } })).toBe(26);
-    expect(await prisma.toneDraft.count({ where: { status: "DRAFT" } })).toBe(2);
+    expect(await prisma.toneDraft.count({ where: { status: "DRAFT", NOT: { key: { startsWith: "tank-g-" } } } })).toBe(2);
     expect(await prisma.tonePublishingEvent.count({ where: { source: "AUTO", action: "published" } })).toBe(0);
     expect(await prisma.user.count({ where: { kind: "SYSTEM", tones: { some: {} } } })).toBe(6);
   });

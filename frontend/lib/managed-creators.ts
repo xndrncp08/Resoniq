@@ -12,7 +12,7 @@ export const MANAGED_CREATORS = [
 
 export function creatorHandleFor(key: string, instrument: string, genres: string[]) {
   if (instrument === "BASS") return "resoniq_lowen";
-  if (genres.includes("worship")) return "resoniq_aura";
+  if (genres.includes("worship") || (key.startsWith("tank-g-") && genres.includes("ambient"))) return "resoniq_aura";
   if (genres.includes("metal") || key.startsWith("high-gain")) return "resoniq_onyx";
   if (genres.includes("blues") || key.includes("crunch")) return "resoniq_bram";
   if (genres.includes("indie") || genres.includes("shoegaze")) return "resoniq_piper";

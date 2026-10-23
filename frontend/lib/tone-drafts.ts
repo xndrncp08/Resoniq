@@ -7,6 +7,7 @@ import { creatorHandleFor, ensureManagedCreators } from "@/lib/managed-creators"
 import { parseDraftInput, presetRig, rigFingerprint, validateDraftReferences, type DraftInput } from "@/lib/tone-draft-validation";
 import { parseRig } from "@/lib/rig-validation";
 import { TONE_PRESETS } from "@/lib/tone-presets";
+import { TANK_G_PRESETS } from "@/lib/tank-g-presets";
 import { GENERATED_DISCLOSURE } from "@/lib/tones";
 import { hotRank } from "@/lib/ranking";
 
@@ -15,6 +16,11 @@ type Source = "MANUAL" | "AUTO" | "IMPORT";
 // The final two acoustic-simulation variations remain drafts for a later review.
 export const INITIAL_PRESET_KEYS = TONE_PRESETS.slice(0, 26).map(p => p.key);
 export const INITIAL_IMPORT_CONFIRMATION = "Publish the 26 reviewed Resoniq demo tones";
+export const ALL_PRESETS = [...TONE_PRESETS, ...TANK_G_PRESETS];
+// The first nine of each TANK-G collection: one full 36-slot (9 banks × A–D) set.
+export const TANK_G_INITIAL_KEYS = Object.values(Object.groupBy(TANK_G_PRESETS, p => p.device!.collection)).flatMap(list => list!.slice(0, 9).map(p => p.key));
+export const MAX_BATCH = 40;
+export const batchConfirmation = (count: number) => `Publish ${count} reviewed Resoniq tones`;
 
 async function lock(tx: Tx) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(723914, 26)::text`;
@@ -58,11 +64,12 @@ export async function generateDrafts(actor: Actor) {
     const creators = await tx.managedCreator.findMany({ include: { user: true } });
     const communities = await tx.community.findMany({ where: { archivedAt: null } });
     let created = 0;
-    for (const preset of TONE_PRESETS) {
+    for (const preset of ALL_PRESETS) {
       if (await tx.toneDraft.findUnique({ where: { key: preset.key } })) continue;
       const creator = creators.find(c => c.user.handle === creatorHandleFor(preset.key, preset.instrument, preset.genres))!;
       const community = communities.find(c => c.slug === (preset.instrument === "BASS" ? "bass" : preset.genres.find(g => communities.some(c => c.slug === g)) ?? "electric-guitar"));
-      const input = parseDraftInput({ name: preset.name, description: preset.description, rig: await presetRig(tx, preset), creatorId: creator.id, communityId: community?.id ?? null });
+      // Device presets are tone-only so a large library never floods community feeds.
+      const input = parseDraftInput({ name: preset.name, description: preset.description, rig: await presetRig(tx, preset), creatorId: creator.id, communityId: preset.device ? null : community?.id ?? null });
       await validateDraftReferences(tx, input);
       if (await tx.toneDraft.findUnique({ where: { fingerprint: input.fingerprint } })) continue;
       const draft = await tx.toneDraft.create({ data: { ...input, key: preset.key, rig: input.rig as Prisma.InputJsonValue } });
@@ -259,6 +266,79 @@ export async function publishScheduledTones(now = new Date()) {
     }
   }
   return { published, failures };
+}
+
+function batchIds(ids: unknown): string[] {
+  if (!Array.isArray(ids) || !ids.length || ids.length > MAX_BATCH || ids.some(id => typeof id !== "string" || !id || id.length > 40)) throw new ApiError(400, `Choose 1–${MAX_BATCH} drafts.`);
+  return [...new Set(ids as string[])];
+}
+
+/** Bulk review: one transaction, each draft validated exactly as a single approval would be. */
+export async function reviewDrafts(actor: Actor, ids: unknown, approve: boolean) {
+  const list = batchIds(ids);
+  return adminTx(actor, async tx => {
+    let changed = 0;
+    for (const id of list) {
+      const draft = await findDraft(tx, id);
+      if (draft.status === "PUBLISHED" || draft.removedAt || (approve && draft.status === "APPROVED")) continue;
+      if (approve) await validateDraftReferences(tx, draftInput(draft));
+      await tx.toneDraft.update({ where: { id }, data: { status: approve ? "APPROVED" : "REJECTED", reviewedById: actor.id, reviewedAt: approve ? new Date() : null, scheduledFor: null, error: null } });
+      await event(tx, draft, approve ? "approved" : "rejected", "MANUAL", actor.id);
+      changed++;
+    }
+    return { changed };
+  });
+}
+
+/** Queues approved drafts for the daily run, which still publishes at most two per UTC day. */
+export async function scheduleDrafts(actor: Actor, ids: unknown, value: unknown) {
+  const list = batchIds(ids);
+  if (typeof value !== "string" || !/(Z|[+-]\d\d:\d\d)$/.test(value)) throw new ApiError(400, "Use an ISO date with a time zone.");
+  const when = new Date(value);
+  if (!Number.isFinite(when.getTime()) || when <= new Date()) throw new ApiError(400, "Schedule a future time.");
+  return adminTx(actor, async tx => {
+    let changed = 0;
+    for (const id of list) {
+      const draft = await findDraft(tx, id);
+      if (!draft.reviewedAt || draft.status !== "APPROVED" || draft.removedAt) continue;
+      await tx.toneDraft.update({ where: { id }, data: { status: "SCHEDULED", scheduledFor: when, error: null } });
+      await event(tx, draft, "scheduled", "MANUAL", actor.id);
+      changed++;
+    }
+    return { changed };
+  });
+}
+
+/**
+ * An explicit, confirmed batch release outside the daily automation budget.
+ * All or nothing; already-published drafts are skipped, so repeating it is a no-op.
+ */
+export async function publishBatch(actor: Actor, ids: unknown, confirmation: unknown) {
+  const list = batchIds(ids);
+  if (confirmation !== batchConfirmation(list.length)) throw new ApiError(400, `Confirm with “${batchConfirmation(list.length)}”.`);
+  let attempted: ToneDraft | null = null;
+  try {
+    return await adminTx(actor, async tx => {
+      const drafts = await tx.toneDraft.findMany({ where: { id: { in: list } }, orderBy: { key: "asc" } });
+      if (drafts.length !== list.length) throw new ApiError(404, "Draft not found.");
+      const pending = drafts.filter(d => d.status !== "PUBLISHED");
+      if (pending.some(d => !d.reviewedAt || !["APPROVED", "SCHEDULED", "FAILED"].includes(d.status) || d.removedAt)) throw new ApiError(409, "Every draft in a batch must be reviewed and approved first.");
+      const now = new Date();
+      const toneIds: string[] = [];
+      for (const draft of pending) {
+        attempted = draft;
+        toneIds.push(await publish(tx, draft, "IMPORT", actor.id, now));
+      }
+      await recordAudit(tx, { actorId: actor.id, action: "tone.publishing.batch", targetType: "TonePublishingControl", targetId: "default", meta: { count: toneIds.length, keys: pending.map(d => d.key) } });
+      return { published: toneIds.length, skipped: drafts.length - pending.length, toneIds };
+    });
+  } catch (error) {
+    if (attempted && !(error instanceof ApiError && [403, 404].includes(error.status))) {
+      const draft = attempted as ToneDraft;
+      await failed(draft.id, "IMPORT", actor.id, error, draft.updatedAt);
+    }
+    throw error;
+  }
 }
 
 export async function editManagedCreator(actor: Actor, id: string, body: Record<string, unknown>) {
