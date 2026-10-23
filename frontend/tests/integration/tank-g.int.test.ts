@@ -174,6 +174,12 @@ describe("TANK-G library publishing", () => {
     expect(text.match(/===== Bank \d[A-D] =====/g)).toHaveLength(3);
     expect(text).toContain("===== Bank 1A =====");
     expect(text).toContain("Resoniq-generated");
+
+    // A planner order is honoured; someone else's or unknown presets are ignored; blanks leave slots empty.
+    const planned = await bankSheets(new Request(`http://test/api/tones/tank-g-banks?order=,${own},${toneIds[2]},nope,${toneIds[0]}`), { params: Promise.resolve({}) } as never);
+    const plannedText = await planned.text();
+    expect(plannedText.match(/===== Bank \d[A-D] =====/g)).toEqual(["===== Bank 1B =====", "===== Bank 2A ====="]);
+    expect(plannedText).not.toContain(`/t/${toneIds[2]}`);
   });
 
   it("lists public tones and the TANK-G page in the sitemap, never private ones", async () => {
