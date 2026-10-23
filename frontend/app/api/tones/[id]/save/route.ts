@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const handler = (on: boolean) =>
   route<Ctx>(on ? "tones.save" : "tones.unsave", async (_req, { params }) => {
     const actor = await requireActor();
-    enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
+    await enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
     return NextResponse.json(await setToneSaved(actor, (await params).id, on));
   });
 

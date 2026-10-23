@@ -6,7 +6,7 @@ import { listTones } from "@/lib/tones";
 
 /** Public tone discovery: ?sort=new|popular &instrument=GUITAR|BASS &gear=<id> &q &cursor */
 export const GET = route("tones.public", async (req) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
   const p = new URL(req.url).searchParams;
   const instrument = p.get("instrument");

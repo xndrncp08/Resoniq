@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /** Body: { action: "remove" | "restore", reason }. Copyright takedowns use this with the report's reason. */
 export const POST = route<Ctx>("media.moderate", async (req, { params }) => {
   const actor = await requirePermission("content.moderate");
-  enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
+  await enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
   const { id } = await params;
   const { action, reason } = parseModeration(await readJson(req));
   if (action === "remove") await removeMedia(actor, id, reason, { asModerator: true });

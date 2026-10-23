@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export const PUT = route<Ctx>("comments.vote", async (req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
+  await enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
   const { value } = await readJson(req);
   return NextResponse.json(await voteComment(actor.id, (await params).id, parseVote(value)));
 });

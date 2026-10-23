@@ -8,7 +8,7 @@ import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 /** ?q= search, or ?popular=1 for the most-used gear across public tones. Optional &kind=. */
 export const GET = route("gear.search", async (req) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const p = new URL(req.url).searchParams;
   const kind = GEAR_KINDS.includes(p.get("kind") as GearKind) ? (p.get("kind") as GearKind) : null;
   const limit = parseLimit(p.get("limit"), 20, 50);
@@ -19,6 +19,6 @@ export const GET = route("gear.search", async (req) => {
 
 export const POST = route("gear.submit", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("report", actor.id, RATE_LIMITS.report);
+  await enforceRateLimit("report", actor.id, RATE_LIMITS.report);
   return NextResponse.json({ item: await submitGear(actor, parseGearSubmission(await readJson(req))) }, { status: 201 });
 });

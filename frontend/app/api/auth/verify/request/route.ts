@@ -6,7 +6,7 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
 
 export const POST = route("auth.verify.request", async () => {
   const actor = await requireActor();
-  enforceRateLimit("email-send", actor.id, RATE_LIMITS.emailSend);
+  await enforceRateLimit("email-send", actor.id, RATE_LIMITS.emailSend);
   await sendVerificationEmail(actor.id);
   return NextResponse.json({ ok: true });
 });

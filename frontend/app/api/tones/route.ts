@@ -12,7 +12,7 @@ const MAX_QUERY_LENGTH = 100;
 
 export const GET = route("tones.list", async (req) => {
   const userId = await requireUserId();
-  enforceRateLimit("tones-read", userId, RATE_LIMITS.toneRead);
+  await enforceRateLimit("tones-read", userId, RATE_LIMITS.toneRead);
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim().slice(0, MAX_QUERY_LENGTH);
@@ -30,7 +30,7 @@ export const GET = route("tones.list", async (req) => {
 
 export const POST = route("tones.create", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
+  await enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
 
   const body = await readJson(req, 64 * 1024);
   const input = parseToneInput(body, { partial: false });

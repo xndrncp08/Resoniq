@@ -11,7 +11,7 @@ import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 type Ctx = { params: Promise<{ slug: string }> };
 
 export const GET = route<Ctx>("communities.get", async (req, { params }) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
   const community = await prisma.community.findUnique({
     where: { slug: (await params).slug.toLowerCase() },
@@ -30,7 +30,7 @@ export const GET = route<Ctx>("communities.get", async (req, { params }) => {
 
 export const PATCH = route<Ctx>("communities.update", async (req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
+  await enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
   const community = await prisma.community.findUnique({ where: { slug: (await params).slug.toLowerCase() }, select: { id: true } });
   if (!community) throw new ApiError(404, "Community not found.");
   if (!can(actor.role, "communities.manage") && !(await isCommunityModerator(actor.id, community.id))) throw new ApiError(403, "Not allowed.");

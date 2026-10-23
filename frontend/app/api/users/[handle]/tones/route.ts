@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ handle: string }> };
 
 /** A musician's public tones; their own profile also shows their unlisted and private ones. */
 export const GET = route<Ctx>("users.tones", async (req, { params }) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const user = await prisma.user.findFirst({ where: { handle: (await params).handle.toLowerCase(), status: { not: "BANNED" } }, select: { id: true } });
   if (!user) throw new ApiError(404, "Musician not found.");
   const viewer = await optionalActor();

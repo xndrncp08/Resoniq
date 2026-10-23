@@ -19,7 +19,7 @@ import { isEnabled } from "@/lib/flags";
  * for an existing account. See SECURITY.md.
  */
 export const POST = route("register", async (req) => {
-  enforceRateLimit("register", clientIp(req), RATE_LIMITS.register);
+  await enforceRateLimit("register", clientIp(req), RATE_LIMITS.register);
   if (!(await isEnabled("signups"))) throw new ApiError(503, "New accounts are paused right now. Try again later.");
 
   const { name, email: rawEmail, password } = await readJson(req);

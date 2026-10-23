@@ -10,7 +10,7 @@ const MAX_TITLE_LENGTH = 200;
 
 export const POST = route("upload", async (req) => {
   const userId = await requireUserId("Sign in to upload a song.", { write: true });
-  enforceRateLimit("upload", userId, RATE_LIMITS.upload);
+  await enforceRateLimit("upload", userId, RATE_LIMITS.upload);
 
   // Refuse oversized bodies before buffering them.
   const declared = Number(req.headers.get("content-length"));

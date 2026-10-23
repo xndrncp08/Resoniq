@@ -9,6 +9,6 @@ type Ctx = { params: Promise<{ id: string }> };
 /** Copies the tone into the caller's library (unlisted), crediting the original. */
 export const POST = route<Ctx>("tones.remix", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
+  await enforceRateLimit("tones-write", actor.id, RATE_LIMITS.toneWrite);
   return NextResponse.json({ tone: { id: await remixTone(actor, (await params).id) } }, { status: 201 });
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/api-error";
 import { getActor, requireActor } from "@/lib/authz";
-import { rateLimit, type RateLimitRule } from "@/lib/rate-limit";
+import { checkRateLimit, type RateLimitRule } from "@/lib/rate-limit";
 import { ValidationError } from "@/lib/validation";
 
 export { ApiError };
@@ -29,8 +29,8 @@ export async function optionalActor() {
   return actor && actor.status !== "BANNED" ? actor : null;
 }
 
-export function enforceRateLimit(bucket: string, key: string, rule: RateLimitRule) {
-  const result = rateLimit(bucket, key, rule);
+export async function enforceRateLimit(bucket: string, key: string, rule: RateLimitRule) {
+  const result = await checkRateLimit(bucket, key, rule);
   if (!result.ok) {
     throw new ApiError(429, "Too many requests. Try again later.", { "Retry-After": String(result.retryAfterS) });
   }

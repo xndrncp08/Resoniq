@@ -20,7 +20,7 @@ async function target(handle: string, actorId: string) {
 
 export const PUT = route<Ctx>("users.follow", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
+  await enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
   const id = await target((await params).handle, actor.id);
   const { created, ...result } = await follow(actor.id, id);
   // Only a newly created follow edge notifies, so repeated clicks stay quiet.
@@ -30,7 +30,7 @@ export const PUT = route<Ctx>("users.follow", async (_req, { params }) => {
 
 export const DELETE = route<Ctx>("users.unfollow", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
+  await enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
   const id = await target((await params).handle, actor.id);
   return NextResponse.json(await unfollow(actor.id, id));
 });

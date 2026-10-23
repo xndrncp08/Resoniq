@@ -1,11 +1,14 @@
 /**
- * Fixed-window rate limiting, in memory.
+ * Fixed-window rate limiting with two stores:
  *
- * Counters live in this process only: with several server instances each
- * one enforces its own budget (so the effective limit is N x the number of
- * instances), and a restart resets them. Good enough for a single instance;
- * a shared store (Redis, Upstash, the database) is needed beyond that.
- * See SECURITY.md.
+ *  - memory: counters live in this process. Fine for one long-running server
+ *    (Docker, `next start`); with several instances each enforces its own
+ *    budget and a restart resets them.
+ *  - postgres: one atomic upsert per check in RateLimitBucket, shared by
+ *    every instance. Used on serverless hosts, where instances come and go.
+ *
+ * RESONIQ_RATE_LIMIT_STORE picks one; unset, Vercel gets postgres and
+ * everything else memory. See SECURITY.md.
  */
 
 type Window = { count: number; resetAt: number };
@@ -58,6 +61,33 @@ export function rateLimit(bucket: string, key: string, rule: RateLimitRule, now 
     return { ok: false, retryAfterS: Math.max(1, Math.ceil((w.resetAt - now) / 1000)) };
   }
   return { ok: true };
+}
+
+export const rateLimitStore = (): "memory" | "postgres" =>
+  (process.env.RESONIQ_RATE_LIMIT_STORE ?? (process.env.VERCEL ? "postgres" : "memory")) === "postgres" ? "postgres" : "memory";
+
+/** The shared-store version of rateLimit(): one round trip, atomic under concurrency. */
+export async function rateLimitShared(bucket: string, key: string, rule: RateLimitRule, now = Date.now()): Promise<RateLimitResult> {
+  const id = `${bucket}:${key}`.slice(0, 300);
+  const resetAt = BigInt(now + rule.windowMs);
+  const nowMs = BigInt(now);
+  // Imported lazily so the in-memory store never loads the database client.
+  const { prisma } = await import("@/lib/prisma");
+  const [row] = await prisma.$queryRaw<{ count: number; resetAt: bigint }[]>`
+    INSERT INTO "RateLimitBucket" (id, count, "resetAt") VALUES (${id}, 1, ${resetAt})
+    ON CONFLICT (id) DO UPDATE SET
+      count = CASE WHEN "RateLimitBucket"."resetAt" <= ${nowMs} THEN 1 ELSE "RateLimitBucket".count + 1 END,
+      "resetAt" = CASE WHEN "RateLimitBucket"."resetAt" <= ${nowMs} THEN EXCLUDED."resetAt" ELSE "RateLimitBucket"."resetAt" END
+    RETURNING count, "resetAt"`;
+  // Expired rows are garbage; sweep them now and then rather than on every call.
+  if (Math.random() < 0.01) await prisma.$executeRaw`DELETE FROM "RateLimitBucket" WHERE "resetAt" < ${nowMs}`;
+  if (row.count > rule.limit) return { ok: false, retryAfterS: Math.max(1, Math.ceil((Number(row.resetAt) - now) / 1000)) };
+  return { ok: true };
+}
+
+/** Checks a budget in whichever store this deployment uses. */
+export function checkRateLimit(bucket: string, key: string, rule: RateLimitRule): Promise<RateLimitResult> {
+  return rateLimitStore() === "postgres" ? rateLimitShared(bucket, key, rule) : Promise.resolve(rateLimit(bucket, key, rule));
 }
 
 /** For tests. */

@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const handler = (on: boolean) =>
   route<Ctx>(on ? "posts.bookmark" : "posts.unbookmark", async (_req, { params }) => {
     const actor = await requireActor();
-    enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
+    await enforceRateLimit("vote", actor.id, RATE_LIMITS.vote);
     return NextResponse.json(await setBookmark(actor.id, (await params).id, on));
   });
 

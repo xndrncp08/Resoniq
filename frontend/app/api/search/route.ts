@@ -5,7 +5,7 @@ import { searchAll, searchCommunities, searchGearItems, searchMusicians, searchP
 
 /** ?q= &type=posts|tones|musicians|communities|gear (omit for a mix) &page= */
 export const GET = route("search", async (req) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const p = new URL(req.url).searchParams;
   const q = p.get("q")?.trim().slice(0, 100) ?? "";
   if (q.length < 2) return NextResponse.json({ items: [] });

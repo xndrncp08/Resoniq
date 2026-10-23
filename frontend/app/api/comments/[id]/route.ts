@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export const PATCH = route<Ctx>("comments.update", async (req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("comment-write", actor.id, RATE_LIMITS.commentWrite);
+  await enforceRateLimit("comment-write", actor.id, RATE_LIMITS.commentWrite);
   const { body } = await readJson(req, 32 * 1024);
   return NextResponse.json({ comment: await editComment(actor, (await params).id, parseCommentBody(body)) });
 });

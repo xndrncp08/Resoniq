@@ -14,7 +14,7 @@ const VARIANTS: MediaVariant[] = ["playback", "poster", "preview", "peaks"];
  * with byte ranges (video seeking); Supabase redirects to a 5-minute signed URL.
  */
 export const GET = route<Ctx>("media.serve", async (req, { params }) => {
-  enforceRateLimit("media-read", clientIp(req), RATE_LIMITS.mediaRead);
+  await enforceRateLimit("media-read", clientIp(req), RATE_LIMITS.mediaRead);
   const { id, variant } = await params;
   if (!VARIANTS.includes(variant as MediaVariant)) throw new ApiError(404, "Not found.");
   const media = await prisma.media.findUnique({ where: { id } });

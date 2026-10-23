@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const POST = route<Ctx>("admin.users.update", async (req, { params }) => {
   const actor = await requireActor({ write: true });
   if (!isStaff(actor.role)) throw new ApiError(403, "Not allowed.");
-  enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
+  await enforceRateLimit("moderation", actor.id, RATE_LIMITS.moderation);
   const { id } = await params;
   const body = await readJson(req);
   if (body.action === "status") await setUserStatus(actor, id, parseStatusChange(body));

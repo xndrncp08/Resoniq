@@ -5,7 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { compareAgainstDummy, normalizeEmail } from "@/lib/credentials";
-import { clientIp, rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 class RateLimited extends CredentialsSignin {
   code = "rate_limited";
@@ -46,7 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Per IP and per account, so neither spraying one password across
         // accounts nor hammering one account gets an unbounded budget.
         const ip = clientIp(request);
-        if (!rateLimit("signin-ip", ip, RATE_LIMITS.signIn).ok || !rateLimit("signin-email", email, RATE_LIMITS.signIn).ok) {
+        if (!(await checkRateLimit("signin-ip", ip, RATE_LIMITS.signIn)).ok || !(await checkRateLimit("signin-email", email, RATE_LIMITS.signIn)).ok) {
           throw new RateLimited();
         }
 

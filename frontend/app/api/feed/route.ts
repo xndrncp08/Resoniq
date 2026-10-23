@@ -6,7 +6,7 @@ import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 /** ?tab=for-you|following &sort=hot|new|top &t=day|week|month|year|all &cursor &limit */
 export const GET = route("feed", async (req) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
   const url = new URL(req.url);
   const q = { ...parseFeedQuery(url), cursor: decodeCursor(url.searchParams.get("cursor")), limit: parseLimit(url.searchParams.get("limit")) };

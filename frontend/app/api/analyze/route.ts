@@ -56,7 +56,7 @@ async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (e
 
 export const POST = route("analyze", async (req) => {
   const userId = await requireUserId(undefined, { write: true });
-  enforceRateLimit("analyze", userId, RATE_LIMITS.analyze);
+  await enforceRateLimit("analyze", userId, RATE_LIMITS.analyze);
 
   const { songId } = await readJson(req);
   if (typeof songId !== "string" || !songId) throw new ApiError(400, "songId is required.");

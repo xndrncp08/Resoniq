@@ -6,7 +6,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /** Downloads the tone as Resoniq JSON. */
 export const GET = route<Ctx>("tones.export", async (req, { params }) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
   const tone = await getTone((await params).id, viewer?.id ?? null);
   if (!tone) throw new ApiError(404, "Tone not found.");

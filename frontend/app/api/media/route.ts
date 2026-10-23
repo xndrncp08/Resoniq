@@ -11,6 +11,6 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
  */
 export const POST = route("media.create", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("media-upload", actor.id, RATE_LIMITS.mediaUpload);
+  await enforceRateLimit("media-upload", actor.id, RATE_LIMITS.mediaUpload);
   return NextResponse.json(await createUpload(actor, parseUploadRequest(await readJson(req))), { status: 201 });
 });

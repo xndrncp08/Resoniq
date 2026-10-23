@@ -18,7 +18,7 @@ export const GET = route("appeals.list", async () => {
 
 export const POST = route("appeals.create", async (req) => {
   const actor = await requireActor();
-  enforceRateLimit("report", actor.id, RATE_LIMITS.report);
+  await enforceRateLimit("report", actor.id, RATE_LIMITS.report);
   const appeal = await fileAppeal(actor, parseAppeal(await readJson(req)));
   return NextResponse.json({ appeal }, { status: 201 });
 });

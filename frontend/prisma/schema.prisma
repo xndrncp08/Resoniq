@@ -743,3 +743,14 @@ model Announcement {
 
   @@index([startsAt, endsAt])
 }
+
+// Shared fixed-window rate-limit counters, used when the app runs on several
+// instances (serverless). Times are epoch milliseconds to stay clear of
+// timestamp time-zone conversions. See lib/rate-limit.ts.
+model RateLimitBucket {
+  id      String @id
+  count   Int
+  resetAt BigInt
+
+  @@index([resetAt])
+}

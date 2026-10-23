@@ -15,7 +15,7 @@ async function find(slug: string) {
 
 export const PUT = route<Ctx>("communities.join", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
+  await enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
   const c = await find((await params).slug);
   if (c.archivedAt) throw new ApiError(400, "This community is archived.");
   return NextResponse.json({ joined: true, memberCount: await join(actor.id, c.id) });
@@ -23,7 +23,7 @@ export const PUT = route<Ctx>("communities.join", async (_req, { params }) => {
 
 export const DELETE = route<Ctx>("communities.leave", async (_req, { params }) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
+  await enforceRateLimit("follow", actor.id, RATE_LIMITS.follow);
   const c = await find((await params).slug);
   return NextResponse.json({ joined: false, memberCount: await leave(actor.id, c.id) });
 });

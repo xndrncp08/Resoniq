@@ -12,7 +12,7 @@ import { isUniqueViolation } from "@/lib/validation";
 
 /** Directory: biggest first, optionally filtered by kind or a name search. */
 export const GET = route("communities.list", async (req) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim().slice(0, 60);
@@ -36,7 +36,7 @@ export const GET = route("communities.list", async (req) => {
 
 export const POST = route("communities.create", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("community-create", actor.id, RATE_LIMITS.communityCreate);
+  await enforceRateLimit("community-create", actor.id, RATE_LIMITS.communityCreate);
   const input = parseCommunityInput(await readJson(req));
   const eligible = await canCreateCommunity(actor);
   if (!eligible.ok) throw new ApiError(403, eligible.reason);

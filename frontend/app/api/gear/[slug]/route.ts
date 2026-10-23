@@ -9,7 +9,7 @@ import { listTones } from "@/lib/tones";
 type Ctx = { params: Promise<{ slug: string }> };
 
 export const GET = route<Ctx>("gear.get", async (req, { params }) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const item = await prisma.gearItem.findFirst({ where: { slug: (await params).slug, status: "APPROVED" }, select: GEAR_SELECT });
   if (!item) throw new ApiError(404, "Gear not found.");
   const viewer = await optionalActor();

@@ -8,7 +8,7 @@ import { normalizeTag, TAG_PATTERN } from "@/lib/rich-text";
 type Ctx = { params: Promise<{ tag: string }> };
 
 export const GET = route<Ctx>("tags.posts", async (req, { params }) => {
-  enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
+  await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const tag = normalizeTag(decodeURIComponent((await params).tag));
   if (!TAG_PATTERN.test(tag)) throw new ApiError(404, "Unknown tag.");
   const viewer = await optionalActor();

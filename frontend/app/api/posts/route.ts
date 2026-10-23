@@ -9,7 +9,7 @@ import { assertCanPublish } from "@/lib/verification";
 /** Body: { title?, body?, category?, community?, toneId?, mediaIds? } */
 export const POST = route("posts.create", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("post-write", actor.id, RATE_LIMITS.postWrite);
+  await enforceRateLimit("post-write", actor.id, RATE_LIMITS.postWrite);
   await assertCanPublish(actor.id);
   const input = parsePostInput(await readJson(req, 64 * 1024)) as PostInput;
   const mediaIds = input.mediaIds ?? [];

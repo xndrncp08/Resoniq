@@ -22,7 +22,7 @@ export const GET = route("me.get", async () => {
 
 export const PATCH = route("me.update", async (req) => {
   const actor = await requireActor({ write: true });
-  enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
+  await enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
   const body = await readJson(req);
   const { links, ...rest } = parseProfilePatch(body);
   // Avatars and banners are processed image uploads, served through the media route.
@@ -55,7 +55,7 @@ export const PATCH = route("me.update", async (req) => {
 /** Body: { confirmHandle, password? } — password is required for email/password accounts. */
 export const DELETE = route("me.delete", async (req) => {
   const actor = await requireActor();
-  enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
+  await enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
   const { confirmHandle, password } = await readJson(req);
   if (typeof confirmHandle !== "string" || confirmHandle.trim().replace(/^@/, "").toLowerCase() !== actor.handle) {
     throw new ApiError(400, "Type your handle to confirm.");
