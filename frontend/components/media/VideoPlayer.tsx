@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Icon from "@/components/icons/Icon";
-import { useReducedMotion } from "motion/react";
 import type { MediaView } from "@/lib/media/view";
+
+// The OS reduced-motion setting, read directly instead of through the animation library.
+const reducedQuery = () => window.matchMedia("(prefers-reduced-motion: reduce)");
+function subscribeReducedMotion(cb: () => void) {
+  const q = reducedQuery();
+  q.addEventListener("change", cb);
+  return () => q.removeEventListener("change", cb);
+}
 
 const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00");
 
@@ -21,7 +28,7 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(media.durationSec ?? 0);
   const [hover, setHover] = useState(false);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, () => reducedQuery().matches, () => null);
   const ratio = media.width && media.height ? media.width / media.height : 16 / 9;
 
   useEffect(() => {

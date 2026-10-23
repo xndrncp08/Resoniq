@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Avatar, Button, TimeAgo } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
-import ReportDialog from "@/components/social/ReportDialog";
 import VoteControl from "@/components/social/VoteControl";
 import { buildTree, type TreeNode } from "@/lib/comment-tree";
 import { api, errorMessage } from "@/lib/client-api";
 import type { CommentView } from "@/lib/comments";
+
+// Loaded on first use: the dialog (and its animation runtime) isn't needed until someone reports.
+const ReportDialog = dynamic(() => import("@/components/social/ReportDialog"), { ssr: false });
 
 type Ctx = { postId: string; signedIn: boolean; onAdd: (c: CommentView) => void; onChange: (c: CommentView) => void; open: boolean };
 
@@ -48,6 +51,7 @@ function Node({ node, ctx, depth }: { node: TreeNode<CommentView>; ctx: Ctx; dep
   const [replying, setReplying] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [reportLoaded, setReportLoaded] = useState(false);
   const gone = !node.author;
   async function remove() {
     if (!window.confirm("Delete this comment?")) return;
@@ -86,7 +90,7 @@ function Node({ node, ctx, depth }: { node: TreeNode<CommentView>; ctx: Ctx; dep
               {node.viewer.isAuthor ? (
                 <button type="button" onClick={remove} className="focus-ring rounded-full px-2.5 py-1.5 text-muted hover:text-danger">Delete</button>
               ) : (
-                ctx.signedIn && <button type="button" onClick={() => setReporting(true)} className="focus-ring rounded-full px-2.5 py-1.5 text-muted hover:text-ink">Report</button>
+                ctx.signedIn && <button type="button" onClick={() => { setReportLoaded(true); setReporting(true); }} className="focus-ring rounded-full px-2.5 py-1.5 text-muted hover:text-ink">Report</button>
               )}
             </div>
           )}
@@ -108,7 +112,7 @@ function Node({ node, ctx, depth }: { node: TreeNode<CommentView>; ctx: Ctx; dep
           )}
         </div>
       </div>
-      <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="COMMENT" targetId={node.id} />
+      {reportLoaded && <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="COMMENT" targetId={node.id} />}
     </li>
   );
 }

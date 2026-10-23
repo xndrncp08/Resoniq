@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
 import { Button, buttonClass, IconButton, LinkButton } from "@/components/app/ui";
-import ReportDialog from "@/components/social/ReportDialog";
 import { api, errorMessage } from "@/lib/client-api";
 
 const VIS = [["PRIVATE", "Private: only you"], ["UNLISTED", "Unlisted: anyone with the link"], ["PUBLIC", "Public: on your profile and in discovery"]] as const;
 
+
+// Loaded on first use: the dialog (and its animation runtime) isn't needed until someone reports.
+const ReportDialog = dynamic(() => import("@/components/social/ReportDialog"), { ssr: false });
 export default function ToneActions({ id, isOwner, saved, visibility, signedIn }: { id: string; isOwner: boolean; saved: boolean; visibility: string; signedIn: boolean }) {
   const router = useRouter();
   const [isSaved, setSaved] = useState(saved);
@@ -16,6 +19,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [reportLoaded, setReportLoaded] = useState(false);
   const gate = () => {
     if (signedIn) return true;
     router.push(`/login?callbackUrl=/t/${id}`);
@@ -64,7 +68,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
         <IconButton icon="link" label="Copy link" onClick={copyLink} />
         {isOwner && <LinkButton href={`/t/${id}/edit`} icon="edit">Edit</LinkButton>}
         {isOwner && <LinkButton href={`/new?tone=${id}`} icon="share" variant="primary">Post it</LinkButton>}
-        {!isOwner && signedIn && <IconButton icon="flag" label="Report tone" onClick={() => setReporting(true)} />}
+        {!isOwner && signedIn && <IconButton icon="flag" label="Report tone" onClick={() => { setReportLoaded(true); setReporting(true); }} />}
       </div>
       {isOwner && (
         <label className="flex flex-wrap items-center gap-2 font-body text-sm text-muted">
@@ -75,7 +79,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
         </label>
       )}
       {msg && <p role="status" className="font-body text-sm text-muted">{msg}</p>}
-      <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="TONE" targetId={id} />
+      {reportLoaded && <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="TONE" targetId={id} />}
     </div>
   );
 }

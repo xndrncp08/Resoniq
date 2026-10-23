@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
 import { Avatar, Chip, compact, IconButton, ManagedCreatorBadge, TimeAgo } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
 import MediaGallery from "@/components/media/MediaGallery";
-import ReportDialog from "@/components/social/ReportDialog";
 import ToneAttachment, { RigOverlay } from "@/components/social/ToneAttachment";
 import VoteControl from "@/components/social/VoteControl";
 import { CATEGORY_META } from "@/components/social/categories";
 import { api } from "@/lib/client-api";
 import type { PostView } from "@/lib/posts";
 
+
+// Loaded on first use: the dialog (and its animation runtime) isn't needed until someone reports.
+const ReportDialog = dynamic(() => import("@/components/social/ReportDialog"), { ssr: false });
 function Menu({ post, onReport, onDeleted }: { post: PostView; onReport: () => void; onDeleted: () => void }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -49,6 +52,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
   const router = useRouter();
   const [bookmarked, setBookmarked] = useState(post.viewer.bookmarked);
   const [reporting, setReporting] = useState(false);
+  const [reportLoaded, setReportLoaded] = useState(false);
   const [gone, setGone] = useState(false);
   const [expanded, setExpanded] = useState(detail);
   const meta = CATEGORY_META[post.category];
@@ -104,7 +108,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
             )}
           </div>
         </div>
-        <Menu post={post} onReport={() => setReporting(true)} onDeleted={() => (detail ? router.push("/feed") : setGone(true))} />
+        <Menu post={post} onReport={() => { setReportLoaded(true); setReporting(true); }} onDeleted={() => (detail ? router.push("/feed") : setGone(true))} />
       </header>
 
       <div className="mt-3 space-y-3">
@@ -147,7 +151,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
           <IconButton icon="share" label="Share" onClick={share} size={36} />
         </div>
       </footer>
-      <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="POST" targetId={post.id} />
+      {reportLoaded && <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="POST" targetId={post.id} />}
     </article>
   );
 }

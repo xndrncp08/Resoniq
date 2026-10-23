@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
 import Icon from "@/components/icons/Icon";
 import { compact } from "@/components/app/ui";
 import { api } from "@/lib/client-api";
@@ -58,9 +57,9 @@ export default function VoteControl({
   if (mode === "amp") {
     return (
       <button type="button" onClick={() => cast(up ? 0 : 1)} aria-pressed={up} aria-label={up ? `Amped, ${ups} amps. Remove amp` : `Amp this, ${ups} amps`} className={`focus-ring tap-clean group inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 font-mono text-sm transition-colors ${up ? "bg-copper/15 text-copper" : "text-muted hover:bg-copper/10 hover:text-copper"}`}>
-        <motion.span key={String(up)} initial={{ scale: up ? 0.6 : 1 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 600, damping: 15 }}>
+        <span key={String(up)} className={`inline-flex ${up ? "fx-pop" : ""}`}>
           <Icon name={up ? "amp-up-filled" : "amp-up"} size={20} />
-        </motion.span>
+        </span>
         {compact(ups)}
       </button>
     );

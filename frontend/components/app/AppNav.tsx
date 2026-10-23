@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
 import Icon, { type IconName } from "@/components/icons/Icon";
 import { Avatar } from "@/components/app/ui";
-import { spring } from "@/lib/motion";
 
 export type NavUser = { handle: string; name: string | null; image: string | null; isStaff: boolean } | null;
 type Item = { href: string; label: string; icon: IconName; badge?: number; match?: string[] };
@@ -44,7 +42,8 @@ function NavLink({ item, pathname, compact }: { item: Item; pathname: string; co
       title={compact ? item.label : undefined}
       className={`focus-ring group relative flex items-center gap-3 rounded-xl py-2.5 font-body text-[15px] transition-colors ${compact ? "justify-center px-0" : "px-3"} ${active ? "text-ink" : "text-muted hover:text-ink"}`}
     >
-      {active && <motion.span layoutId="app-nav-active" transition={spring.snappy} className="absolute inset-0 -z-10 rounded-xl border border-line bg-surface-2" />}
+      {/* A static highlight: the shell is on every page, so it shouldn't pull in the animation runtime. */}
+      {active && <span aria-hidden className="absolute inset-0 -z-10 rounded-xl border border-line bg-surface-2" />}
       <span className={`relative ${active ? "text-copper" : ""}`}>
         <Icon name={item.icon} size={22} />
         {!!item.badge && (

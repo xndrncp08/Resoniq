@@ -14,6 +14,8 @@ const mono = localFont({
   ],
   variable: "--font-plex-mono",
   display: "swap",
+  // Small labels only: not preloaded, so the body and display fonts (LCP text) get the bandwidth first.
+  preload: false,
 });
 
 export const viewport: Viewport = {
