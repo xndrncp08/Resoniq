@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isSuspended, type Actor } from "@/lib/authz";
 import { can } from "@/lib/permissions";
 import { isEnabled } from "@/lib/flags";
+import { emailRequiredForSignup } from "@/lib/hosting";
 import { fail } from "@/lib/validation";
 import { RESERVED_HANDLES } from "@/lib/handles";
 
@@ -74,7 +75,7 @@ export async function canCreateCommunity(actor: Actor & { createdAt?: Date }, no
   if (ageDays < MIN_ACCOUNT_AGE_DAYS) {
     return { ok: false, reason: `Accounts can create communities after ${MIN_ACCOUNT_AGE_DAYS} days.` };
   }
-  if ((await isEnabled("auth.requireEmailVerification")) && user.passwordHash && !user.emailVerified) {
+  if ((emailRequiredForSignup() || (await isEnabled("auth.requireEmailVerification"))) && user.passwordHash && !user.emailVerified) {
     return { ok: false, reason: "Verify your email to create a community." };
   }
   const recent = await prisma.community.count({
