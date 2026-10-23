@@ -7,7 +7,8 @@ import { readNdjson } from "@/lib/ndjson";
  * this server calls it, authenticated with RESONIQ_ENGINE_SECRET.
  */
 
-const ENGINE_TIMEOUT_MS = 180_000;
+// Fits inside /api/analyze's 300 s limit and leaves room for a free-tier cold start (~262 s measured).
+const ENGINE_TIMEOUT_MS = 285_000;
 
 // Engine responses whose message is meant for the end user (all generic).
 const USER_FACING_STATUSES = new Set([413, 422]);
@@ -20,6 +21,18 @@ export class EngineError extends Error {
   ) {
     super(message);
   }
+}
+
+/**
+ * Free-tier hosting sleeps the engine after idle time and takes about 4 minutes to wake (measured
+ * 262 s), most of ENGINE_TIMEOUT_MS. Pinging it when someone opens the upload page starts the
+ * wake-up while they pick and upload a file. Fire-and-forget: the wake continues server-side even
+ * if this request is abandoned.
+ */
+export async function warmEngine() {
+  const url = process.env.PYTHON_ENGINE_URL;
+  if (!url) return;
+  await fetch(`${url}/health`, { signal: AbortSignal.timeout(10_000), cache: "no-store" }).catch(() => undefined);
 }
 
 type EngineRequest = { url: string; init: RequestInit };

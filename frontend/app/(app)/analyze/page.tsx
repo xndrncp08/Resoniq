@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import UploadPanel from "@/components/audio/UploadPanel";
 import { storageAvailable } from "@/lib/hosting";
 import { getStorage } from "@/lib/storage";
 import { requirePageUserId } from "@/lib/session";
+import { warmEngine } from "@/lib/engine";
 
 export const metadata: Metadata = { title: "Analyze a song" };
 
@@ -10,6 +12,8 @@ export default async function AnalyzePage() {
   await requirePageUserId("/analyze");
   const storage = storageAvailable();
   const caps = { storage, direct: storage && getStorage().driver === "supabase", engine: !!process.env.PYTHON_ENGINE_URL && !!process.env.RESONIQ_ENGINE_SECRET };
+  // After the response: start waking a sleeping engine while the member chooses a file.
+  if (caps.engine && caps.storage) after(warmEngine);
 
   return (
     <div className="py-2">
