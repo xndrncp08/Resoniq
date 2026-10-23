@@ -45,7 +45,10 @@ export default async function TankGLibrary({ gearId, slug, sp, viewerId }: { gea
             <h2 id="lib-h" className="font-display text-2xl font-semibold">TANK-G preset library</h2>
             <p className="font-body text-sm text-muted">{total} public presets. Resoniq-generated starting points are labelled as such and haven&apos;t been played on the hardware. <a href="#caps-h" className="text-copper hover:underline">What the pedal can and can&apos;t do</a>.</p>
           </div>
-          <Tabs label="Sort" items={[{ href: href({ sort: "popular" }), label: "Most saved", active: sort === "popular" }, { href: href({ sort: "new" }), label: "Newest", active: sort === "new" }]} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/gear/${slug}/banks`} className="focus-ring rounded-full border border-line px-4 py-2 font-body text-sm text-ink hover:border-copper/50">Plan my 36 slots</Link>
+            <Tabs label="Sort" items={[{ href: href({ sort: "popular" }), label: "Most saved", active: sort === "popular" }, { href: href({ sort: "new" }), label: "Newest", active: sort === "new" }]} />
+          </div>
         </div>
         <Tabs label="Collection" items={[{ href: href({ collection: undefined }), label: "All", active: !f.collection }, ...Object.entries(TANK_G_COLLECTIONS).map(([k, label]) => ({ href: href({ collection: k }), label, active: f.collection === k }))]} />
         <form action={`/gear/${slug}`} className="flex gap-2">

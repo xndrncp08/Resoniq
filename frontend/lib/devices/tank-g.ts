@@ -193,3 +193,15 @@ export function parseTankGFilters(get: (k: string) => string | null | undefined)
     collection: collection && collection in TANK_G_COLLECTIONS ? collection : undefined,
   };
 }
+
+/** Bank 1–9 × footswitch A–D: slot 0 is 1A, slot 35 is 9D. */
+export const TANK_G_SLOTS = 36;
+export const slotLabel = (i: number) => `${Math.floor(i / 4) + 1}${"ABCD"[i % 4]}`;
+
+/** A default layout: clean banks first, then rock, metal and lead, by name; extras that don't fit are returned separately. */
+export function bankLayout<T extends { name: string; declared: RigSpec | null }>(tones: T[]) {
+  const order = Object.keys(TANK_G_COLLECTIONS);
+  const rank = (t: T) => { const i = order.indexOf(t.declared?.device?.collection ?? ""); return i < 0 ? order.length : i; };
+  const sorted = [...tones].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  return { slots: sorted.slice(0, TANK_G_SLOTS), extra: sorted.slice(TANK_G_SLOTS) };
+}

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Route handlers read the session from Auth.js; these calls are anonymous.
-vi.mock("@/auth", () => ({ auth: async () => null }));
+// Route handlers read the session from Auth.js; tests set it per call.
+const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; sv: number } } }));
+vi.mock("@/auth", () => ({ auth: async () => session.current }));
 import type { Prisma } from "@prisma/client";
 import { seed } from "@/prisma/seed";
 import { batchConfirmation, generateDrafts, publishBatch, publishScheduledTones, reviewDraft, reviewDrafts, scheduleDrafts, setPublishingPaused, TANK_G_INITIAL_KEYS, unpublishDraft } from "@/lib/tone-drafts";
@@ -10,6 +11,9 @@ import { TONE_PRESETS } from "@/lib/tone-presets";
 import { getTone, listTones, remixTone, setToneSaved } from "@/lib/tones";
 import { tankGSheet, TANK_G_SLUG } from "@/lib/devices/tank-g";
 import { GET as publicTones } from "@/app/api/tones/public/route";
+import { GET as bankSheets } from "@/app/api/tones/tank-g-banks/route";
+import sitemap from "@/app/sitemap";
+import { deviceTones } from "@/lib/tones";
 import { actorFor, makeActor, prisma, resetDb } from "./db";
 
 async function setup() {
@@ -27,7 +31,7 @@ async function approveAll(admin: Awaited<ReturnType<typeof setup>>["admin"], ids
   for (let i = 0; i < ids.length; i += 40) await reviewDrafts(admin, ids.slice(i, i + 40), true);
 }
 
-beforeEach(resetDb);
+beforeEach(async () => { session.current = null; await resetDb(); });
 
 describe("TANK-G library publishing", () => {
   it("generates every validated preset once, tone-only, under existing managed creators", async () => {
@@ -143,5 +147,44 @@ describe("TANK-G library publishing", () => {
     expect((await prisma.tone.findUniqueOrThrow({ where: { id: toneIds[0] } })).visibility).toBe("PRIVATE");
     const gear = await prisma.gearItem.findUniqueOrThrow({ where: { slug: TANK_G_SLUG } });
     expect((await listTones(null, { sort: "new", gearId: gear.id, cursor: null, limit: 10 })).items).toHaveLength(1);
+  });
+
+  it("plans banks from the viewer's own and saved presets only, and exports their sheets", async () => {
+    const { admin, first, ids } = await setup();
+    await approveAll(admin, ids(first));
+    const { toneIds } = await publishBatch(admin, ids(first), batchConfirmation(36));
+    const gear = await prisma.gearItem.findUniqueOrThrow({ where: { slug: TANK_G_SLUG } });
+    const member = await makeActor();
+    const other = await makeActor();
+    await setToneSaved(member, toneIds[0], true);
+    await setToneSaved(member, toneIds[1], true);
+    await setToneSaved(other, toneIds[2], true);
+    const own = await remixTone(member, toneIds[3]);
+    await prisma.tone.update({ where: { id: toneIds[4] }, data: { visibility: "PRIVATE" } });
+    await setToneSaved(member, toneIds[5], true);
+    await prisma.tone.update({ where: { id: toneIds[5] }, data: { visibility: "PRIVATE" } });
+    const mine = await deviceTones(member.id, gear.id);
+    expect(mine.map(t => t.id).sort()).toEqual([toneIds[0], toneIds[1], own].sort());
+
+    expect((await bankSheets(new Request("http://test/api/tones/tank-g-banks"), { params: Promise.resolve({}) } as never)).status).toBe(401);
+    session.current = { user: { id: member.id, sv: 0 } };
+    const res = await bankSheets(new Request("http://test/api/tones/tank-g-banks"), { params: Promise.resolve({}) } as never);
+    expect(res.headers.get("content-disposition")).toContain("tank-g-banks.txt");
+    const text = await res.text();
+    expect(text.match(/===== Bank \d[A-D] =====/g)).toHaveLength(3);
+    expect(text).toContain("===== Bank 1A =====");
+    expect(text).toContain("Resoniq-generated");
+  });
+
+  it("lists public tones and the TANK-G page in the sitemap, never private ones", async () => {
+    const { admin, first, ids } = await setup();
+    await approveAll(admin, ids(first.slice(0, 2)));
+    const { toneIds } = await publishBatch(admin, ids(first.slice(0, 2)), batchConfirmation(2));
+    await prisma.tone.update({ where: { id: toneIds[1] }, data: { visibility: "PRIVATE" } });
+    const urls = (await sitemap()).map(e => e.url);
+    expect(urls.some(u => u.endsWith(`/gear/${TANK_G_SLUG}`))).toBe(true);
+    expect(urls.some(u => u.endsWith(`/t/${toneIds[0]}`))).toBe(true);
+    expect(urls.some(u => u.endsWith(`/t/${toneIds[1]}`))).toBe(false);
+    expect(urls.filter(u => u.includes("/c/"))).toHaveLength(20);
   });
 });

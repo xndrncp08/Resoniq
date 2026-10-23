@@ -331,6 +331,17 @@ export async function listTones(viewerId: string | null, q: ToneListQuery, base:
   return { items: await withSaved(items, viewerId), nextCursor };
 }
 
+/** The viewer's own and saved tones that use a catalog item (e.g. the TANK-G bank planner). */
+export async function deviceTones(viewerId: string, gearId: string, limit = 60) {
+  const rows = await prisma.tone.findMany({
+    where: { AND: [viewableToneWhere(viewerId), { gear: { some: { gearItemId: gearId } } }, { OR: [{ userId: viewerId }, { saves: { some: { userId: viewerId } } }] }] },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: limit,
+    select: TONE_SELECT,
+  });
+  return rows.map((r) => toToneView(r, viewerId));
+}
+
 export async function savedTones(viewerId: string, cursor: Cursor | null, limit: number) {
   const rows = await prisma.toneSave.findMany({
     where: {

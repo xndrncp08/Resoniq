@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Prisma } from "@prisma/client";
 import { TANK_G_PRESETS } from "@/lib/tank-g-presets";
-import { clock, parseTankGFilters, TANK_G_COLLECTIONS, TANK_G_SLUG, tankGSheet, tankGSheetText, validateTankGRig } from "@/lib/devices/tank-g";
+import { bankLayout, clock, parseTankGFilters, slotLabel, TANK_G_COLLECTIONS, TANK_G_SLUG, tankGSheet, tankGSheetText, validateTankGRig } from "@/lib/devices/tank-g";
 import { parseDraftInput, presetRig, rigFingerprint } from "@/lib/tone-draft-validation";
 import { TONE_PRESETS } from "@/lib/tone-presets";
 import { TANK_G_INITIAL_KEYS } from "@/lib/tone-drafts";
@@ -99,5 +99,21 @@ describe("TANK-G device rules", () => {
     expect(rigFingerprint(rig)).toBe(rigFingerprint({ ...rig, device: undefined }));
     expect(parseTankGFilters(k => ({ amp: "7", effect: "Tape", collection: "metal" })[k])).toEqual({ ampSlot: 7, effect: "Tape", collection: "metal" });
     expect(parseTankGFilters(k => ({ amp: "12", effect: "Shimmer", collection: "x" })[k])).toEqual({ ampSlot: undefined, effect: undefined, collection: undefined });
+  });
+});
+
+describe("TANK-G bank planner", () => {
+  it("labels 36 slots 1A–9D and lays out clean banks first, with overflow kept separate", () => {
+    expect([slotLabel(0), slotLabel(3), slotLabel(4), slotLabel(35)]).toEqual(["1A", "1D", "2A", "9D"]);
+    const tones = TANK_G_PRESETS.map((p, i) => ({ name: p.name, declared: rigs[i] as RigSpec | null })).reverse();
+    const { slots, extra } = bankLayout([...tones, { name: "Member rig", declared: null }]);
+    expect(slots).toHaveLength(36);
+    expect(extra).toHaveLength(tones.length + 1 - 36);
+    const clean = TANK_G_PRESETS.filter(p => p.device!.collection === "clean").length;
+    expect(slots.slice(0, clean).every(t => t.declared?.device?.collection === "clean")).toBe(true);
+    expect(slots.slice(clean).every(t => t.declared?.device?.collection === "rock")).toBe(true);
+    const names = slots.slice(0, clean).map(t => t.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    expect(extra.at(-1)!.name).toBe("Member rig");
   });
 });

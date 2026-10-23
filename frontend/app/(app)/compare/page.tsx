@@ -5,6 +5,7 @@ import { optionalActor } from "@/lib/api";
 import { diffTones } from "@/lib/tone-compare";
 import { getTone, savedTones, type ToneView } from "@/lib/tones";
 import { EmptyState, PageHeader, Provenance } from "@/components/app/ui";
+import { tankGSheet } from "@/lib/devices/tank-g";
 
 export const metadata: Metadata = { title: "Compare tones", robots: { index: false } };
 
@@ -51,6 +52,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       ]
     : [];
   const d = a && b ? diffTones(a, b) : null;
+  // Both on the TANK-G: compare the panel itself, control by control.
+  const [panelA, panelB] = [a, b].map((t) => (t?.declared ? tankGSheet(t.declared) : []));
+  const panel = panelA.length && panelB.length ? panelA.map((r, i) => ({ control: r.control, a: r.setting, b: panelB[i].setting })) : null;
 
   return (
     <div className="space-y-6">
@@ -61,6 +65,17 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       ) : (
         <div className="space-y-6">
           <div className="panel grid grid-cols-2 gap-4 p-4"><Header t={a!} label="A" /><Header t={b!} label="B" /></div>
+          {panel && (
+            <section className="panel overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b hairline p-4"><h2 className="font-display text-lg font-semibold">M-VAVE TANK-G panel</h2><span className="font-mono text-xs text-muted">{panel.filter((r) => r.a !== r.b).length} of {panel.length} controls differ</span></div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] font-mono text-sm">
+                  <thead><tr className="text-left text-muted"><th scope="col" className="px-4 py-2 font-normal">Control</th><th scope="col" className="px-4 py-2 font-normal">A</th><th scope="col" className="px-4 py-2 font-normal">B</th></tr></thead>
+                  <tbody>{panel.map((r) => <tr key={r.control} className={`border-t hairline ${r.a === r.b ? "text-muted" : "bg-copper/[0.04]"}`}><th scope="row" className="px-4 py-2 text-left font-normal text-ink-dim">{r.control}</th><td className="px-4 py-2">{r.a}</td><td className={`px-4 py-2 ${r.a === r.b ? "" : "text-copper"}`}>{r.b}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </section>
+          )}
           {d.instrument.a || d.instrument.b ? (
             <div className="panel grid grid-cols-2 gap-4 p-4 font-body"><span>{d.instrument.a ?? "—"}</span><span>{d.instrument.b ?? "—"}</span></div>
           ) : null}
