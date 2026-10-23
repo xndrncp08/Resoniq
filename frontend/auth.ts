@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { compareAgainstDummy, normalizeEmail } from "@/lib/credentials";
 import { checkRateLimit, clientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { isEnabled } from "@/lib/flags";
+import { googleCredentials } from "@/lib/hosting";
 
 class RateLimited extends CredentialsSignin {
   code = "rate_limited";
@@ -15,20 +17,33 @@ class AccountDisabled extends CredentialsSignin {
   code = "account_disabled";
 }
 
-export const googleEnabled = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
+const google = googleCredentials();
+export const googleEnabled = !!google;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
+    // OAuth failures (unlinked account, refused sign-in) land on /login?error=… too.
+    error: "/login",
   },
   providers: [
-    ...(googleEnabled
+    ...(google
       ? [
+          // No allowDangerousEmailAccountLinking: a Google sign-in whose email
+          // already belongs to another account is refused (OAuthAccountNotLinked)
+          // rather than merged, so a matching email alone never grants access.
           Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            ...google,
+            checks: ["pkce", "state"],
+            profile: (p) => ({
+              id: p.sub,
+              name: p.name,
+              email: p.email,
+              image: p.picture,
+              emailVerified: p.email_verified ? new Date() : null,
+            }),
           }),
         ]
       : []),
@@ -73,7 +88,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     // Covers OAuth sign-ins; credentials sign-ins are refused in authorize().
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        // Only addresses Google has verified may create or reach an account.
+        if (profile?.email_verified !== true) return "/login?error=email_unverified";
+        const linked = await prisma.account.findUnique({
+          where: { provider_providerAccountId: { provider: "google", providerAccountId: account.providerAccountId } },
+          select: { userId: true },
+        });
+        if (!linked && !(await isEnabled("signups"))) return "/login?error=signups_closed";
+      }
       if (!user.id) return true;
       const found = await prisma.user.findUnique({ where: { id: user.id }, select: { status: true } });
       return found?.status !== "BANNED" || "/login?error=account_disabled";

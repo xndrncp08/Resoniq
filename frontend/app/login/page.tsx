@@ -3,6 +3,7 @@ import AuthForm from "@/components/auth/AuthForm";
 import Nav from "@/components/landing/Nav";
 import { googleEnabled } from "@/auth";
 import { safeCallbackPath } from "@/lib/safe-redirect";
+import { mailConfigured } from "@/lib/mailer";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -16,7 +17,7 @@ export default async function LoginPage({
     <>
     <Nav />
     <main id="main" className="flex min-h-screen items-center justify-center px-6">
-      <AuthForm mode="login" googleEnabled={googleEnabled} callbackUrl={safeCallbackPath(callbackUrl, "/feed")}
+      <AuthForm mode="login" googleEnabled={googleEnabled} passwordForm forgotPassword={mailConfigured()} callbackUrl={safeCallbackPath(callbackUrl, "/feed")}
         initialError={typeof error === "string" ? error : undefined}
       />
     </main>

@@ -4,6 +4,8 @@ declare module "next-auth" {
   interface User {
     /** Credentials must retain the version read with the password hash. */
     sv?: number;
+    /** Set from Google's email_verified claim when an OAuth account is created. */
+    emailVerified?: Date | null;
   }
   interface Session {
     user: {

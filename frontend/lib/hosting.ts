@@ -31,9 +31,23 @@ export function emailRequiredForSignup(): boolean {
   return v ? v === "true" : isServerless();
 }
 
-export async function signupsOpen(): Promise<{ open: boolean; reason: string | null }> {
+/** Google OAuth credentials: Auth.js's AUTH_GOOGLE_* names, or the older GOOGLE_CLIENT_* ones. */
+export function googleCredentials(): { clientId: string; clientSecret: string } | null {
+  const clientId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+/**
+ * Email/password registration. Google sign-up needs no email delivery (Google
+ * verifies the address) and only follows the `signups` flag; password sign-up
+ * on a public deployment also needs a way to verify the address.
+ */
+export async function passwordSignupsOpen(): Promise<{ open: boolean; reason: string | null }> {
   if (!(await isEnabled("signups"))) return { open: false, reason: "New accounts are paused right now. Try again later." };
-  if (emailRequiredForSignup() && !mailConfigured()) return { open: false, reason: "Registration opens soon: we're finishing email verification first. Existing members can sign in." };
+  if (emailRequiredForSignup() && !mailConfigured()) {
+    return { open: false, reason: googleCredentials() ? "Sign up with Google. Email sign-up isn't available yet." : "Registration opens soon. Existing members can sign in." };
+  }
   return { open: true, reason: null };
 }
 

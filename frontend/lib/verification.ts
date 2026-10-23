@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-error";
 import { isEnabled } from "@/lib/flags";
 import { emailRequiredForSignup } from "@/lib/hosting";
+import { mailConfigured } from "@/lib/mailer";
 
 /**
  * When `auth.requireEmailVerification` is on, email/password accounts must
@@ -11,5 +12,9 @@ import { emailRequiredForSignup } from "@/lib/hosting";
 export async function assertCanPublish(userId: string) {
   if (!emailRequiredForSignup() && !(await isEnabled("auth.requireEmailVerification"))) return;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true, passwordHash: true } });
-  if (u?.passwordHash && !u.emailVerified) throw new ApiError(403, "Confirm your email to post. We sent a link when you signed up; you can resend it from Settings.");
+  if (u?.passwordHash && !u.emailVerified) {
+    throw new ApiError(403, mailConfigured()
+      ? "Confirm your email to post. We sent a link when you signed up; you can resend it from Settings."
+      : "Confirm your email to post. Email confirmation isn't available yet.");
+  }
 }

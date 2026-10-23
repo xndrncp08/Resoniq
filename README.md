@@ -123,14 +123,19 @@ cd frontend && npx tsx worker/index.ts
 cd frontend && npm run admin:grant -- --email you@example.com --role ADMIN
 ```
 
-Email: with `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM` set, verification and
-password-reset emails are sent. Without them in development, the links are
-printed to the frontend's log.
+Sign-in: Google is the primary sign-up and sign-in method once
+`AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are set (redirect URI
+`<AUTH_URL>/api/auth/callback/google`). Existing email/password accounts can
+always sign in.
+
+Email is optional: with `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM` set,
+verification and password-reset emails are sent and public email/password
+sign-up opens. Without them in development, the links are printed to the
+frontend's log; in production the flows are hidden.
 
 Storage: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to use a
 **private** Supabase bucket named `songs` (audio and media). Otherwise files
-go to `frontend/.storage/`. Google sign-in appears only when
-`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set.
+go to `frontend/.storage/`.
 
 ### Migrations
 

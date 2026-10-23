@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/flags", () => ({ isEnabled: vi.fn(async () => true) }));
-const { emailRequiredForSignup, mediaCapabilities, mediaWorkerAvailable, signupsOpen, storageAvailable } = await import("@/lib/hosting");
+const { emailRequiredForSignup, googleCredentials, mediaCapabilities, mediaWorkerAvailable, passwordSignupsOpen, storageAvailable } = await import("@/lib/hosting");
 const { cronAuthorized } = await import("@/lib/jobs/drain");
 
 afterEach(() => vi.unstubAllEnvs());
@@ -13,7 +13,7 @@ describe("hosting capabilities", () => {
     expect(storageAvailable()).toBe(true);
     expect(mediaWorkerAvailable()).toBe(true);
     expect(await mediaCapabilities()).toMatchObject({ images: true, video: true, audio: true, note: null });
-    expect(await signupsOpen()).toEqual({ open: true, reason: null });
+    expect(await passwordSignupsOpen()).toEqual({ open: true, reason: null });
   });
 
   it("turns uploads off on serverless without remote storage", async () => {
@@ -30,12 +30,23 @@ describe("hosting capabilities", () => {
     expect((await mediaCapabilities()).video).toBe(true);
   });
 
-  it("keeps public registration closed until email can be delivered", async () => {
-    env({ VERCEL: "1", RESEND_API_KEY: "", RESONIQ_EMAIL_FROM: "" });
+  it("keeps public email/password registration closed until email can be delivered", async () => {
+    env({ VERCEL: "1", RESEND_API_KEY: "", RESONIQ_EMAIL_FROM: "", AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "" });
     expect(emailRequiredForSignup()).toBe(true);
-    expect((await signupsOpen()).open).toBe(false);
+    expect(await passwordSignupsOpen()).toMatchObject({ open: false, reason: expect.not.stringMatching(/Google/) });
+    env({ AUTH_GOOGLE_ID: "id", AUTH_GOOGLE_SECRET: "s" });
+    expect(await passwordSignupsOpen()).toMatchObject({ open: false, reason: expect.stringMatching(/Sign up with Google/) });
     env({ RESEND_API_KEY: "re_x", RESONIQ_EMAIL_FROM: "Resoniq <a@b.c>" });
-    expect((await signupsOpen()).open).toBe(true);
+    expect((await passwordSignupsOpen()).open).toBe(true);
+  });
+
+  it("reads Google credentials under Auth.js names first, then the older ones", () => {
+    env({ AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "old-id", GOOGLE_CLIENT_SECRET: "old-s" });
+    expect(googleCredentials()).toEqual({ clientId: "old-id", clientSecret: "old-s" });
+    env({ AUTH_GOOGLE_ID: "new-id", AUTH_GOOGLE_SECRET: "new-s" });
+    expect(googleCredentials()).toEqual({ clientId: "new-id", clientSecret: "new-s" });
+    env({ AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_SECRET: "" });
+    expect(googleCredentials()).toBeNull();
   });
 });
 

@@ -48,13 +48,13 @@ frontend and worker share one persistent volume on a single host.
 | --- | --- | --- |
 | `DATABASE_URL` | frontend, worker, migrate | |
 | `AUTH_SECRET` | frontend | `npx auth secret` |
-| `AUTH_URL` | frontend | Public origin. Used for emailed links and OG images |
+| `AUTH_URL` | frontend | Public origin (`https://…`, no trailing slash). OAuth callbacks, emailed links and OG images |
 | `AUTH_TRUST_HOST` | frontend | `true` behind a proxy you control |
 | `RESONIQ_ENGINE_SECRET` | frontend, engine | `openssl rand -hex 32`, the same on both |
 | `PYTHON_ENGINE_URL` | frontend | Private address of the engine |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | frontend, worker | Storage (see above) |
-| `RESEND_API_KEY`, `RESONIQ_EMAIL_FROM` | frontend | Email verification and password reset. Verify the sending domain with Resend |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | frontend | Optional |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | frontend | Google OAuth, the primary sign-up/sign-in. Redirect URI `<AUTH_URL>/api/auth/callback/google`. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` still work |
+| `RESEND_API_KEY`, `RESONIQ_EMAIL_FROM` | frontend | Optional. Opens public email/password sign-up and enables verification and password-reset emails |
 | `ANTHROPIC_API_KEY` | engine | Optional (recipe text) |
 
 ## Launch checklist

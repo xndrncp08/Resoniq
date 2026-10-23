@@ -37,11 +37,12 @@ and what it doesn't, and the exact steps it takes.
   request bodies at 4.5 MB, so with Supabase the browser uploads songs
   directly to the bucket with a signed URL (`/api/upload/direct` → PUT →
   `/api/upload/complete`, which checks owner, size and magic bytes).
-- **Registration stays closed until email works.** On a public deployment
-  (`VERCEL`, or `RESONIQ_REQUIRE_EMAIL_FOR_SIGNUP=true`), `/signup` and
-  `/api/register` stay closed until `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM`
-  are set. Once they are, verification is mandatory for posting and community
-  creation. Existing accounts can always sign in.
+- **Google is how people join; no email service needed.** New accounts sign
+  up with Google (verified addresses only, never merged into an existing
+  account by email). On a public deployment (`VERCEL`, or
+  `RESONIQ_REQUIRE_EMAIL_FOR_SIGNUP=true`) email/password sign-up stays closed
+  and the reset/verification flows are hidden unless an email provider is
+  configured. Existing accounts can always sign in.
 
 ## Steps
 
@@ -75,10 +76,25 @@ Vercel). Until then `/analyze` answers 503. Startup warms librosa and took
 about 4 minutes on the free CPU, so the first analysis after the service
 sleeps can outlast the app's 180 s engine timeout; retrying works once it's awake.
 
-### 4. Email (Resend free tier), optional but needed to open signups
+### 4. Google sign-in
 
-Verify a sending domain, then set `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM` on
-Vercel. Signups open automatically, with verification required.
+Google Cloud Console → APIs & Services:
+
+1. **OAuth consent screen** (Google Auth Platform → Branding/Audience): User
+   type **External**; app name, support email and developer contact; scopes
+   `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` (no
+   sensitive scopes, so no verification review). Publish the app to
+   **In production**, or while it's in Testing only listed test users can sign in.
+2. **Credentials → Create credentials → OAuth client ID**, type **Web application**:
+   - Authorized JavaScript origins: `https://resoniq-two.vercel.app`
+   - Authorized redirect URIs: `https://resoniq-two.vercel.app/api/auth/callback/google`
+   (add `http://localhost:3000` and `http://localhost:3000/api/auth/callback/google` for local development).
+3. On Vercel (Production): `AUTH_GOOGLE_ID` = the client ID (ends in
+   `.apps.googleusercontent.com`), `AUTH_GOOGLE_SECRET` = the client secret
+   (type **Sensitive**, entered in the dashboard). `AUTH_URL` must be
+   `https://resoniq-two.vercel.app`. Redeploy.
+
+Email (Resend) is optional and not needed for any of this.
 
 ### 5. Deploy
 

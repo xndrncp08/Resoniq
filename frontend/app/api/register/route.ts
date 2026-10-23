@@ -5,7 +5,7 @@ import { ApiError, enforceRateLimit, readJson, route } from "@/lib/api";
 import { BCRYPT_ROUNDS, MAX_NAME_LENGTH, normalizeEmail, passwordProblem } from "@/lib/credentials";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { assignHandle, handleFromName } from "@/lib/handles";
-import { signupsOpen } from "@/lib/hosting";
+import { passwordSignupsOpen } from "@/lib/hosting";
 import { isUniqueViolation } from "@/lib/validation";
 import { sendVerificationEmail } from "@/lib/email-tokens";
 
@@ -20,7 +20,7 @@ import { sendVerificationEmail } from "@/lib/email-tokens";
  */
 export const POST = route("register", async (req) => {
   await enforceRateLimit("register", clientIp(req), RATE_LIMITS.register);
-  const signups = await signupsOpen();
+  const signups = await passwordSignupsOpen();
   if (!signups.open) throw new ApiError(503, signups.reason!);
 
   const { name, email: rawEmail, password } = await readJson(req);

@@ -218,12 +218,17 @@ comes from the rightmost `X-Forwarded-For` entry. Behind a proxy that sets
 that header, that's the real client. Served directly, a client can choose its
 own rate-limit key.
 
-**Email needs a provider.** Verification and reset emails go through Resend
-(`RESEND_API_KEY`, `RESONIQ_EMAIL_FROM`). Without them, production drops the
-emails (logged as errors), and verification can't be enforced without locking
-people out. Until a provider is configured, signup still permits
-registering an address you don't own, and `/api/register` still allows
-inference through the sign-in that follows. There's no MFA.
+**Google is the primary sign-in; email is optional.** New accounts come from
+Google, which must report the address as verified (`email_verified`), with
+PKCE and state checks on the callback. A Google sign-in is never merged into
+an existing account by matching email (no `allowDangerousEmailAccountLinking`):
+it's refused with `OAuthAccountNotLinked`, so a pre-registered password account
+can't be taken over, nor can a Google account claim one. Bans are checked on
+every OAuth sign-in, and the `signups` flag also gates new Google accounts.
+Without an email provider (`RESEND_API_KEY`, `RESONIQ_EMAIL_FROM`), public
+email/password registration stays closed and the reset and verification flows
+are hidden (their APIs answer 503 for every address); existing password
+accounts can still sign in but can't reset a forgotten password. There's no MFA.
 
 **JWT sessions are only partly revocable.** Bans, suspensions, role changes
 and password resets apply immediately (live check plus `sessionVersion`).
