@@ -112,7 +112,9 @@ bounty.
 - Login `callbackUrl` only accepts same-origin paths (no open redirect).
 
 ### Rate limiting
-In-memory, fixed-window, per server instance (`frontend/lib/rate-limit.ts`):
+Fixed-window (`frontend/lib/rate-limit.ts`). On serverless hosts the counters are
+shared in Postgres (`RateLimitBucket`, one atomic upsert per check). On a
+single long-running server they're in memory:
 
 | What | Key | Limit |
 | --- | --- | --- |

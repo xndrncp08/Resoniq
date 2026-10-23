@@ -1,0 +1,28 @@
+# Render Blueprint for the analysis engine on Render's free plan.
+# Render dashboard → New → Blueprint → pick this repo. It asks for the secret values marked sync: false.
+services:
+  - type: web
+    name: resoniq-engine
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: python-engine
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # The container listens on 8000 (python-engine/Dockerfile).
+      - key: PORT
+        value: "8000"
+      # Must equal RESONIQ_ENGINE_SECRET on the Vercel project. Generate with: openssl rand -hex 32
+      - key: RESONIQ_ENGINE_SECRET
+        sync: false
+      # Free instances have 512 MB of memory; librosa's spectrograms for long
+      # tracks can exceed it, so cap analysis at 4 minutes here.
+      - key: RESONIQ_MAX_AUDIO_SECONDS
+        value: "240"
+      # Optional: Claude writes recipe text when set (otherwise the rule-based recipe is used).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESONIQ_CLAUDE_MODEL
+        value: claude-sonnet-5

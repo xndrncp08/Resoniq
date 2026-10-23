@@ -1,5 +1,7 @@
 # Deploying Resoniq
 
+For the $0 setup (Vercel Hobby, Prisma Postgres/Supabase free, Render free) see [deploy-free.md](deploy-free.md).
+
 See the [production takeover report](production-takeover.md) for current
 validation and unresolved launch gates. The standalone frontend, local
 PostgreSQL/worker/FFmpeg stack and real analysis engine were exercised locally;
