@@ -7,20 +7,29 @@ import { api, errorMessage } from "@/lib/client-api";
 
 type Field = { name: string; label: string; type?: "text" | "number" | "textarea" | "select" | "checkbox" | "hidden"; options?: [string, string][]; placeholder?: string; defaultValue?: string; required?: boolean; checked?: boolean };
 
+type Values = Record<string, unknown>;
+
+// Server pages can't pass functions to client components, so value shaping is chosen by name.
+const TRANSFORMS = {
+  announcement: (v: Values) => ({ ...v, days: v.days ? Number(v.days) : null }),
+  gear: (v: Values) => ({ ...v, controls: String(v.controls ?? "").split(",").map((s) => s.trim()).filter(Boolean) }),
+  rule: (v: Values) => ({ kind: v.kind, label: v.label, config: v.kind === "BLOCKED_TERM" ? { terms: v.value } : { [v.kind === "LINK_HOLD_NEW_ACCOUNTS" ? "hours" : v.kind === "MAX_MENTIONS" ? "max" : "reports"]: Number(v.value) } }),
+} satisfies Record<string, (v: Values) => Values>;
+
 /** A small JSON form for console create/edit actions. */
-export function JsonForm({ url, method = "POST", fields, submit, transform }: { url: string; method?: string; fields: Field[]; submit: string; transform?: (v: Record<string, unknown>) => Record<string, unknown> }) {
+export function JsonForm({ url, method = "POST", fields, submit, transform }: { url: string; method?: string; fields: Field[]; submit: string; transform?: keyof typeof TRANSFORMS }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const values: Record<string, unknown> = {};
+    const values: Values = {};
     for (const f of fields) values[f.name] = f.type === "checkbox" ? fd.get(f.name) === "on" : fd.get(f.name);
     setBusy(true);
     setError(null);
     try {
-      await api(url, { method, body: transform ? transform(values) : values });
+      await api(url, { method, body: transform ? TRANSFORMS[transform](values) : values });
       (e.target as HTMLFormElement).reset();
       router.refresh();
     } catch (err) {

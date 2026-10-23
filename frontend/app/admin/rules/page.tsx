@@ -36,7 +36,7 @@ export default async function RulesPage() {
           { name: "label", label: "Label (shown to the author as the hold reason)", required: true },
           { name: "value", label: "Value (terms, one per line, or a number)", type: "textarea" },
         ]}
-        transform={(v) => ({ kind: v.kind, label: v.label, config: v.kind === "BLOCKED_TERM" ? { terms: v.value } : { [v.kind === "LINK_HOLD_NEW_ACCOUNTS" ? "hours" : v.kind === "MAX_MENTIONS" ? "max" : "reports"]: Number(v.value) } })}
+        transform="rule"
       />
     </>
   );

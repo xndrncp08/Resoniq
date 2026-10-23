@@ -25,7 +25,7 @@ export default async function AnnouncementsPage() {
           { name: "days", label: "Show for days (blank = until ended)", type: "number" },
           { name: "notify", label: "Also send as a notification", type: "checkbox" },
         ]}
-        transform={(v) => ({ ...v, days: v.days ? Number(v.days) : null })}
+        transform="announcement"
       />
       <h2 className="mb-3 mt-8 font-display text-xl font-semibold">History</h2>
       <Table head={["Title", "Level", "Live", "Started", ""]} empty={rows.length ? undefined : "None yet."}>
