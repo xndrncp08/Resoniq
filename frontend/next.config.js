@@ -18,6 +18,9 @@ const nextConfig = {
   poweredByHeader: false,
   // The Dockerfile's runner stage copies .next/standalone.
   output: "standalone",
+  // Keep titles and descriptions in <head> for every client: with loading boundaries, metadata
+  // would otherwise stream into <body>, which some crawlers and audits don't read.
+  htmlLimitedBots: /.*/,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
