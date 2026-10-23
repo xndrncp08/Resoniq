@@ -10,6 +10,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-[720px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
       <PageHeader eyebrow="Policy" title="Privacy" />
+      <p className="font-mono text-xs text-muted">Last updated 23 October 2026</p>
       <p>Resoniq is a community for sharing guitar and bass tones. This page describes what this Resoniq instance actually stores and why. There are no ads, no third-party analytics or tracking scripts, and no data is sold.</p>
 
       <H>What we store</H>
@@ -34,10 +35,10 @@ export default function PrivacyPage() {
       <p>Your profile, public posts and public tones are visible to anyone. Unlisted tones are visible to anyone with the link; private tones and your uploaded songs are visible only to you. Moderators and administrators can see reported content and account status to keep the community safe.</p>
 
       <H>Deleting your data</H>
-      <p>You can delete your account in <Link href="/settings" className="text-copper hover:underline">Settings</Link>. That removes your account, profile, posts, comments, tones, songs, uploads, saves, follows, votes, reports and appeals in one step, and queues your stored files for deletion. Media removed after a copyright report is kept for 30 days so a mistaken takedown can be reversed, then deleted. The administrative audit log keeps its records with your account detached.</p>
+      <p>You can delete your account in <Link href="/settings" className="text-copper underline underline-offset-2 hover:text-copper-soft">Settings</Link>. That removes your account, profile, posts, comments, tones, songs, uploads, saves, follows, votes, reports and appeals in one step, and queues your stored files for deletion. Media removed after a copyright report is kept for 30 days so a mistaken takedown can be reversed, then deleted. The administrative audit log keeps its records with your account detached.</p>
 
       <H>Questions</H>
-      <p className="text-sm text-muted">Privacy requests can be sent to the operator of this Resoniq instance. See also <Link href="/terms" className="text-copper hover:underline">Terms</Link> and <Link href="/copyright" className="text-copper hover:underline">Copyright &amp; takedowns</Link>.</p>
+      <p className="text-sm text-muted">Privacy requests can be sent to the operator of this Resoniq instance. See also <Link href="/terms" className="text-copper underline underline-offset-2 hover:text-copper-soft">Terms</Link> and <Link href="/copyright" className="text-copper underline underline-offset-2 hover:text-copper-soft">Copyright &amp; takedowns</Link>.</p>
     </article>
   );
 }

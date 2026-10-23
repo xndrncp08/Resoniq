@@ -187,7 +187,7 @@ export default function AuthForm({
           </label>
           {mode === "login" && forgotPassword && (
             <p className="text-right">
-              <Link href="/forgot" className="focus-ring rounded font-body text-xs text-muted hover:text-ink">Forgot password?</Link>
+              <Link href="/forgot" className="focus-ring rounded font-body text-xs text-muted underline underline-offset-2 hover:text-ink">Forgot password?</Link>
             </p>
           )}
 
@@ -218,14 +218,14 @@ export default function AuthForm({
         {mode === "login" ? (
           <>
             Don&apos;t have an account?{" "}
-            <Link href={`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal">
+            <Link href={`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal underline underline-offset-2">
               Sign up
             </Link>
           </>
         ) : (
           <>
             Already have an account?{" "}
-            <Link href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal">
+            <Link href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="focus-ring rounded text-signal underline underline-offset-2">
               Sign in
             </Link>
           </>

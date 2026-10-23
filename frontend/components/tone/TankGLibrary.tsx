@@ -43,7 +43,7 @@ export default async function TankGLibrary({ gearId, slug, sp, viewerId }: { gea
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="lib-h" className="font-display text-2xl font-semibold">TANK-G preset library</h2>
-            <p className="font-body text-sm text-muted">{total} public presets. Resoniq-generated starting points are labelled as such and haven&apos;t been played on the hardware. <a href="#caps-h" className="text-copper hover:underline">What the pedal can and can&apos;t do</a>.</p>
+            <p className="font-body text-sm text-muted">{total} public presets. Resoniq-generated starting points are labelled as such and haven&apos;t been played on the hardware. <a href="#caps-h" className="text-copper underline underline-offset-2">What the pedal can and can&apos;t do</a>.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/gear/${slug}/banks`} className="focus-ring rounded-full border border-line px-4 py-2 font-body text-sm text-ink hover:border-copper/50">Plan my 36 slots</Link>

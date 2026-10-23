@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Icon from "@/components/icons/Icon";
 import type { BlockCategory, GearRef, RigBlock, RigSpec } from "@/types/rig";
 
@@ -36,7 +37,7 @@ function Pedal({ block, index }: { block: RigBlock; index: number }) {
     <li className={`relative flex w-[150px] shrink-0 snap-start flex-col rounded-[14px] border p-3 ${block.enabled ? "" : "opacity-50"}`} style={{ borderColor: `${color}66`, background: `linear-gradient(170deg, ${color}26, #0E1218 70%)` }}>
       <span className="flex items-center justify-between font-mono text-[10px] text-muted">
         <span>{String(index + 1).padStart(2, "0")} · {block.placement === "loop" ? "loop" : "front"}</span>
-        <span className="h-2 w-2 rounded-full" style={{ background: block.enabled ? color : "#343D4C", boxShadow: block.enabled ? `0 0 8px ${color}` : undefined }} aria-label={block.enabled ? "On" : "Bypassed"} />
+        <span className="h-2 w-2 rounded-full" style={{ background: block.enabled ? color : "#343D4C", boxShadow: block.enabled ? `0 0 8px ${color}` : undefined }} role="img" aria-label={block.enabled ? "On" : "Bypassed"} />
       </span>
       <span className="mt-2 line-clamp-2 min-h-[2.5em] font-display text-sm font-semibold leading-tight" style={{ color }}>{name(block)}</span>
       <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{block.category.replace(/-/g, " ")}{!block.ref?.gearId && block.ref ? " · custom" : ""}</span>
@@ -72,12 +73,12 @@ export default function RigBoard({ rig }: { rig: RigSpec }) {
   return (
     <div className="space-y-4">
       {seq.length > 0 && (
-        <ol aria-label="Signal chain, input to output" className="scrollbar-none flex snap-x items-stretch gap-0 overflow-x-auto pb-2">
+        <ol aria-label="Signal chain, input to output" tabIndex={0} className="focus-ring scrollbar-none flex snap-x items-stretch gap-0 overflow-x-auto rounded-[14px] pb-2">
           {seq.map((n, i) => (
-            <span key={i} className="contents">
+            <Fragment key={i}>
               {i > 0 && <Cable />}
               {n}
-            </span>
+            </Fragment>
           ))}
         </ol>
       )}

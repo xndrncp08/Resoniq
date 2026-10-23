@@ -38,7 +38,7 @@ export default function TankGPanel({ toneId, rig }: { toneId: string; rig: RigSp
           {rows.map((r) => <Knob key={r.control} label={r.control} value={num(r.setting)} text={r.setting} />)}
         </ol>
       </div>
-      <div className="panel-inset overflow-x-auto rounded-2xl">
+      <div role="region" aria-label="Setup sheet" tabIndex={0} className="focus-ring panel-inset overflow-x-auto rounded-2xl">
         <table className="w-full min-w-[480px] text-left font-body text-sm">
           <caption className="label-engraved px-4 pt-4 text-left">Setup sheet</caption>
           <thead><tr className="border-b border-line font-mono text-[11px] uppercase tracking-wider text-muted"><th scope="col" className="px-4 py-2">Control</th><th scope="col" className="px-4 py-2">Setting</th><th scope="col" className="px-4 py-2">Approximate position</th></tr></thead>
