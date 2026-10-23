@@ -205,3 +205,21 @@ export function bankLayout<T extends { name: string; declared: RigSpec | null }>
   const sorted = [...tones].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
   return { slots: sorted.slice(0, TANK_G_SLOTS), extra: sorted.slice(TANK_G_SLOTS) };
 }
+
+const SECTION: Record<string, "Amp & gate" | "Effects" | "Cabinet & output"> = {
+  "NOISE GATE": "Amp & gate", TYPE: "Amp & gate", GAIN: "Amp & gate", TREBLE: "Amp & gate", MIDDLE: "Amp & gate", BASS: "Amp & gate", VOLUME: "Amp & gate",
+  "MOD FX": "Effects", "MOD SPEED": "Effects", "DLY MIX": "Effects", "DLY TIME": "Effects", "RVB DECAY": "Effects", "RVB MIX": "Effects",
+  "IR CAB": "Cabinet & output", MASTER: "Cabinet & output",
+};
+
+/** Two TANK-G panels side by side; `delta` is B − A when both settings end in a number for the same type. */
+export function tankGDiff(a: RigSpec, b: RigSpec) {
+  const [ra, rb] = [tankGSheet(a), tankGSheet(b)];
+  if (!ra.length || !rb.length) return null;
+  return ra.map((r, i) => {
+    const other = rb[i].setting;
+    const [pa, pb] = [r.setting, other].map((s) => s.match(/^(.*?)(-?\d+(?:\.\d+)?)$/));
+    const delta = pa && pb && pa[1] === pb[1] ? Math.round((Number(pb[2]) - Number(pa[2])) * 100) / 100 : null;
+    return { control: r.control, section: SECTION[r.control], a: r.setting, b: other, changed: r.setting !== other, delta: delta || null };
+  });
+}

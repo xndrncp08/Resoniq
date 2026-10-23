@@ -5,7 +5,8 @@ import { optionalActor } from "@/lib/api";
 import { diffTones } from "@/lib/tone-compare";
 import { getTone, savedTones, type ToneView } from "@/lib/tones";
 import { EmptyState, PageHeader, Provenance } from "@/components/app/ui";
-import { tankGSheet } from "@/lib/devices/tank-g";
+import { tankGDiff } from "@/lib/devices/tank-g";
+import TankGDiff from "@/components/tone/TankGDiff";
 
 export const metadata: Metadata = { title: "Compare tones", robots: { index: false } };
 
@@ -17,7 +18,7 @@ function Picker({ a, b, choices }: { a?: string; b?: string; choices: { id: stri
       {(["a", "b"] as const).map((k) => (
         <label key={k} className="block">
           <span className="label-engraved">Tone {k.toUpperCase()}</span>
-          <input name={k} defaultValue={k === "a" ? a : b} list="tone-choices" placeholder="Paste a tone link or pick one" className="panel-inset mt-2 h-11 w-full rounded-xl px-3 font-body text-sm outline-none" />
+          <input name={k} defaultValue={k === "a" ? a : b} list="tone-choices" placeholder="Paste a tone link or pick one" autoComplete="off" className="panel-inset mt-2 h-11 w-full rounded-xl px-3 font-body text-base outline-none focus:border-copper/60 sm:text-sm" />
         </label>
       ))}
       <datalist id="tone-choices">{choices.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</datalist>
@@ -35,13 +36,13 @@ function Header({ t, label }: { t: ToneView; label: string }) {
   return (
     <div className="min-w-0">
       <p className="label-engraved">{label}</p>
-      <Link href={`/t/${t.id}`} className="block truncate font-display text-lg font-semibold hover:text-copper-soft">{t.name}</Link>
+      <Link href={`/t/${t.id}`} className="line-clamp-2 block font-display text-lg font-semibold leading-tight hover:text-copper-soft">{t.name}</Link>
       <p className="font-mono text-xs text-muted">{t.anonymous ? t.author.name : `@${t.author.handle}`}{t.origin === "generated" && " · Resoniq-generated"}</p>
     </div>
   );
 }
 
-export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
+export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string; changes?: string }> }) {
   const sp = await searchParams;
   const viewer = await optionalActor();
   const [a, b] = await Promise.all([idFrom(sp.a), idFrom(sp.b)].map((id) => (id ? getTone(id, viewer?.id ?? null) : null)));
@@ -53,8 +54,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     : [];
   const d = a && b ? diffTones(a, b) : null;
   // Both on the TANK-G: compare the panel itself, control by control.
-  const [panelA, panelB] = [a, b].map((t) => (t?.declared ? tankGSheet(t.declared) : []));
-  const panel = panelA.length && panelB.length ? panelA.map((r, i) => ({ control: r.control, a: r.setting, b: panelB[i].setting })) : null;
+  const panel = a?.declared && b?.declared ? tankGDiff(a.declared, b.declared) : null;
+  const changesOnly = sp.changes === "1";
+  const toggleHref = `/compare?${new URLSearchParams({ a: sp.a ?? "", b: sp.b ?? "", ...(!changesOnly && { changes: "1" }) })}`;
 
   return (
     <div className="space-y-6">
@@ -65,17 +67,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       ) : (
         <div className="space-y-6">
           <div className="panel grid grid-cols-2 gap-4 p-4"><Header t={a!} label="A" /><Header t={b!} label="B" /></div>
-          {panel && (
-            <section className="panel overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b hairline p-4"><h2 className="font-display text-lg font-semibold">M-VAVE TANK-G panel</h2><span className="font-mono text-xs text-muted">{panel.filter((r) => r.a !== r.b).length} of {panel.length} controls differ</span></div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] font-mono text-sm">
-                  <thead><tr className="text-left text-muted"><th scope="col" className="px-4 py-2 font-normal">Control</th><th scope="col" className="px-4 py-2 font-normal">A</th><th scope="col" className="px-4 py-2 font-normal">B</th></tr></thead>
-                  <tbody>{panel.map((r) => <tr key={r.control} className={`border-t hairline ${r.a === r.b ? "text-muted" : "bg-copper/[0.04]"}`}><th scope="row" className="px-4 py-2 text-left font-normal text-ink-dim">{r.control}</th><td className="px-4 py-2">{r.a}</td><td className={`px-4 py-2 ${r.a === r.b ? "" : "text-copper"}`}>{r.b}</td></tr>)}</tbody>
-                </table>
-              </div>
-            </section>
-          )}
+          {panel && <TankGDiff rows={panel} changesOnly={changesOnly} toggleHref={toggleHref} />}
           {d.instrument.a || d.instrument.b ? (
             <div className="panel grid grid-cols-2 gap-4 p-4 font-body"><span>{d.instrument.a ?? "—"}</span><span>{d.instrument.b ?? "—"}</span></div>
           ) : null}

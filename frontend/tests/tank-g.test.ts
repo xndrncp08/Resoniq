@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Prisma } from "@prisma/client";
 import { TANK_G_PRESETS } from "@/lib/tank-g-presets";
-import { bankLayout, clock, parseTankGFilters, slotLabel, TANK_G_COLLECTIONS, TANK_G_SLUG, tankGSheet, tankGSheetText, validateTankGRig } from "@/lib/devices/tank-g";
+import { bankLayout, clock, tankGDiff, parseTankGFilters, slotLabel, TANK_G_COLLECTIONS, TANK_G_SLUG, tankGSheet, tankGSheetText, validateTankGRig } from "@/lib/devices/tank-g";
 import { parseDraftInput, presetRig, rigFingerprint } from "@/lib/tone-draft-validation";
 import { TONE_PRESETS } from "@/lib/tone-presets";
 import { TANK_G_INITIAL_KEYS } from "@/lib/tone-drafts";
@@ -115,5 +115,21 @@ describe("TANK-G bank planner", () => {
     const names = slots.slice(0, clean).map(t => t.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     expect(extra.at(-1)!.name).toBe("Member rig");
+  });
+});
+
+describe("TANK-G comparison", () => {
+  it("groups all 15 controls, marks changes and gives numeric deltas only for like-for-like settings", () => {
+    const a = rigs[TANK_G_PRESETS.findIndex(p => p.key === "tank-g-modern-metal-rhythm")];
+    const b = rigs[TANK_G_PRESETS.findIndex(p => p.key === "tank-g-thrash-attack")];
+    const rows = tankGDiff(a, b)!;
+    expect(rows).toHaveLength(15);
+    expect(new Set(rows.map(r => r.section))).toEqual(new Set(["Amp & gate", "Effects", "Cabinet & output"]));
+    const row = (c: string) => rows.find(r => r.control === c)!;
+    expect(row("GAIN")).toMatchObject({ changed: true, delta: 0.5 });
+    expect(row("TYPE")).toMatchObject({ changed: true, delta: null });
+    expect(row("BASS")).toMatchObject({ changed: false, delta: null });
+    expect(tankGDiff(a, a)!.every(r => !r.changed)).toBe(true);
+    expect(tankGDiff(a, { chain: [] })).toBeNull();
   });
 });
