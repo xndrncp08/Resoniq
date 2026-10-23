@@ -21,7 +21,7 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
   const qs = (o: Record<string, string | undefined>) => `/tones?${params(o)}`;
   return (
     <div>
-      <PageHeader eyebrow="Tone library" title="Tones worth stealing" actions={<><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
+      <PageHeader eyebrow="Tone library" title="Tones worth stealing" actions={<><LinkButton href="/gear/m-vave-tank-g" icon="amp">TANK-G presets</LinkButton><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
         Member-declared rigs, starting points inferred from recordings, and clearly labelled Resoniq-generated settings. Save them, remix them, compare them.
       </PageHeader>
       <form action="/tones" className="mb-4 flex gap-2">

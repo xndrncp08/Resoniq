@@ -8,20 +8,25 @@ import Icon from "@/components/icons/Icon";
 import { Chip, EmptyState, LinkButton } from "@/components/app/ui";
 import ToneGrid from "@/components/tone/ToneGrid";
 import { KIND_ICON } from "@/components/tone/gear-icons";
+import TankGLibrary from "@/components/tone/TankGLibrary";
+import { TANK_G_SLUG } from "@/lib/devices/tank-g";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const g = await prisma.gearItem.findFirst({ where: { slug: (await params).slug, status: "APPROVED" }, select: { brand: true, model: true } });
-  return g ? { title: `${g.brand} ${g.model}`, description: `Tones shared on Resoniq using the ${g.brand} ${g.model}.` } : { title: "Gear not found" };
+  if (!g) return { title: "Gear not found" };
+  if ((await params).slug === TANK_G_SLUG) return { title: "M-VAVE TANK-G presets and settings", description: "Browse M-VAVE TANK-G presets by genre, amp slot and effect, with knob-by-knob setup sheets and the pedal's verified capabilities." };
+  return { title: `${g.brand} ${g.model}`, description: `Tones shared on Resoniq using the ${g.brand} ${g.model}.` };
 }
 
-export default async function GearItemPage({ params }: Props) {
+export default async function GearItemPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const item = await prisma.gearItem.findFirst({ where: { slug, status: "APPROVED" }, select: GEAR_SELECT });
   if (!item) notFound();
   const viewer = await optionalActor();
-  const tones = await listTones(viewer?.id ?? null, { sort: "popular", gearId: item.id, cursor: null, limit: 18 });
+  const device = slug === TANK_G_SLUG;
+  const tones = device ? null : await listTones(viewer?.id ?? null, { sort: "popular", gearId: item.id, cursor: null, limit: 18 });
   return (
     <div className="space-y-8">
       <header className="panel grille relative flex flex-wrap items-center gap-6 overflow-hidden p-6 sm:p-8">
@@ -33,10 +38,14 @@ export default async function GearItemPage({ params }: Props) {
           {item.controls.length > 0 && <p className="mt-3 font-mono text-xs text-muted">Controls: {item.controls.join(" · ")}</p>}
         </div>
       </header>
-      <section className="space-y-4">
-        <h2 className="font-display text-2xl font-semibold">Public tones using it</h2>
-        <ToneGrid endpoint={`/api/tones/public?sort=popular&gear=${item.id}&limit=18`} initial={tones.items} cursor={tones.nextCursor} empty={<EmptyState icon="tone" title="No public tones yet" action={<LinkButton href="/tones/new" variant="primary">Share a rig with it</LinkButton>} />} />
-      </section>
+      {tones ? (
+        <section className="space-y-4">
+          <h2 className="font-display text-2xl font-semibold">Public tones using it</h2>
+          <ToneGrid endpoint={`/api/tones/public?sort=popular&gear=${item.id}&limit=18`} initial={tones.items} cursor={tones.nextCursor} empty={<EmptyState icon="tone" title="No public tones yet" action={<LinkButton href="/tones/new" variant="primary">Share a rig with it</LinkButton>} />} />
+        </section>
+      ) : (
+        <TankGLibrary gearId={item.id} slug={slug} sp={await searchParams} viewerId={viewer?.id ?? null} />
+      )}
     </div>
   );
 }

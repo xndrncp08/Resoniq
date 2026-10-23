@@ -13,6 +13,7 @@ import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
 import RigBoard from "@/components/tone/rig/RigBoard";
 import ToneActions from "@/components/tone/ToneActions";
+import TankGPanel from "@/components/tone/TankGPanel";
 import PostCard from "@/components/social/PostCard";
 
 type Props = { params: Promise<{ id: string }> };
@@ -95,6 +96,8 @@ export default async function TonePage({ params }: Props) {
           </p>
         )}
       </section>
+
+      {tone.declared?.device && <TankGPanel toneId={tone.id} rig={tone.declared} />}
 
       {inferred && (
         <section aria-labelledby="inferred-h" className="space-y-4">

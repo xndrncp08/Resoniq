@@ -1,3 +1,4 @@
+import { tankGSheet } from "@/lib/devices/tank-g";
 import type { Prisma, ToneVisibility } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-error";
@@ -289,6 +290,10 @@ export type ToneListQuery = {
   source?: "members" | "generated";
   /** A genre named in the rig's references, matched case-insensitively against TONE_GENRES. */
   genre?: string;
+  /** Device metadata (lib/devices): amp slot, collection, and an effect type used in the chain. */
+  ampSlot?: number;
+  collection?: string;
+  effect?: string;
   cursor: Cursor | null;
   limit: number;
 };
@@ -311,6 +316,9 @@ export async function listTones(viewerId: string | null, q: ToneListQuery, base:
   if (q.source) and.push({ origin: q.source === "generated" ? "GENERATED" : "MEMBER" });
   if (q.genre) and.push({ rig: { path: ["references", "genres"], array_contains: [q.genre] } });
   if (q.gearId) and.push({ gear: { some: { gearItemId: q.gearId } } });
+  if (q.ampSlot) and.push({ rig: { path: ["device", "ampSlot"], equals: q.ampSlot } });
+  if (q.collection) and.push({ rig: { path: ["device", "collection"], equals: q.collection } });
+  if (q.effect) and.push({ rig: { path: ["chain"], array_contains: [{ enabled: true, params: { Type: q.effect } }] } });
   if (q.instrument) and.push({ rig: { path: ["instrument", "kind"], equals: q.instrument } });
   if (q.q) and.push({ OR: [{ name: { contains: q.q, mode: "insensitive" } }, { description: { contains: q.q, mode: "insensitive" } }] });
   const field = q.sort === "popular" ? "saveCount" : "createdAt";
@@ -353,6 +361,9 @@ export function exportTone(t: ToneView, origin: string) {
     remixOf: t.remixOf && { url: `${origin}/t/${t.remixOf.id}`, name: t.remixOf.name, author: t.remixOf.anonymous ? t.remixOf.author.name : `@${t.remixOf.author.handle}` },
     ...(t.origin === "generated" && { provenance: GENERATED_DISCLOSURE }),
     declared: t.declared,
+    ...(t.declared && tankGSheet(t.declared).length && {
+      device: { name: "M-VAVE TANK-G", note: "Resoniq JSON for reading or re-importing into Resoniq; not a native M-EFCS preset file. Knob values are normalized 0–10 positions.", panel: tankGSheet(t.declared) },
+    }),
     inferred: t.inferred && {
       ...t.inferred,
       note: t.recipeEdited
