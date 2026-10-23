@@ -15,3 +15,8 @@ export function memo<T>(key: string, ttlMs: number, load: () => Promise<T>): Pro
   store.set(key, { at: Date.now(), value });
   return value;
 }
+
+/** Drop cached entries whose key starts with `prefix`, after a write that changes them on this instance. */
+export function forget(prefix: string) {
+  for (const key of store.keys()) if (key.startsWith(prefix)) store.delete(key);
+}

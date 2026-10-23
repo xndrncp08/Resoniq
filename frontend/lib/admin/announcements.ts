@@ -1,5 +1,6 @@
 import type { AnnouncementLevel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { forget, memo } from "@/lib/memo";
 import type { Actor } from "@/lib/authz";
 import { recordAudit } from "@/lib/audit";
 import { enqueue } from "@/lib/jobs/queue";
@@ -16,12 +17,15 @@ export function parseAnnouncement(body: Record<string, unknown>) {
 }
 
 export async function createAnnouncement(actor: Actor, input: ReturnType<typeof parseAnnouncement>) {
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const a = await tx.announcement.create({ data: { title: input.title, body: input.body, level: input.level, endsAt: input.endsAt, createdById: actor.id } });
     await recordAudit(tx, { actorId: actor.id, action: "announcement.create", targetType: "Announcement", targetId: a.id, meta: { notify: input.notify } });
     if (input.notify) await enqueue("announcement.notify", { announcementId: a.id }, { db: tx });
     return a;
   });
+  // After commit, so a concurrent read can't re-cache the old announcement.
+  forget("announcement:");
+  return created;
 }
 
 export async function endAnnouncement(actor: Actor, id: string) {
@@ -29,9 +33,16 @@ export async function endAnnouncement(actor: Actor, id: string) {
     await tx.announcement.update({ where: { id }, data: { endsAt: new Date() } });
     await recordAudit(tx, { actorId: actor.id, action: "announcement.end", targetType: "Announcement", targetId: id });
   });
+  forget("announcement:");
 }
 
+/** Read on every app page, so cached for 30 s per instance (and cleared here when one is created). */
 export async function currentAnnouncement() {
+  const a = await memo("announcement:current", 30_000, loadCurrentAnnouncement);
+  return a && (!a.endsAt || a.endsAt > new Date()) ? a : null;
+}
+
+function loadCurrentAnnouncement() {
   const now = new Date();
   return prisma.announcement.findFirst({ where: { startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { startsAt: "desc" } });
 }

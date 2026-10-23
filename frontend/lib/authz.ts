@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { AccountStatus, Role } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,8 @@ import { can, type Permission } from "@/lib/permissions";
  */
 export type Actor = { id: string; handle: string; role: Role; status: AccountStatus; suspendedUntil: Date | null };
 
-export async function getActor(): Promise<Actor | null> {
+// cache(): one lookup per server render however many components ask; route handlers call through uncached.
+export const getActor = cache(async (): Promise<Actor | null> => {
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
@@ -23,7 +25,7 @@ export async function getActor(): Promise<Actor | null> {
   if (!user || user.kind === "SYSTEM" || (user.sessionVersion ?? 0) !== (session?.user?.sv ?? 0)) return null;
   const { sessionVersion: _v, kind: _k, ...actor } = user;
   return actor;
-}
+});
 
 /** Suspensions with an end date in the past no longer apply. */
 export function isSuspended(actor: Pick<Actor, "status" | "suspendedUntil">, now = new Date()): boolean {

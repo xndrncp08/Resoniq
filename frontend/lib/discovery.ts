@@ -21,6 +21,12 @@ async function loadTrendingTags(days: number, limit: number) {
 
 /** Communities the viewer hasn't joined, biggest first (matching their genres/instruments first). */
 export async function suggestedCommunities(viewerId: string | null, limit = 5) {
+  // Signed-out visitors all see the same list.
+  if (!viewerId) return memo(`communities:anon:${limit}`, 300_000, () => loadSuggestedCommunities(null, limit));
+  return loadSuggestedCommunities(viewerId, limit);
+}
+
+async function loadSuggestedCommunities(viewerId: string | null, limit: number) {
   const me = viewerId ? await prisma.user.findUnique({ where: { id: viewerId }, select: { genres: true, instruments: true } }) : null;
   const interests = me ? [...me.genres, ...me.instruments].map((s) => s.replace(/\s+/g, "-")) : [];
   const where = { archivedAt: null, ...(viewerId && { members: { none: { userId: viewerId } } }) };
@@ -33,11 +39,16 @@ export async function suggestedCommunities(viewerId: string | null, limit = 5) {
 
 /** Musicians whose posts earned the most amps recently. */
 export async function risingMusicians(viewerId: string | null, limit = 5) {
+  // One shared ranking per minute; the viewer is filtered out afterwards instead of in SQL.
+  const all = await memo(`rising:${limit + 1}`, 60_000, () => loadRisingMusicians(limit + 1));
+  return all.filter((u) => u.id !== viewerId).slice(0, limit);
+}
+
+async function loadRisingMusicians(limit: number) {
   const rows = await prisma.$queryRaw<{ id: string; amps: bigint }[]>`
     SELECT p."authorId" AS id, SUM(p."upCount") AS amps FROM "Post" p
     JOIN "User" u ON u.id = p."authorId" AND u.status = 'ACTIVE'
     WHERE p.status = 'PUBLISHED' AND p."createdAt" > (now() AT TIME ZONE 'UTC') - interval '30 days'
-      AND (${viewerId}::text IS NULL OR p."authorId" <> ${viewerId})
     GROUP BY p."authorId" HAVING SUM(p."upCount") > 0 ORDER BY amps DESC LIMIT ${limit}`;
   const users = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: { ...AUTHOR_SELECT, instruments: true, followerCount: true } });
   const byId = new Map(users.map((u) => [u.id, u]));

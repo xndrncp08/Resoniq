@@ -1,5 +1,6 @@
 import type { GearKind, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { memo } from "@/lib/memo";
 import type { Actor } from "@/lib/authz";
 import { fail, isUniqueViolation } from "@/lib/validation";
 import { ApiError } from "@/lib/api-error";
@@ -33,8 +34,12 @@ export async function searchGear(q: string, kind: GearKind | null, limit: number
   });
 }
 
-/** Most-used catalog gear across public tones. */
-export async function popularGear(kind: GearKind | null, limit: number) {
+/** Most-used catalog gear across public tones; a full aggregate, so cached for five minutes per instance. */
+export function popularGear(kind: GearKind | null, limit: number) {
+  return memo(`popular-gear:${kind ?? "all"}:${limit}`, 300_000, () => loadPopularGear(kind, limit));
+}
+
+async function loadPopularGear(kind: GearKind | null, limit: number) {
   const rows = await prisma.$queryRaw<{ id: string; uses: bigint }[]>`
     SELECT g.id, COUNT(*) AS uses FROM "ToneGear" tg
     JOIN "GearItem" g ON g.id = tg."gearItemId" AND g.status = 'APPROVED'
