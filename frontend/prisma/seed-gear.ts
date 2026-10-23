@@ -64,6 +64,7 @@ export const GEAR: Row[] = [
   ["MODELER", "Fractal Audio", "Axe-Fx III"], ["MODELER", "Fractal Audio", "FM3"], ["MODELER", "Kemper", "Profiler Stage"],
   ["MODELER", "Boss", "GT-1000"], ["MODELER", "Headrush", "Pedalboard"], ["MULTIFX", "Boss", "GX-100"], ["MULTIFX", "Zoom", "G6"],
   ["MULTIFX", "Line 6", "POD Go"], ["MULTIFX", "Mooer", "GE300"], ["MULTIFX", "Valeton", "GP-200"],
+  ["MULTIFX", "M-VAVE", "TANK-G", ["NOISE GATE", "TYPE", "GAIN", "TREBLE", "MIDDLE", "BASS", "VOLUME", "MOD FX", "MOD SPEED", "DLY MIX", "DLY TIME", "RVB DECAY", "RVB MIX", "IR CAB", "MASTER"]],
   // Plugins
   ["PLUGIN", "Neural DSP", "Archetype: Plini"], ["PLUGIN", "Neural DSP", "Archetype: Gojira"], ["PLUGIN", "Neural DSP", "Parallax"],
   ["PLUGIN", "STL Tones", "Tonehub"], ["PLUGIN", "Positive Grid", "BIAS FX 2"], ["PLUGIN", "IK Multimedia", "AmpliTube 5"],

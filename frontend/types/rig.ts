@@ -42,8 +42,12 @@ export type RigBlock = {
   params: Record<string, number | string>;
 };
 
+/** Device-specific catalog metadata, e.g. which amp slot of a multi-effects unit (see lib/devices). */
+export type RigDevice = { slug: string; ampSlot?: number; collection?: string };
+
 export type RigSpec = {
   instrument?: RigInstrument;
+  device?: RigDevice;
   amp?: RigAmp;
   cab?: RigCab;
   chain: RigBlock[];

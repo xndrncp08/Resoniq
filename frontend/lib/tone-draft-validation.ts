@@ -5,6 +5,7 @@ import { parseRig, rigGearIds } from "@/lib/rig-validation";
 import { parseToneInput, TONE_GENRES } from "@/lib/tones";
 import type { TonePreset, PresetGear } from "@/lib/tone-presets";
 import type { GearRef, RigSpec } from "@/types/rig";
+import { TANK_G_SLUG, validateTankGRig } from "@/lib/devices/tank-g";
 
 export type DraftInput = { name: string; description: string; instrument: string; genres: string[]; rig: RigSpec; creatorId: string; communityId: string | null; fingerprint: string };
 
@@ -17,6 +18,8 @@ function canonical(value: unknown): string {
 export function rigFingerprint(rig: RigSpec): string {
   return createHash("sha256").update(canonical({
     instrument: rig.instrument, amp: rig.amp, cab: rig.cab, eq: rig.eq ?? {},
+    // Only when present, so fingerprints of existing device-less drafts don't change.
+    ...(rig.device && { device: rig.device }),
     chain: rig.chain.map(({ id: _id, ...block }) => block),
   })).digest("hex");
 }
@@ -50,6 +53,12 @@ export async function validateDraftReferences(tx: Prisma.TransactionClient, inpu
     const item = gear.find(g => g.id === ref.gearId)!;
     if (item.model !== ref.model || item.brand !== ref.brand) throw new ApiError(400, "Catalog gear names must match their references.");
   }
+  if (input.rig.device) {
+    if (input.rig.device.slug !== TANK_G_SLUG) throw new ApiError(400, "Unknown device profile.");
+    const device = await tx.gearItem.findFirst({ where: { slug: TANK_G_SLUG, status: "APPROVED" }, select: { id: true } });
+    if (!device) throw new ApiError(400, "The TANK-G catalog entry is missing.");
+    validateTankGRig(input.rig, device.id);
+  }
   return { creator, gearIds: ids };
 }
 
@@ -62,6 +71,7 @@ export async function presetRig(tx: Prisma.TransactionClient, preset: TonePreset
     return { gearId: item.id, brand: item.brand, model: item.model };
   };
   return parseRig({
+    ...(preset.device && { device: preset.device }),
     instrument: { kind: preset.instrument, ref: ref(preset.player.gear), pickups: preset.player.pickups, pickupPosition: preset.player.pickupPosition, strings: preset.player.strings, tuning: preset.player.tuning },
     amp: { ref: ref(preset.amp.gear), channel: preset.amp.channel, settings: preset.amp.settings },
     cab: { ...(preset.cab.gear && { ref: ref(preset.cab.gear) }), speakers: preset.cab.speakers, mic: preset.cab.mic },

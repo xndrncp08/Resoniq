@@ -113,6 +113,13 @@ export function parseRig(v: unknown): RigSpec | null {
     if (!Array.isArray(v.chain) || v.chain.length > RIG_LIMITS.blocks) fail(`A chain holds up to ${RIG_LIMITS.blocks} blocks.`);
     out.chain = v.chain.map(block);
   }
+  if (isObj(v.device)) {
+    const slug = str(v.device.slug, "rig.device.slug", 40);
+    if (!slug) fail("rig.device.slug is required.");
+    const ampSlot = v.device.ampSlot === undefined ? undefined : num(v.device.ampSlot, "rig.device.ampSlot", 1, 99);
+    const collection = str(v.device.collection, "rig.device.collection", 20);
+    out.device = { slug, ...(ampSlot !== undefined && { ampSlot }), ...(collection && { collection }) };
+  }
   const eq = knobs(v.eq, "rig.eq", -24, 24);
   if (Object.keys(eq).length) out.eq = eq;
   for (const k of ["notes", "setupGuide"] as const) {

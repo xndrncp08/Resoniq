@@ -43,6 +43,8 @@ export type TonePreset = {
   setup: string;
   alternatives: string[];
   artists?: string[];
+  /** Device-specific presets (lib/tank-g-presets.ts); these publish as tone-only, with no feed post. */
+  device?: { slug: string; ampSlot: number; collection: string };
 };
 
 const g = (slug: string): PresetGear => ({ slug });
