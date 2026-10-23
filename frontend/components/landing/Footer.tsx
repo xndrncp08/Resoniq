@@ -3,7 +3,7 @@ import Link from "next/link";
 const COLUMNS: [string, [string, string][]][] = [
   ["Play", [["Feed", "/feed"], ["Explore", "/explore"], ["Communities", "/c"], ["Tones", "/tones"], ["Gear", "/gear"]]],
   ["Create", [["Share a post", "/new"], ["Share a rig", "/tones/new"], ["Analyze a song", "/analyze"], ["Tone vault", "/library"]]],
-  ["Trust", [["Copyright", "/copyright"], ["Appeals", "/appeals"]]],
+  ["Trust", [["Privacy", "/privacy"], ["Terms", "/terms"], ["Copyright", "/copyright"], ["Appeals", "/appeals"]]],
 ];
 
 export default function Footer() {

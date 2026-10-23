@@ -72,7 +72,7 @@ export default async function SideRail({ viewerId }: { viewerId: string | null }
         </section>
       )}
       <p className="px-2 font-body text-xs leading-relaxed text-muted">
-        <Link href="/copyright" className="hover:text-ink">Copyright</Link> · <Link href="/appeals" className="hover:text-ink">Appeals</Link> · <Link href="/" className="hover:text-ink">About Resoniq</Link>
+        <Link href="/privacy" className="hover:text-ink">Privacy</Link> · <Link href="/terms" className="hover:text-ink">Terms</Link> · <Link href="/copyright" className="hover:text-ink">Copyright</Link> · <Link href="/appeals" className="hover:text-ink">Appeals</Link> · <Link href="/" className="hover:text-ink">About Resoniq</Link>
       </p>
     </aside>
   );

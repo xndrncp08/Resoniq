@@ -231,6 +231,9 @@ export default function AuthForm({
           </>
         )}
       </p>
+      <p className="mt-4 text-center font-body text-xs text-muted">
+        By continuing you agree to the <Link href="/terms" className="underline hover:text-ink">Terms</Link> and <Link href="/privacy" className="underline hover:text-ink">Privacy</Link> policy.
+      </p>
     </motion.form></MotionConfig>
   );
 }
