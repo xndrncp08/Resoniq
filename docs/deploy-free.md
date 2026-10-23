@@ -67,10 +67,13 @@ server-side. The browser only ever gets short-lived signed URLs.
 
 ### 3. Engine (Render)
 
-Render dashboard → New → Blueprint → `xndrncp08/Resoniq` (reads `render.yaml`).
-Paste `RESONIQ_ENGINE_SECRET` from `resoniq-deploy-secrets.env` (kept outside
-the repository; the same value is already on Vercel). When it's live, check
-`https://<service>.onrender.com/health` and set `PYTHON_ENGINE_URL` on Vercel.
+Service `resoniq-engine` (Free, Virginia, Docker from `python-engine/`, auto-deploys
+`main`): https://resoniq-engine.onrender.com. `PYTHON_ENGINE_URL` is set on Vercel.
+Set `RESONIQ_ENGINE_SECRET` in the service's Environment to the value in
+`resoniq-deploy-secrets.env` (outside the repository; the same value is on
+Vercel). Until then `/analyze` answers 503. Startup warms librosa and took
+about 4 minutes on the free CPU, so the first analysis after the service
+sleeps can outlast the app's 180 s engine timeout; retrying works once it's awake.
 
 ### 4. Email (Resend free tier), optional but needed to open signups
 
