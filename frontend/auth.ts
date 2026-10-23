@@ -68,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
-        if (!user?.passwordHash) {
+        if (!user?.passwordHash || user.kind === "SYSTEM") {
           await compareAgainstDummy(password);
           return null;
         }
@@ -101,8 +101,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!linked && !(await isEnabled("signups"))) return "/login?error=signups_closed";
       }
       if (!user.id) return true;
-      const found = await prisma.user.findUnique({ where: { id: user.id }, select: { status: true } });
-      return found?.status !== "BANNED" || "/login?error=account_disabled";
+      const found = await prisma.user.findUnique({ where: { id: user.id }, select: { status: true, kind: true } });
+      return (found?.kind !== "SYSTEM" && found?.status !== "BANNED") || "/login?error=account_disabled";
     },
     async jwt({ token, user }) {
       if (user) {

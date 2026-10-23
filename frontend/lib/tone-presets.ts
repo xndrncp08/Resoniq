@@ -8,8 +8,8 @@ import type { BlockCategory } from "@/types/rig";
  *
  * Gear is referenced by catalog slug (prisma/seed-gear.ts) so tones link to
  * gear pages; anything outside the catalog is named as custom gear. Amp
- * settings use each amp's real panel controls on its 0–10 scale. Pedal knobs
- * are 0–10 (≈ clock position: 5 is noon); times are in ms; switches are labels.
+ * knobs use normalized 0–10 positions (5 is approximately noon), not native
+ * dB readouts. Delay times are in ms; switches are labels.
  * Artist names describe a style a tone is inspired by, never an endorsement.
  */
 
@@ -79,7 +79,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["dotted eighth", "lead lines", "edge of breakup"],
     description: "A lead voice for melodic hooks over a full band: transparent overdrive into an edge-of-breakup amp, a dotted-eighth delay that turns single notes into arpeggios, and a medium hall.",
     player: { gear: g("prs-silver-sky"), pickups: ["635JM single coils"], pickupPosition: "Bridge/Middle", strings: "10–46" },
-    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 5, Treble: 6, Middle: 5, Bass: 4, Reverb: 2 } },
+    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 5, Treble: 6, Bass: 4, Reverb: 2 } },
     cab: { speakers: "1×12 Jensen C12K", mic: "SM57 slightly off-axis" },
     chain: [
       { category: "boost", gear: g("wampler-tumnus"), params: { Gain: 3, Treble: 5.5, Output: 7 } },
@@ -140,9 +140,9 @@ export const TONE_PRESETS: TonePreset[] = [
     instrument: "GUITAR",
     genres: ["country", "pop", "rock"],
     styles: ["sparkling clean", "spring reverb"],
-    description: "The classic big-headroom Fender clean: bright, scooped, with deep spring reverb. A starting point for country, pop and clean rock rhythm.",
+    description: "A classic big-headroom Fender clean: bright, scooped, with deep spring reverb. A starting point for country, pop and clean rock rhythm.",
     player: { gear: g("fender-american-professional-ii-stratocaster"), pickups: ["V-Mod II single coils"], pickupPosition: "Middle", strings: "10–46" },
-    amp: { gear: g("fender-twin-reverb"), channel: "Normal, bright on", settings: { Volume: 3, Treble: 6.5, Middle: 4, Bass: 3.5, Reverb: 3.5 } },
+    amp: { gear: g("fender-twin-reverb"), channel: "Vibrato, bright on", settings: { Volume: 3, Treble: 6.5, Middle: 4, Bass: 3.5, Reverb: 3.5 } },
     cab: { speakers: "2×12 Jensen C12K", mic: "SM57 halfway between cap and edge" },
     chain: [{ category: "compressor", gear: g("mxr-dyna-comp"), params: { Output: 5, Sensitivity: 3 }, enabled: false }],
     playing: "Strum open chords or arpeggiate; the amp stays clean even when you dig in. Turn the reverb up for surf, down for country.",
@@ -172,7 +172,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["surf", "spring reverb", "tremolo"],
     description: "Bright, splashy offset clean with lots of spring reverb and a little tremolo, for surf lines and jangly indie parts.",
     player: { gear: g("fender-jaguar"), pickups: ["Jaguar single coils"], pickupPosition: "Bridge", strings: "11–50 (heavier for the short scale)" },
-    amp: { gear: g("fender-deluxe-reverb"), channel: "Vibrato", settings: { Volume: 3.5, Treble: 6.5, Middle: 4, Bass: 4, Reverb: 6 } },
+    amp: { gear: g("fender-deluxe-reverb"), channel: "Vibrato", settings: { Volume: 3.5, Treble: 6.5, Bass: 4, Reverb: 6 } },
     cab: { speakers: "1×12 Jensen C12K", mic: "SM57 on axis" },
     chain: [
       { category: "tremolo", gear: custom("Fender", "amp vibrato (built in)"), params: { Speed: 5, Intensity: 3 } },
@@ -345,7 +345,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["chord melody", "flatwounds", "warm clean"],
     description: "A round, dark jazz clean for comping and chord-melody: neck humbucker with the tone rolled back, flatwound strings and a flat clean amp.",
     player: { gear: g("gibson-es-335"), pickups: ["Calibrated T-Type humbuckers"], pickupPosition: "Neck", strings: "12–52 flatwounds" },
-    amp: { gear: g("roland-jc-120-jazz-chorus"), channel: "Channel 1", settings: { Volume: 3.5, Treble: 3.5, Middle: 6, Bass: 5.5, Distortion: 0, Reverb: 2 } },
+    amp: { gear: g("roland-jc-120-jazz-chorus"), channel: "Channel 2", settings: { Volume: 3.5, Treble: 3.5, Middle: 6, Bass: 5.5, Distortion: 0, Reverb: 2 } },
     cab: { speakers: "2×12 JC speakers", mic: "Ribbon mic 8 in back" },
     chain: [],
     playing: "Pick with the flesh of the thumb or a heavy pick near the neck. Guitar tone knob around 3–4. Comp with shell voicings; let chord-melody lines breathe.",
@@ -360,7 +360,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["fusion", "legato", "light overdrive"],
     description: "A smooth, slightly compressed fusion lead with a touch of overdrive, chorus-like delay modulation and a warm reverb for flowing legato lines.",
     player: { gear: g("prs-custom-24"), pickups: ["85/15 humbuckers"], pickupPosition: "Neck", strings: "10–46" },
-    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 4.5, Treble: 5, Middle: 6, Bass: 4.5, Reverb: 2 } },
+    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 4.5, Treble: 5, Bass: 4.5, Reverb: 2 } },
     cab: { speakers: "1×12 Jensen C12K", mic: "SM57 off-axis" },
     chain: [
       { category: "compressor", gear: g("keeley-compressor-plus"), params: { Level: 5, Sustain: 5, Blend: 5, Tone: 5 } },
@@ -381,7 +381,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["slap", "pop", "scooped"],
     description: "A punchy, scooped slap tone: active humbucker bass, firm compression and a clean, full-range amp with the low and high ends lifted.",
     player: { gear: g("music-man-stingray-4"), pickups: ["Active humbucker (3-band preamp)"], pickupPosition: "Bridge", strings: "45–105 roundwounds" },
-    amp: { gear: g("markbass-little-mark-iv"), settings: { Gain: 4.5, Low: 6.5, Mid: 4, High: 6.5, Master: 5 } },
+    amp: { gear: g("markbass-little-mark-iv"), settings: { Gain: 4.5, Low: 6.5, "Mid Low": 4, "Mid High": 4.5, High: 6.5, Master: 5 } },
     cab: { speakers: "2×10 neo with tweeter", mic: "DI from the amp, post-EQ" },
     chain: [{ category: "compressor", gear: g("keeley-compressor-plus"), params: { Level: 5.5, Sustain: 5.5, Blend: 7, Tone: 6 } }],
     eq: { "60Hz": 2, "500Hz": -3, "4kHz": 2 },
@@ -448,7 +448,7 @@ export const TONE_PRESETS: TonePreset[] = [
     genres: ["prog", "metal"],
     styles: ["extended range", "parallel drive", "articulate"],
     description: "A modern, articulate prog-metal bass: multiscale five-string, parallel overdrive with a clean low end and a bright, grindy top for chords and fast picking.",
-    player: { gear: g("dingwall-ng3"), pickups: ["Three FD3N pickups"], pickupPosition: "Bridge + Middle", strings: "45–130 (five string)", tuning: "Drop A (A D G C F) or standard B" },
+    player: { gear: g("dingwall-ng3"), pickups: ["Three FD3N pickups"], pickupPosition: "Bridge + Middle", strings: "45–130 (five string)", tuning: "Drop A (A E A D G) or standard B (B E A D G)" },
     amp: { gear: g("darkglass-microtubes-900-v2"), settings: { Gain: 3, Bass: 5.5, "Low Mids": 4.5, "Hi Mids": 6, Treble: 6, Master: 5 } },
     cab: { speakers: "4×10 neo", mic: "DI from the amp" },
     chain: [
@@ -489,7 +489,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["volume swells", "octave up", "pads"],
     description: "Pad-like bass swells for ambient and worship intros: an octave-up voice blended in, volume swells and a long reverb, with the fundamental kept clean.",
     player: { gear: g("ibanez-sr500e"), pickups: ["Bartolini humbuckers (active)"], pickupPosition: "Neck", strings: "45–105" },
-    amp: { gear: g("markbass-little-mark-iv"), settings: { Gain: 3.5, Low: 5.5, Mid: 5, High: 5, Master: 5 } },
+    amp: { gear: g("markbass-little-mark-iv"), settings: { Gain: 3.5, Low: 5.5, "Mid Low": 5, "Mid High": 5, High: 5, Master: 5 } },
     cab: { speakers: "2×10 neo with tweeter", mic: "DI" },
     chain: [
       { category: "octave", gear: g("electro-harmonix-pog2"), params: { "Dry": 7, "+1 octave": 5, "Sub octave": 0, Attack: 6 } },
@@ -510,7 +510,7 @@ export const TONE_PRESETS: TonePreset[] = [
     genres: ["indie", "pop"],
     styles: ["jangle", "arpeggios", "compressed clean"],
     description: "A bright, chiming jangle for arpeggiated indie parts: semi-hollow single coils, compression and a Top Boost amp just on the edge.",
-    player: { gear: g("rickenbacker-330"), pickups: ["Hi-gain single coils"], pickupPosition: "Bridge/Middle (both)", strings: "10–46" },
+    player: { gear: g("rickenbacker-330"), pickups: ["Hi-gain single coils"], pickupPosition: "Neck/Bridge (both)", strings: "10–46" },
     amp: { gear: g("vox-ac30"), channel: "Top Boost", settings: { Volume: 4.5, Treble: 6.5, Bass: 4, "Tone Cut": 3.5, Master: 6 } },
     cab: { speakers: "2×12 Celestion Alnico Blue", mic: "SM57 on axis at the cap" },
     chain: [
@@ -530,7 +530,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["fuzz", "wall of sound", "offset"],
     description: "A thick, saturated fuzz wall for big alt-rock choruses: a Big Muff into a dirty British amp, with a long reverb for shoegaze-adjacent washes.",
     player: { gear: g("fender-jazzmaster"), pickups: ["Wide-range single coils"], pickupPosition: "Bridge", strings: "11–50" },
-    amp: { gear: g("orange-or15"), settings: { Gain: 4, Bass: 5, Middle: 5.5, Treble: 6, Presence: 5, Master: 5 } },
+    amp: { gear: g("orange-or15"), settings: { Gain: 4, Bass: 5, Middle: 5.5, Treble: 6, Volume: 5 } },
     cab: { gear: g("orange-ppc212"), speakers: "2×12 Celestion Vintage 30", mic: "SM57 at the cap edge" },
     chain: [
       { category: "fuzz", gear: g("electro-harmonix-big-muff-pi"), params: { Volume: 6, Tone: 5.5, Sustain: 7 } },
@@ -551,7 +551,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["acoustic simulation", "strumming", "compressed clean"],
     description: "An electric clean voiced like an acoustic: bass and low-mid cut, top end lifted, light compression and an acoustic simulator, for strummed parts when no acoustic is available.",
     player: { gear: g("fender-player-telecaster"), pickups: ["Alnico V single coils"], pickupPosition: "Neck", strings: "10–46" },
-    amp: { gear: g("roland-jc-120-jazz-chorus"), channel: "Channel 1", settings: { Volume: 3.5, Treble: 6.5, Middle: 4.5, Bass: 3, Distortion: 0, Reverb: 2.5 } },
+    amp: { gear: g("roland-jc-120-jazz-chorus"), channel: "Channel 2", settings: { Volume: 3.5, Treble: 6.5, Middle: 4.5, Bass: 3, Distortion: 0, Reverb: 2.5 } },
     cab: { speakers: "2×12 JC speakers", mic: "Condenser 12 in back, or DI" },
     chain: [
       { category: "compressor", gear: g("keeley-compressor-plus"), params: { Level: 5, Sustain: 4, Blend: 5, Tone: 6.5 } },
@@ -571,7 +571,7 @@ export const TONE_PRESETS: TonePreset[] = [
     styles: ["fingerpicking", "acoustic simulation", "room reverb"],
     description: "A softer, fingerpicked acoustic-like clean: neck and middle single coils, gentle compression, a small room and a short delay for a close, intimate sound.",
     player: { gear: g("squier-classic-vibe-50s-stratocaster"), pickups: ["Alnico single coils"], pickupPosition: "Neck/Middle", strings: "10–46" },
-    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 3, Treble: 6, Middle: 5, Bass: 3.5, Reverb: 2 } },
+    amp: { gear: g("fender-deluxe-reverb"), settings: { Volume: 3, Treble: 6, Bass: 3.5, Reverb: 2 } },
     cab: { speakers: "1×12 Jensen C12K", mic: "Condenser 18 in back" },
     chain: [
       { category: "compressor", gear: g("mxr-dyna-comp"), params: { Output: 5, Sensitivity: 3 } },

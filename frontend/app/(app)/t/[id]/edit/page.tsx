@@ -15,7 +15,7 @@ export default async function EditTonePage({ params }: { params: Promise<{ id: s
   return (
     <div className="mx-auto max-w-[860px]">
       <PageHeader eyebrow="Edit tone" title={tone.name} />
-      <ToneEditor tone={{ id: tone.id, name: tone.name, description: tone.description, visibility: tone.visibility, rig: tone.declared, hasInferred: !!tone.inferred }} />
+      <ToneEditor tone={{ id: tone.id, name: tone.name, description: tone.description, visibility: tone.visibility, rig: tone.declared, hasInferred: !!tone.inferred, generated: tone.origin === "generated" }} />
     </div>
   );
 }

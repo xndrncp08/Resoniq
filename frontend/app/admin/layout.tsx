@@ -32,6 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ...(c("platform.config") ? [{ href: "/admin/rules", label: "Automod rules", icon: "rules" as const }] : []),
     ]],
     ["Platform", [
+      ...(c("platform.config") ? [{ href: "/admin/tone-publishing", label: "Tone publishing", icon: "knob" as const }] : []),
       ...(c("communities.manage") ? [{ href: "/admin/communities", label: "Communities", icon: "community" as const }] : []),
       ...(c("catalog.manage") ? [{ href: "/admin/gear", label: "Gear catalog", icon: "gear-catalog" as const, badge: pendingGear }] : []),
       ...(c("curation.manage") ? [{ href: "/admin/curation", label: "Curation", icon: "spotlight" as const }] : []),

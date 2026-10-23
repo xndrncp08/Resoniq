@@ -27,7 +27,7 @@ export type RigInstrument = {
   notes?: string;
 };
 
-/** Amp knobs on the 0–10 scale printed on real panels. */
+/** Amp knobs as normalized 0–10 positions; 5 is approximately noon. */
 export type RigAmp = { ref?: GearRef; channel?: string; settings: Record<string, number> };
 export type RigCab = { ref?: GearRef; speakers?: string; mic?: string };
 

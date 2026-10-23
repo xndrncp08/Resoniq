@@ -68,6 +68,7 @@ model User {
   kind UserKind @default(PERSON)
 
   toneDraftsReviewed ToneDraft[]
+  managedCreator     ManagedCreator?
 }
 
 enum Role {
@@ -177,10 +178,9 @@ model Tone {
   publishedAt  DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @default(now()) @updatedAt
-  // Who wrote it: a member, or Resoniq's preset generator (always shown as Anonymous).
+  // Who wrote it: a member, or Resoniq's preset library.
   origin       ToneOrigin     @default(MEMBER)
-  // Shown publicly as "Anonymous" instead of the owner. Generated tones always are
-  // (check constraint Tone_generated_is_anonymous); members may opt in later.
+  // Legacy anonymous attribution; managed creators use their labelled profile.
   anonymous    Boolean        @default(false)
 
   user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -220,12 +220,12 @@ enum ToneDraftStatus {
 }
 
 /// A Resoniq-generated preset awaiting review (lib/tone-drafts.ts). Publishing
-/// copies it into a public Tone owned by the system identity.
+/// copies it into a public Tone owned by a Resoniq-managed creator.
 model ToneDraft {
   id           String          @id @default(cuid())
   // Preset key from lib/tone-presets.ts; generating the same preset twice is a no-op.
   key          String          @unique
-  // Hash of the normalized name, instrument and rig: catches duplicate content under another key.
+  // Hash of the normalized rig settings: catches duplicate content under another name/key.
   fingerprint  String          @unique
   status       ToneDraftStatus @default(DRAFT)
   name         String
@@ -239,13 +239,59 @@ model ToneDraft {
   reviewedById String?
   reviewedAt   DateTime?
   publishedAt  DateTime?
+  creatorId    String?
+  communityId  String?
+  postId       String?         @unique
+  removedAt    DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @default(now()) @updatedAt
 
-  tone       Tone? @relation(fields: [toneId], references: [id], onDelete: SetNull)
-  reviewedBy User? @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  tone       Tone?                 @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  reviewedBy User?                 @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  creator    ManagedCreator?       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  community  Community?            @relation(fields: [communityId], references: [id], onDelete: Restrict)
+  post       Post?                 @relation(fields: [postId], references: [id], onDelete: SetNull)
+  events     TonePublishingEvent[]
 
   @@index([status, scheduledFor])
+  @@index([creatorId])
+  @@index([communityId])
+  @@index([reviewedById])
+}
+
+/// Resoniq owns these non-login publishing identities. No member accounts are converted.
+model ManagedCreator {
+  id             String      @id @default(cuid())
+  userId         String      @unique
+  owner          String      @default("Resoniq")
+  specialization String
+  enabled        Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @default(now()) @updatedAt
+  user           User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  drafts         ToneDraft[]
+}
+
+model TonePublishingControl {
+  id              String    @id @default("default")
+  paused          Boolean   @default(true)
+  initialImportAt DateTime?
+  updatedAt       DateTime  @default(now()) @updatedAt
+}
+
+/// Append-only publication attempts survive unpublishing and tone removal.
+model TonePublishingEvent {
+  id        String    @id @default(cuid())
+  draftId   String
+  action    String
+  source    String
+  toneId    String?
+  error     String?
+  createdAt DateTime  @default(now())
+  draft     ToneDraft @relation(fields: [draftId], references: [id], onDelete: Restrict)
+
+  @@index([source, action, createdAt])
+  @@index([draftId, createdAt])
 }
 
 enum GearKind {
@@ -400,9 +446,10 @@ model Community {
   archivedAt  DateTime?
   createdAt   DateTime      @default(now())
 
-  createdBy User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  members   CommunityMember[]
-  posts     Post[]
+  createdBy  User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  members    CommunityMember[]
+  posts      Post[]
+  toneDrafts ToneDraft[]
 
   @@index([memberCount])
   @@index([createdById, createdAt])
@@ -447,6 +494,7 @@ enum ContentStatus {
 }
 
 model Post {
+  toneDraft     ToneDraft?
   id            String        @id @default(cuid())
   authorId      String
   communityId   String?

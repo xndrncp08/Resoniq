@@ -29,9 +29,11 @@ const routes = {
   flags: await import("@/app/api/admin/flags/route"),
   jobs: await import("@/app/api/admin/jobs/[id]/route"),
   media: await import("@/app/api/media/[id]/moderation/route"),
+  publishing: await import("@/app/api/admin/tone-drafts/route"),
 };
 
 const calls: [string, () => Promise<Response>][] = [
+  ["tone publishing", () => routes.publishing.POST(req({ action: "generate" }), undefined)],
   ["users", () => routes.users.POST(req({ action: "status", status: "BANNED", reason: "x" }), ctx())],
   ["reports", () => routes.reports.POST(req({ action: "dismiss", targetType: "POST", targetId: "p" }), undefined)],
   ["appeals", () => routes.appeals.POST(req({ decision: "REVERSED", note: "x" }), ctx())],
@@ -68,6 +70,7 @@ describe("admin API authorization", () => {
     db.user.findUnique.mockResolvedValueOnce({ id: "u1", handle: "u_1", role: "MODERATOR", status: "ACTIVE", suspendedUntil: null });
     expect((await routes.flags.PUT(req({ key: "signups", enabled: false }, "PUT"), undefined)).status).toBe(403);
     expect((await routes.rules.POST(req({ kind: "MAX_MENTIONS", config: { max: 3 } }), undefined)).status).toBe(403);
+    expect((await routes.publishing.POST(req({ action: "import", confirmation: "yes" }), undefined)).status).toBe(403);
     expect((await routes.users.POST(req({ action: "status", status: "BANNED", reason: "x" }), ctx("other"))).status).toBe(403);
   });
 });

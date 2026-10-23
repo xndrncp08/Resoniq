@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
-import { Avatar, Chip, compact, IconButton, TimeAgo } from "@/components/app/ui";
+import { Avatar, Chip, compact, IconButton, ManagedCreatorBadge, TimeAgo } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
 import MediaGallery from "@/components/media/MediaGallery";
 import ReportDialog from "@/components/social/ReportDialog";
@@ -95,6 +95,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
             {post.editedAt && <span className="font-mono text-[11px] text-muted">edited</span>}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {post.author.managedCreator && <ManagedCreatorBadge />}
             {meta && post.category !== "DISCUSSION" && <Chip icon={meta.icon}>{meta.label}</Chip>}
             {post.community && (
               <Link href={`/c/${post.community.slug}`} className="focus-ring rounded-full">

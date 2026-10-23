@@ -11,14 +11,14 @@ export type NotifyInput = {
   data?: Prisma.InputJsonValue;
 };
 
-/** Creates notifications, skipping self-notifications and banned recipients. */
+/** Creates notifications, skipping self-notifications, banned recipients and non-login identities. */
 export async function notify(input: NotifyInput | NotifyInput[], db: Prisma.TransactionClient | typeof prisma = prisma) {
   const items = (Array.isArray(input) ? input : [input]).filter((n) => n.userId !== n.actorId);
   if (items.length === 0) return;
   const active = new Set(
     (
       await db.user.findMany({
-        where: { id: { in: [...new Set(items.map((n) => n.userId))] }, status: { not: "BANNED" } },
+        where: { id: { in: [...new Set(items.map((n) => n.userId))] }, status: { not: "BANNED" }, kind: "PERSON" },
         select: { id: true },
       })
     ).map((u) => u.id),

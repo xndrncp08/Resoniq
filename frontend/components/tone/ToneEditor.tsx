@@ -7,7 +7,7 @@ import RigEditor, { emptyRig, rigIsEmpty } from "@/components/tone/rig/RigEditor
 import { api, errorMessage } from "@/lib/client-api";
 import type { RigSpec } from "@/types/rig";
 
-export default function ToneEditor({ tone }: { tone: { id: string | null; name: string; description: string | null; visibility: string; rig: RigSpec | null; hasInferred: boolean } }) {
+export default function ToneEditor({ tone }: { tone: { id: string | null; name: string; description: string | null; visibility: string; rig: RigSpec | null; hasInferred: boolean; generated?: boolean } }) {
   const router = useRouter();
   const [name, setName] = useState(tone.name);
   const [description, setDescription] = useState(tone.description ?? "");
@@ -48,8 +48,8 @@ export default function ToneEditor({ tone }: { tone: { id: string | null; name: 
         </label>
       </div>
       <div className="panel space-y-3 p-5">
-        <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">Your rig</h2><Provenance kind="declared" /></div>
-        <p className="font-body text-sm text-muted">Everything is optional. Share as much or as little of your setup as you like{tone.hasInferred ? "; Resoniq's inferred recipe stays separate and labelled" : ""}.</p>
+        <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">{tone.generated ? "Suggested rig remix" : "Your rig"}</h2><Provenance kind={tone.generated ? "generated" : "declared"} /></div>
+        <p className="font-body text-sm text-muted">{tone.generated ? "This starts from generated settings. Your edits preserve that provenance and credit the original tone." : <>Everything is optional. Share as much or as little of your setup as you like{tone.hasInferred ? "; Resoniq's inferred recipe stays separate and labelled" : ""}.</>}</p>
         <RigEditor value={rig} onChange={setRig} />
       </div>
       {error && <p role="alert" className="font-body text-sm text-danger">{error}</p>}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
 
-type Field = { name: string; label: string; type?: "text" | "number" | "textarea" | "select" | "checkbox"; options?: [string, string][]; placeholder?: string; defaultValue?: string; required?: boolean };
+type Field = { name: string; label: string; type?: "text" | "number" | "textarea" | "select" | "checkbox" | "hidden"; options?: [string, string][]; placeholder?: string; defaultValue?: string; required?: boolean; checked?: boolean };
 
 /** A small JSON form for console create/edit actions. */
 export function JsonForm({ url, method = "POST", fields, submit, transform }: { url: string; method?: string; fields: Field[]; submit: string; transform?: (v: Record<string, unknown>) => Record<string, unknown> }) {
@@ -32,7 +32,7 @@ export function JsonForm({ url, method = "POST", fields, submit, transform }: { 
   const cls = "panel-inset mt-1.5 w-full rounded-xl px-3 font-body text-sm outline-none focus:border-copper/60";
   return (
     <form onSubmit={onSubmit} className="panel grid gap-3 p-4 sm:grid-cols-2">
-      {fields.map((f) => (
+      {fields.map((f) => f.type === "hidden" ? <input key={f.name} type="hidden" name={f.name} value={f.defaultValue} /> : (
         <label key={f.name} className={`block ${f.type === "textarea" ? "sm:col-span-2" : ""} ${f.type === "checkbox" ? "flex items-center gap-2 self-end" : ""}`}>
           {f.type !== "checkbox" && <span className="label-engraved">{f.label}</span>}
           {f.type === "textarea" ? (
@@ -40,7 +40,7 @@ export function JsonForm({ url, method = "POST", fields, submit, transform }: { 
           ) : f.type === "select" ? (
             <select name={f.name} defaultValue={f.defaultValue} className={`${cls} h-10`}>{f.options!.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           ) : f.type === "checkbox" ? (
-            <><input type="checkbox" name={f.name} className="accent-[var(--color-copper)]" /><span className="font-body text-sm">{f.label}</span></>
+            <><input type="checkbox" name={f.name} defaultChecked={f.checked} className="accent-[var(--color-copper)]" /><span className="font-body text-sm">{f.label}</span></>
           ) : (
             <input name={f.name} type={f.type ?? "text"} defaultValue={f.defaultValue} placeholder={f.placeholder} required={f.required} className={`${cls} h-10`} />
           )}

@@ -57,4 +57,10 @@ describe("Google sign-in", () => {
     expect(await signIn({ user: { id: "u1" } })).toBe("/login?error=account_disabled");
     vi.mocked(isEnabled).mockResolvedValue(true);
   });
+
+  it("refuses managed publishing identities even if an OAuth callback supplies their id", async () => {
+    vi.mocked(prisma.account.findUnique).mockResolvedValue({ userId: "system" } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ kind: "SYSTEM", status: "ACTIVE" } as never);
+    expect(await signIn({ user: { id: "system" } })).toBe("/login?error=account_disabled");
+  });
 });

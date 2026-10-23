@@ -64,7 +64,7 @@ export async function searchMusicians(q: string, offset = 0, limit = SEARCH_PAGE
   const ids = (
     await prisma.$queryRaw<{ id: string }[]>`
       SELECT u.id FROM "User" u
-      WHERE u.status <> 'BANNED' AND u.kind = 'PERSON'
+      WHERE u.status <> 'BANNED' AND (u.kind = 'PERSON' OR EXISTS (SELECT 1 FROM "ManagedCreator" m WHERE m."userId" = u.id))
         AND (lower(u."handle") % ${needle} OR lower(coalesce(u."name", '')) % ${needle} OR lower(u."handle") LIKE ${needle} || '%')
       ORDER BY greatest(similarity(lower(u."handle"), ${needle}), similarity(lower(coalesce(u."name", '')), ${needle})) DESC, u."followerCount" DESC
       LIMIT ${limit} OFFSET ${offset}`

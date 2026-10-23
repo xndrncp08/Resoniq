@@ -251,7 +251,7 @@ export async function setToneSaved(actor: Actor, toneId: string, on: boolean) {
 export async function remixTone(actor: Actor, sourceId: string): Promise<string> {
   const source = await prisma.tone.findFirst({
     where: { AND: [{ id: sourceId }, viewableToneWhere(actor.id)] },
-    select: { id: true, userId: true, name: true, data: true, rig: true, description: true, user: { select: { kind: true } } },
+    select: { id: true, userId: true, name: true, data: true, rig: true, description: true, origin: true, user: { select: { kind: true } } },
   });
   if (!source) throw new ApiError(404, "Tone not found.");
   const name = `${source.name} (remix)`.slice(0, 120);
@@ -265,6 +265,7 @@ export async function remixTone(actor: Actor, sourceId: string): Promise<string>
         description: source.description,
         visibility: "UNLISTED",
         remixOfId: source.id,
+        origin: source.origin,
       },
       select: { id: true },
     });

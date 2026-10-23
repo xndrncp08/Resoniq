@@ -15,7 +15,7 @@ export default function ToneAttachment({ tone }: { tone: PostTone }) {
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           {tone.declared && (
             <>
-              <Provenance kind="declared" />
+              <Provenance kind={tone.origin === "generated" ? "generated" : "declared"} />
               <span className="truncate font-mono text-xs text-ink-dim">
                 {[tone.declared.instrument, tone.declared.amp, tone.declared.blocks ? `${tone.declared.blocks} blocks` : null].filter(Boolean).join(" → ")}
               </span>

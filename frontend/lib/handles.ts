@@ -17,7 +17,7 @@ export function normalizeHandle(v: unknown): string {
   if (typeof v !== "string") fail("Handle must be a string.");
   const handle = v.trim().replace(/^@/, "").toLowerCase();
   if (!HANDLE_PATTERN.test(handle)) fail("Handles are 3–30 characters: letters, numbers and underscores.");
-  if (RESERVED_HANDLES.has(handle)) fail("That handle is reserved.");
+  if (RESERVED_HANDLES.has(handle) || handle.startsWith("resoniq_")) fail("That handle is reserved.");
   return handle;
 }
 
@@ -32,7 +32,7 @@ export function handleFromName(name: string | null): string | null {
     .replace(/^_+|_+$/g, "")
     .slice(0, 24)
     .replace(/_+$/, "");
-  return slug.length >= 3 && !RESERVED_HANDLES.has(slug) ? slug : null;
+  return slug.length >= 3 && !RESERVED_HANDLES.has(slug) && !slug.startsWith("resoniq_") ? slug : null;
 }
 
 /** The first free handle of base, base_2 … base_9, then base_<random hex>. */

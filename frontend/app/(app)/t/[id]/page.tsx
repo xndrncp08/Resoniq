@@ -7,7 +7,7 @@ import { optionalActor } from "@/lib/api";
 import { GENERATED_DISCLOSURE, getTone } from "@/lib/tones";
 import { listPosts } from "@/lib/posts";
 import Icon from "@/components/icons/Icon";
-import { Avatar, Chip, compact, Provenance, TimeAgo } from "@/components/app/ui";
+import { Avatar, Chip, compact, ManagedCreatorBadge, Provenance, TimeAgo } from "@/components/app/ui";
 import AmpPanel from "@/components/tone/AmpPanel";
 import Pedalboard from "@/components/tone/Pedalboard";
 import RecipeSummary from "@/components/tone/RecipeSummary";
@@ -51,6 +51,7 @@ export default async function TonePage({ params }: Props) {
         <div className="relative">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Chip icon="tone">Tone</Chip>
+            {tone.author.managedCreator && <ManagedCreatorBadge />}
             {tone.visibility !== "PUBLIC" && <Chip icon={tone.visibility === "PRIVATE" ? "lock" : "link"}>{tone.visibility.toLowerCase()}</Chip>}
             {generated ? <Provenance kind="generated" /> : tone.declared && <Provenance kind="declared" />}
             {inferred && <Provenance kind="inferred" edited={tone.recipeEdited} />}
@@ -71,7 +72,7 @@ export default async function TonePage({ params }: Props) {
             </p>
           )}
           {tone.description && <p className="mt-4 max-w-3xl whitespace-pre-wrap font-body text-[15px] leading-relaxed text-ink-dim">{tone.description}</p>}
-          {generated && <p className="mt-3 max-w-3xl font-body text-sm text-amber">{GENERATED_DISCLOSURE}</p>}
+          {generated && !tone.description?.includes(GENERATED_DISCLOSURE) && <p className="mt-3 max-w-3xl font-body text-sm text-amber">{GENERATED_DISCLOSURE}</p>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <ToneActions id={tone.id} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
             {generated && tone.visibility === "PUBLIC" && viewer && (

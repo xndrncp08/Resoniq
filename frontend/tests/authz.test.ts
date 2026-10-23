@@ -23,6 +23,14 @@ describe("isSuspended", () => {
 });
 
 describe("session version", () => {
+  it("rejects a forged session for a managed system identity", async () => {
+    const { auth } = await import("@/auth");
+    const { getActor } = await import("@/lib/authz");
+    const { prisma } = await import("@/lib/prisma");
+    vi.mocked(auth).mockResolvedValue({ user: { id: "system", sv: 0 }, expires: "" } as never);
+    vi.spyOn(prisma.user, "findUnique").mockResolvedValue({ id: "system", kind: "SYSTEM", role: "ADMIN", status: "ACTIVE", sessionVersion: 0 } as never);
+    expect(await getActor()).toBeNull();
+  });
   it("treats sessions issued before a password reset as signed out", async () => {
     const { auth } = await import("@/auth");
     const { getActor } = await import("@/lib/authz");

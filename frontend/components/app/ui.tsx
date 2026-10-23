@@ -127,6 +127,10 @@ export function Provenance({ kind, edited = false, className = "" }: { kind: "de
   );
 }
 
+export function ManagedCreatorBadge() {
+  return <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal" title="An editorial demo identity owned and operated by Resoniq, not an independent musician.">Resoniq-managed</span>;
+}
+
 export function EmptyState({ icon, title, children, action }: { icon: IconName; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="panel grille flex flex-col items-center gap-3 px-6 py-14 text-center">

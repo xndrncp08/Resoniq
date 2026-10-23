@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { Author } from "@/lib/profiles";
 
 /**
- * The reserved identity Resoniq-generated tones are published under.
+ * The legacy reserved Anonymous identity. New presets use managed-creators.ts.
  *
  * It's a User row only because every tone needs an owner; `kind = SYSTEM`
  * marks it as nobody's account. It has no email, password or OAuth link, so

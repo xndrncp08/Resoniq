@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/icons/Icon";
-import { Avatar, compact, Provenance } from "@/components/app/ui";
+import { Avatar, compact, ManagedCreatorBadge, Provenance } from "@/components/app/ui";
 import type { ToneView } from "@/lib/tones";
 
 const FAMILY_DOT: Record<string, string> = { drive: "#FF8A3D", fuzz: "#E8553A", distortion: "#FF6B3D", delay: "#37E6C9", reverb: "#2FB8A2", chorus: "#5FB8FF", compressor: "#C9C3B8" };
@@ -24,6 +24,7 @@ export default function ToneCard({ tone }: { tone: ToneView }) {
         {!tone.declared && tone.inferred && <Icon name="waveform" size={22} className="text-signal" />}
       </div>
       <div className="flex flex-wrap gap-1.5">
+        {tone.author.managedCreator && <ManagedCreatorBadge />}
         {tone.origin === "generated" ? <Provenance kind="generated" /> : tone.declared && <Provenance kind="declared" />}
         {tone.inferred && <Provenance kind="inferred" edited={tone.recipeEdited} />}
       </div>

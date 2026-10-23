@@ -8,7 +8,7 @@ import { listPosts } from "@/lib/posts";
 import { listedToneWhere, listTones, savedTones } from "@/lib/tones";
 import { INSTRUMENTS } from "@/lib/profile-validation";
 import Icon from "@/components/icons/Icon";
-import { Avatar, Chip, compact, EmptyState, LinkButton, Tabs } from "@/components/app/ui";
+import { Avatar, Chip, compact, EmptyState, LinkButton, ManagedCreatorBadge, Tabs } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
 import PostFeed from "@/components/social/PostFeed";
 import ToggleButton from "@/components/social/ToggleButton";
@@ -59,6 +59,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           </div>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{profile.name ?? `@${profile.handle}`}</h1>
           <p className="font-mono text-sm text-muted">@{profile.handle}</p>
+          {profile.managed && <ManagedCreatorBadge />}
           {profile.bio && <RichText text={profile.bio} className="mt-3 max-w-2xl font-body text-[15px] leading-relaxed text-ink-dim" />}
           <div className="mt-4 flex flex-wrap gap-1.5">
             {profile.instruments.map((i) => <Chip key={i} icon={i === "bass" ? "bass" : i.includes("guitar") || i === "extended-range" ? "guitar" : "audio"}>{INSTRUMENT_LABEL[i as keyof typeof INSTRUMENT_LABEL] ?? i}</Chip>)}

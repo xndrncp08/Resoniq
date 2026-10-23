@@ -74,12 +74,13 @@ export const POST_VIEW_SELECT = {
   author: { select: AUTHOR_SELECT },
   community: { select: { id: true, slug: true, name: true, kind: true } },
   tags: { select: { tag: true } },
-  tone: { select: { id: true, name: true, visibility: true, data: true, rig: true, recipeEdited: true, saveCount: true } },
+  tone: { select: { id: true, name: true, visibility: true, data: true, rig: true, recipeEdited: true, saveCount: true, origin: true } },
   media: { where: { status: { in: ["PROCESSING", "READY", "FAILED"] } }, orderBy: { position: "asc" } },
 } satisfies Prisma.PostSelect;
 
 /** What a post card shows about its attached tone. Private tones are never exposed through posts. */
 export type PostTone = {
+  origin?: "member" | "generated";
   id: string;
   name: string;
   saveCount: number;
@@ -95,6 +96,7 @@ function toPostTone(t: PostRow["tone"]): PostTone | null {
   return {
     id: t.id,
     name: t.name,
+    origin: t.origin === "GENERATED" ? "generated" : "member",
     saveCount: t.saveCount,
     declared: rig && { instrument: name(rig.instrument?.ref) ?? (rig.instrument ? rig.instrument.kind.toLowerCase() : null), amp: name(rig.amp?.ref), blocks: rig.chain.length },
     inferred: core && { amp: core.amp.model, gain: core.amp.gain, edited: t.recipeEdited },

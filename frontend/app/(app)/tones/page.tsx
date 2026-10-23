@@ -22,7 +22,7 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <PageHeader eyebrow="Tone library" title="Tones worth stealing" actions={<><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
-        Real rigs, declared by the players who use them, and starting points inferred from recordings. Save them, remix them, compare them.
+        Member-declared rigs, starting points inferred from recordings, and clearly labelled Resoniq-generated settings. Save them, remix them, compare them.
       </PageHeader>
       <form action="/tones" className="mb-4 flex gap-2">
         <input type="hidden" name="sort" value={sort} />

@@ -19,6 +19,7 @@ export type PublicProfile = {
   createdAt: string;
   viewerFollows: boolean;
   isSelf: boolean;
+  managed: boolean;
 };
 
 export const PUBLIC_USER_SELECT = {
@@ -35,21 +36,24 @@ export const PUBLIC_USER_SELECT = {
   followingCount: true,
   reputation: true,
   createdAt: true,
+  managedCreator: { select: { id: true } },
 } satisfies Prisma.UserSelect;
 
 /** The compact author shape used on posts, comments and lists. */
-export const AUTHOR_SELECT = { id: true, handle: true, name: true, image: true } satisfies Prisma.UserSelect;
-export type Author = Prisma.UserGetPayload<{ select: typeof AUTHOR_SELECT }>;
+export const AUTHOR_SELECT = { id: true, handle: true, name: true, image: true, managedCreator: { select: { id: true } } } satisfies Prisma.UserSelect;
+export type Author = Omit<Prisma.UserGetPayload<{ select: typeof AUTHOR_SELECT }>, "managedCreator"> & { managedCreator?: { id: string } | null };
 
 type Row = Prisma.UserGetPayload<{ select: typeof PUBLIC_USER_SELECT }>;
 
 export function toPublicProfile(u: Row, viewerId: string | null, viewerFollows: boolean): PublicProfile {
+  const { managedCreator, ...profile } = u;
   return {
-    ...u,
+    ...profile,
     links: Array.isArray(u.links) ? (u.links as ProfileLink[]) : [],
     createdAt: u.createdAt.toISOString(),
     viewerFollows,
     isSelf: viewerId === u.id,
+    managed: !!managedCreator,
   };
 }
 
@@ -57,7 +61,7 @@ export function toPublicProfile(u: Row, viewerId: string | null, viewerFollows: 
 export async function getPublicProfile(handle: string, viewerId: string | null): Promise<PublicProfile | null> {
   const user = await prisma.user.findFirst({
     // System identities (lib/system-identity.ts) have no public profile.
-    where: { handle: handle.toLowerCase(), status: { not: "BANNED" }, kind: "PERSON" },
+    where: { handle: handle.toLowerCase(), status: { not: "BANNED" }, OR: [{ kind: "PERSON" }, { managedCreator: { isNot: null } }] },
     select: PUBLIC_USER_SELECT,
   });
   if (!user) return null;
