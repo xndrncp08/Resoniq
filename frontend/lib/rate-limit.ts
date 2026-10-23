@@ -66,6 +66,12 @@ export function rateLimit(bucket: string, key: string, rule: RateLimitRule, now 
 export const rateLimitStore = (): "memory" | "postgres" =>
   (process.env.RESONIQ_RATE_LIMIT_STORE ?? (process.env.VERCEL ? "postgres" : "memory")) === "postgres" ? "postgres" : "memory";
 
+/** Bucket ids contain client IPs; the daily cron guarantees expired ones go even when traffic is too low for the sampled cleanup. */
+export async function purgeExpiredRateLimits(now = Date.now()) {
+  const { prisma } = await import("@/lib/prisma");
+  return (await prisma.rateLimitBucket.deleteMany({ where: { resetAt: { lt: BigInt(now) } } })).count;
+}
+
 /** The shared-store version of rateLimit(): one round trip, atomic under concurrency. */
 export async function rateLimitShared(bucket: string, key: string, rule: RateLimitRule, now = Date.now()): Promise<RateLimitResult> {
   const id = `${bucket}:${key}`.slice(0, 300);
