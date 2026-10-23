@@ -194,6 +194,8 @@ model Tone {
   @@index([userId, favorite, createdAt])
   @@index([visibility, publishedAt])
   @@index([visibility, saveCount])
+  @@index([visibility, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([visibility, saveCount(sort: Desc), id(sort: Desc)])
   @@index([remixOfId])
   @@index([origin, visibility, createdAt])
 }
@@ -524,6 +526,7 @@ model Post {
   media     Media[]
 
   @@index([status, hotRank, id])
+  @@index([hotRank(sort: Desc), id(sort: Desc)])
   @@index([status, createdAt, id])
   @@index([communityId, status, hotRank])
   @@index([communityId, status, createdAt])
