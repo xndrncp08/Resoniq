@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, readJson, route } from "@/lib/api";
 import { requireActor } from "@/lib/authz";
 import { deleteAccount } from "@/lib/account";
+import { kickJobs } from "@/lib/jobs/drain";
 import { parseProfilePatch } from "@/lib/profile-validation";
 import { PUBLIC_USER_SELECT, toPublicProfile } from "@/lib/profiles";
 import { RATE_LIMITS } from "@/lib/rate-limit";
@@ -65,5 +66,7 @@ export const DELETE = route("me.delete", async (req) => {
     throw new ApiError(403, "Password is incorrect.");
   }
   await deleteAccount(actor.id);
+  // Stored files are deleted by queued jobs; without a worker, start on them right away.
+  kickJobs();
   return NextResponse.json({ ok: true });
 });

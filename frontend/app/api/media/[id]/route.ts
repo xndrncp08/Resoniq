@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { route } from "@/lib/api";
 import { requireActor } from "@/lib/authz";
 import { ownUpload, removeMedia, toMediaView } from "@/lib/media/service";
+import { kickJobs } from "@/lib/jobs/drain";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,5 +15,6 @@ export const GET = route<Ctx>("media.get", async (_req, { params }) => {
 export const DELETE = route<Ctx>("media.delete", async (_req, { params }) => {
   const actor = await requireActor();
   await removeMedia(actor, (await params).id, "Deleted by owner", { asModerator: false });
+  kickJobs();
   return NextResponse.json({ ok: true });
 });
