@@ -17,8 +17,11 @@ export const POST = route("posts.create", async (req) => {
 
   const attach: PostAttachHook = async (tx, postId) => {
     if (input.toneId) {
-      // Only your own tones can be attached. Attaching is sharing, so a private tone becomes unlisted.
-      const tone = await tx.tone.findFirst({ where: { id: input.toneId, userId: actor.id }, select: { id: true, visibility: true } });
+      // Your own tones, or a public Resoniq-generated one to discuss. Attaching is sharing, so a private tone of yours becomes unlisted.
+      const tone = await tx.tone.findFirst({
+        where: { id: input.toneId, OR: [{ userId: actor.id }, { origin: "GENERATED", visibility: "PUBLIC" }] },
+        select: { id: true, visibility: true },
+      });
       if (!tone) throw new ApiError(404, "Tone not found.");
       if (tone.visibility === "PRIVATE") await tx.tone.update({ where: { id: tone.id }, data: { visibility: "UNLISTED" } });
       await tx.post.update({ where: { id: postId }, data: { toneId: tone.id } });

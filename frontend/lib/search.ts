@@ -34,11 +34,13 @@ export async function searchPosts(q: string, viewerId: string | null, offset = 0
   return withViewerState(keepOrder(ids, rows), viewerId);
 }
 
-export async function searchTones(q: string, viewerId: string | null, offset = 0, limit = SEARCH_PAGE) {
+/** `source`: "members" hides Resoniq-generated presets, "generated" shows only them. */
+export async function searchTones(q: string, viewerId: string | null, offset = 0, limit = SEARCH_PAGE, source?: "members" | "generated") {
+  const origin = source === "generated" ? "GENERATED" : source === "members" ? "MEMBER" : null;
   const ids = (
     await prisma.$queryRaw<{ id: string }[]>`
       SELECT t.id FROM "Tone" t JOIN "User" u ON u.id = t."userId" AND u.status <> 'BANNED'
-      WHERE t.visibility = 'PUBLIC'
+      WHERE t.visibility = 'PUBLIC' AND (${origin}::text IS NULL OR t.origin::text = ${origin})
         AND to_tsvector('english', t."name" || ' ' || coalesce(t."description", '')) @@ websearch_to_tsquery('english', ${q})
       ORDER BY ts_rank(to_tsvector('english', t."name" || ' ' || coalesce(t."description", '')), websearch_to_tsquery('english', ${q})) DESC, t."saveCount" DESC
       LIMIT ${limit} OFFSET ${offset}`
@@ -62,7 +64,7 @@ export async function searchMusicians(q: string, offset = 0, limit = SEARCH_PAGE
   const ids = (
     await prisma.$queryRaw<{ id: string }[]>`
       SELECT u.id FROM "User" u
-      WHERE u.status <> 'BANNED'
+      WHERE u.status <> 'BANNED' AND u.kind = 'PERSON'
         AND (lower(u."handle") % ${needle} OR lower(coalesce(u."name", '')) % ${needle} OR lower(u."handle") LIKE ${needle} || '%')
       ORDER BY greatest(similarity(lower(u."handle"), ${needle}), similarity(lower(coalesce(u."name", '')), ${needle})) DESC, u."followerCount" DESC
       LIMIT ${limit} OFFSET ${offset}`

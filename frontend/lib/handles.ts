@@ -10,7 +10,7 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
   "admin", "administrator", "api", "app", "c", "compare", "copyright", "explore", "feed", "gear", "help",
   "library", "login", "logout", "me", "mod", "moderator", "new", "notifications", "p", "resoniq", "root",
   "search", "settings", "signup", "staff", "support", "system", "t", "tag", "tones", "u", "analyze",
-  "bookmarks", "official", "security", "terms", "privacy",
+  "bookmarks", "official", "security", "terms", "privacy", "anonymous",
 ]);
 
 export function normalizeHandle(v: unknown): string {

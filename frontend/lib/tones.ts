@@ -9,10 +9,15 @@ import { parseRig, rigGearIds } from "@/lib/rig-validation";
 import { recipeCoreFromStored } from "@/lib/tone-recipe";
 import { parseStoredToneData, parseToneName } from "@/lib/tone-validation";
 import { fail } from "@/lib/validation";
+import { ANONYMOUS_AUTHOR } from "@/lib/system-identity";
 import type { RigSpec } from "@/types/rig";
 import type { RecipeCore } from "@/types/tone";
 
 export const TONE_VISIBILITIES: ToneVisibility[] = ["PRIVATE", "UNLISTED", "PUBLIC"];
+
+/** Shown with every Resoniq-generated tone (tone page, export, admin preview). */
+export const GENERATED_DISCLOSURE =
+  "Resoniq-generated: suggested starting settings written by Resoniq. Not taken from a recording, and not tested on the listed gear.";
 export const MAX_TONE_DESCRIPTION = 4000;
 
 const TONE_SELECT = {
@@ -31,8 +36,10 @@ const TONE_SELECT = {
   publishedAt: true,
   createdAt: true,
   updatedAt: true,
+  origin: true,
+  anonymous: true,
   user: { select: { ...AUTHOR_SELECT, status: true } },
-  remixOf: { select: { id: true, name: true, visibility: true, user: { select: { ...AUTHOR_SELECT, status: true } } } },
+  remixOf: { select: { id: true, name: true, visibility: true, anonymous: true, user: { select: { ...AUTHOR_SELECT, status: true } } } },
 } satisfies Prisma.ToneSelect;
 
 type ToneRow = Prisma.ToneGetPayload<{ select: typeof TONE_SELECT }>;
@@ -47,13 +54,17 @@ export type ToneView = {
   name: string;
   description: string | null;
   visibility: ToneVisibility;
+  /** Who's shown: the owner, or ANONYMOUS_AUTHOR (no profile link) when `anonymous`. */
   author: Author;
+  anonymous: boolean;
+  /** "generated": suggested settings written by Resoniq, not a member's rig or an analysis. */
+  origin: "member" | "generated";
   inferred: RecipeCore | null;
   recipeEdited: boolean;
   declared: RigSpec | null;
   saveCount: number;
   remixCount: number;
-  remixOf: { id: string; name: string; author: Author } | null;
+  remixOf: { id: string; name: string; author: Author; anonymous: boolean } | null;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -72,13 +83,15 @@ export function toToneView(t: ToneRow, viewerId: string | null, saved = false): 
     name: t.name,
     description: t.description,
     visibility: t.visibility,
-    author: stripStatus(t.user),
+    author: t.anonymous ? ANONYMOUS_AUTHOR : stripStatus(t.user),
+    anonymous: t.anonymous,
+    origin: t.origin === "GENERATED" ? "generated" : "member",
     inferred: recipeCoreFromStored(t.data),
     recipeEdited: t.recipeEdited,
     declared: (t.rig as RigSpec | null) ?? null,
     saveCount: t.saveCount,
     remixCount: t.remixCount,
-    remixOf: source && { id: source.id, name: source.name, author: stripStatus(source.user) },
+    remixOf: source && { id: source.id, name: source.name, author: source.anonymous ? ANONYMOUS_AUTHOR : stripStatus(source.user), anonymous: source.anonymous },
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
     publishedAt: t.publishedAt?.toISOString() ?? null,
@@ -221,13 +234,14 @@ export async function updateTone(actor: Actor, id: string, input: ToneInput) {
 
 export async function setToneSaved(actor: Actor, toneId: string, on: boolean) {
   const created = await prisma.$transaction(async (tx) => {
-    const tone = await tx.tone.findFirst({ where: { AND: [{ id: toneId }, viewableToneWhere(actor.id)] }, select: { id: true, userId: true } });
+    const tone = await tx.tone.findFirst({ where: { AND: [{ id: toneId }, viewableToneWhere(actor.id)] }, select: { id: true, userId: true, user: { select: { kind: true } } } });
     if (!tone) throw new ApiError(404, "Tone not found.");
     const { count } = on
       ? await tx.toneSave.createMany({ data: [{ userId: actor.id, toneId }], skipDuplicates: true })
       : await tx.toneSave.deleteMany({ where: { userId: actor.id, toneId } });
     if (count) await tx.tone.update({ where: { id: toneId }, data: { saveCount: { increment: on ? 1 : -1 } } });
-    return on && count ? tone.userId : null;
+    // System identities have no inbox.
+    return on && count && tone.user.kind === "PERSON" ? tone.userId : null;
   });
   if (created) await notify({ userId: created, type: "TONE_SAVE", actorId: actor.id, toneId });
   return { saved: on };
@@ -237,7 +251,7 @@ export async function setToneSaved(actor: Actor, toneId: string, on: boolean) {
 export async function remixTone(actor: Actor, sourceId: string): Promise<string> {
   const source = await prisma.tone.findFirst({
     where: { AND: [{ id: sourceId }, viewableToneWhere(actor.id)] },
-    select: { id: true, userId: true, name: true, data: true, rig: true, description: true },
+    select: { id: true, userId: true, name: true, data: true, rig: true, description: true, user: { select: { kind: true } } },
   });
   if (!source) throw new ApiError(404, "Tone not found.");
   const name = `${source.name} (remix)`.slice(0, 120);
@@ -258,7 +272,7 @@ export async function remixTone(actor: Actor, sourceId: string): Promise<string>
     await tx.tone.update({ where: { id: source.id }, data: { remixCount: { increment: 1 } } });
     return tone.id;
   });
-  await notify({ userId: source.userId, type: "TONE_REMIX", actorId: actor.id, toneId: id });
+  if (source.user.kind === "PERSON") await notify({ userId: source.userId, type: "TONE_REMIX", actorId: actor.id, toneId: id });
   return id;
 }
 
@@ -270,13 +284,31 @@ export type ToneListQuery = {
   gearId?: string;
   authorId?: string;
   q?: string;
+  /** "members" hides Resoniq-generated presets; "generated" shows only them. */
+  source?: "members" | "generated";
+  /** A genre named in the rig's references, matched case-insensitively against TONE_GENRES. */
+  genre?: string;
   cursor: Cursor | null;
   limit: number;
 };
 
+/** Genres tones can be filtered by: the genre communities, lowercased as stored in rig.references.genres. */
+export const TONE_GENRES = ["blues", "rock", "metal", "jazz", "funk", "indie", "ambient", "worship", "country", "prog", "pop", "shoegaze"] as const;
+
+export function parseToneSource(v: string | null | undefined): ToneListQuery["source"] {
+  return v === "members" || v === "generated" ? v : undefined;
+}
+export function parseToneGenre(v: string | null | undefined): string | undefined {
+  const g = v?.toLowerCase();
+  return g && (TONE_GENRES as readonly string[]).includes(g) ? g : undefined;
+}
+
 export async function listTones(viewerId: string | null, q: ToneListQuery, base: Prisma.ToneWhereInput = listedToneWhere) {
   const and: Prisma.ToneWhereInput[] = [base];
-  if (q.authorId) and.push({ userId: q.authorId });
+  // Anonymous tones never appear on their owner's profile listing.
+  if (q.authorId) and.push({ userId: q.authorId, anonymous: false });
+  if (q.source) and.push({ origin: q.source === "generated" ? "GENERATED" : "MEMBER" });
+  if (q.genre) and.push({ rig: { path: ["references", "genres"], array_contains: [q.genre] } });
   if (q.gearId) and.push({ gear: { some: { gearItemId: q.gearId } } });
   if (q.instrument) and.push({ rig: { path: ["instrument", "kind"], equals: q.instrument } });
   if (q.q) and.push({ OR: [{ name: { contains: q.q, mode: "insensitive" } }, { description: { contains: q.q, mode: "insensitive" } }] });
@@ -316,8 +348,9 @@ export function exportTone(t: ToneView, origin: string) {
     url: `${origin}/t/${t.id}`,
     name: t.name,
     description: t.description,
-    author: `@${t.author.handle}`,
-    remixOf: t.remixOf && { url: `${origin}/t/${t.remixOf.id}`, name: t.remixOf.name, author: `@${t.remixOf.author.handle}` },
+    author: t.anonymous ? t.author.name : `@${t.author.handle}`,
+    remixOf: t.remixOf && { url: `${origin}/t/${t.remixOf.id}`, name: t.remixOf.name, author: t.remixOf.anonymous ? t.remixOf.author.name : `@${t.remixOf.author.handle}` },
+    ...(t.origin === "generated" && { provenance: GENERATED_DISCLOSURE }),
     declared: t.declared,
     inferred: t.inferred && {
       ...t.inferred,

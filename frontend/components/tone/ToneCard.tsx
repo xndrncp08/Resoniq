@@ -24,19 +24,19 @@ export default function ToneCard({ tone }: { tone: ToneView }) {
         {!tone.declared && tone.inferred && <Icon name="waveform" size={22} className="text-signal" />}
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {tone.declared && <Provenance kind="declared" />}
+        {tone.origin === "generated" ? <Provenance kind="generated" /> : tone.declared && <Provenance kind="declared" />}
         {tone.inferred && <Provenance kind="inferred" edited={tone.recipeEdited} />}
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 pt-1">
         <span className="flex min-w-0 items-center gap-2 font-body text-sm text-muted">
-          <Avatar user={tone.author} size={22} /> <span className="truncate">@{tone.author.handle}</span>
+          {tone.anonymous ? <span className="truncate">{tone.author.name}</span> : <><Avatar user={tone.author} size={22} /> <span className="truncate">@{tone.author.handle}</span></>}
         </span>
         <span className="flex shrink-0 gap-3 font-mono text-xs text-muted">
           <span title="Saves"><Icon name="bookmark" size={13} className="mr-0.5 inline" />{compact(tone.saveCount)}</span>
           <span title="Remixes"><Icon name="remix" size={13} className="mr-0.5 inline" />{compact(tone.remixCount)}</span>
         </span>
       </div>
-      {tone.remixOf && <p className="font-mono text-[11px] text-muted">Remix of {tone.remixOf.name} by @{tone.remixOf.author.handle}</p>}
+      {tone.remixOf && <p className="font-mono text-[11px] text-muted">Remix of {tone.remixOf.name} by {tone.remixOf.anonymous ? tone.remixOf.author.name : `@${tone.remixOf.author.handle}`}</p>}
     </Link>
   );
 }

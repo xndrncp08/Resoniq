@@ -56,7 +56,8 @@ export function toPublicProfile(u: Row, viewerId: string | null, viewerFollows: 
 /** Null for unknown handles and for banned accounts. */
 export async function getPublicProfile(handle: string, viewerId: string | null): Promise<PublicProfile | null> {
   const user = await prisma.user.findFirst({
-    where: { handle: handle.toLowerCase(), status: { not: "BANNED" } },
+    // System identities (lib/system-identity.ts) have no public profile.
+    where: { handle: handle.toLowerCase(), status: { not: "BANNED" }, kind: "PERSON" },
     select: PUBLIC_USER_SELECT,
   });
   if (!user) return null;

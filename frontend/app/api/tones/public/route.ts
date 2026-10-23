@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { enforceRateLimit, optionalActor, route } from "@/lib/api";
 import { decodeCursor, parseLimit } from "@/lib/pagination";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { listTones } from "@/lib/tones";
+import { listTones, parseToneGenre, parseToneSource } from "@/lib/tones";
 
-/** Public tone discovery: ?sort=new|popular &instrument=GUITAR|BASS &gear=<id> &q &cursor */
+/** Public tone discovery: ?sort=new|popular &instrument=GUITAR|BASS &gear=<id> &genre &source=members|generated &q &cursor */
 export const GET = route("tones.public", async (req) => {
   await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();
@@ -16,6 +16,8 @@ export const GET = route("tones.public", async (req) => {
       instrument: instrument === "GUITAR" || instrument === "BASS" ? instrument : undefined,
       gearId: p.get("gear") ?? undefined,
       q: p.get("q")?.trim().slice(0, 80) || undefined,
+      source: parseToneSource(p.get("source")),
+      genre: parseToneGenre(p.get("genre")),
       cursor: decodeCursor(p.get("cursor")),
       limit: parseLimit(p.get("limit")),
     }),

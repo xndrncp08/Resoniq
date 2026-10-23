@@ -50,9 +50,10 @@ export function platformCounts() {
 
 async function loadPlatformCounts() {
   const [musicians, posts, tones, communities] = await Promise.all([
-    prisma.user.count({ where: { status: "ACTIVE" } }),
+    prisma.user.count({ where: { status: "ACTIVE", kind: "PERSON" } }),
     prisma.post.count({ where: { status: "PUBLISHED", author: { status: { not: "BANNED" } } } }),
-    prisma.tone.count({ where: { visibility: "PUBLIC", user: { status: { not: "BANNED" } } } }),
+    // Members' tones only: Resoniq-generated presets aren't community activity.
+    prisma.tone.count({ where: { visibility: "PUBLIC", origin: "MEMBER", user: { status: { not: "BANNED" } } } }),
     prisma.community.count({ where: { archivedAt: null } }),
   ]);
   return { musicians, posts, tones, communities };

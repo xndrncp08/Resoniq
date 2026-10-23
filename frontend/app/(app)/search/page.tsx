@@ -8,6 +8,7 @@ import PostCard from "@/components/social/PostCard";
 import MusicianRow from "@/components/social/MusicianRow";
 import ToneCard from "@/components/tone/ToneCard";
 import { KIND_ICON } from "@/components/tone/gear-icons";
+import { parseToneSource } from "@/lib/tones";
 
 export const metadata: Metadata = { title: "Search", robots: { index: false } };
 
@@ -25,19 +26,20 @@ function Section({ title, href, children, show }: { title: string; href: string;
   );
 }
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; type?: string }> }) {
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; type?: string; source?: string }> }) {
   const sp = await searchParams;
   const q = sp.q?.trim().slice(0, 100) ?? "";
   const type = SEARCH_TYPES.find((t) => t === sp.type);
   const viewer = await optionalActor();
   const vid = viewer?.id ?? null;
   const enc = encodeURIComponent(q);
+  const source = parseToneSource(sp.source);
 
   let all: Results | null = null;
   let one: { type: SearchType; items: unknown[] } | null = null;
   if (q.length >= 2) {
     if (type) {
-      const items = await { posts: () => searchPosts(q, vid), tones: () => searchTones(q, vid), musicians: () => searchMusicians(q), communities: () => searchCommunities(q), gear: () => searchGearItems(q) }[type]();
+      const items = await { posts: () => searchPosts(q, vid), tones: () => searchTones(q, vid, 0, undefined, source), musicians: () => searchMusicians(q), communities: () => searchCommunities(q), gear: () => searchGearItems(q) }[type]();
       one = { type, items };
     } else all = await searchAll(q, vid);
   }
@@ -52,6 +54,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {type && <input type="hidden" name="type" value={type} />}
       </form>
       {q && <Tabs label="Result type" items={[{ href: `/search?q=${enc}`, label: "All", active: !type }, ...SEARCH_TYPES.map((t) => ({ href: `/search?q=${enc}&type=${t}`, label: LABEL[t], active: type === t }))]} />}
+      {q && type === "tones" && <Tabs label="Tone source" items={[{ href: `/search?q=${enc}&type=tones`, label: "All sources", active: !source }, { href: `/search?q=${enc}&type=tones&source=members`, label: "Members only", active: source === "members" }, { href: `/search?q=${enc}&type=tones&source=generated`, label: "Resoniq-generated", active: source === "generated" }]} />}
       {!q && <p className="font-body text-muted">Try a player, a pedal (<Link className="text-copper" href="/search?q=tube%20screamer">tube screamer</Link>), a style (<Link className="text-copper" href="/search?q=%22edge%20of%20breakup%22">&quot;edge of breakup&quot;</Link>) or a community.</p>}
       {nothing && <EmptyState icon="search" title="Nothing matched">Try fewer words, or search a different type.</EmptyState>}
 

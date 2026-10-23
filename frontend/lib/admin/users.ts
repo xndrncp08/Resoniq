@@ -109,8 +109,9 @@ export async function setUserRole(actor: Actor, id: string, role: Role) {
   if (id === actor.id) throw new ApiError(400, "Ask another admin to change your own role.");
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE role = 'ADMIN' ORDER BY id FOR UPDATE`;
-    const target = await tx.user.findUnique({ where: { id }, select: { role: true } });
+    const target = await tx.user.findUnique({ where: { id }, select: { role: true, kind: true } });
     if (!target) throw new ApiError(404, "User not found.");
+    if (target.kind === "SYSTEM") throw new ApiError(400, "System identities can't hold a staff role.");
     if (target.role === "ADMIN" && role !== "ADMIN") {
       const admins = await tx.user.count({ where: { role: "ADMIN", status: "ACTIVE" } });
       if (admins <= 1) throw new ApiError(400, "Resoniq needs at least one active admin.");

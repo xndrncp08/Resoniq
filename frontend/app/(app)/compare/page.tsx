@@ -35,7 +35,7 @@ function Header({ t, label }: { t: ToneView; label: string }) {
     <div className="min-w-0">
       <p className="label-engraved">{label}</p>
       <Link href={`/t/${t.id}`} className="block truncate font-display text-lg font-semibold hover:text-copper-soft">{t.name}</Link>
-      <p className="font-mono text-xs text-muted">@{t.author.handle}</p>
+      <p className="font-mono text-xs text-muted">{t.anonymous ? t.author.name : `@${t.author.handle}`}{t.origin === "generated" && " · Resoniq-generated"}</p>
     </div>
   );
 }

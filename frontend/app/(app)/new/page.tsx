@@ -15,6 +15,11 @@ export default async function NewPostPage({ searchParams }: { searchParams: Prom
     prisma.communityMember.findMany({ where: { userId: actor.id }, select: { communityId: true } }),
     prisma.tone.findMany({ where: { userId: actor.id }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, name: true, visibility: true } }),
   ]);
+  // "Discuss this tone" on a Resoniq-generated tone pre-attaches it (app/api/posts allows those).
+  if (sp.tone && !tones.some((t) => t.id === sp.tone)) {
+    const generated = await prisma.tone.findFirst({ where: { id: sp.tone, origin: "GENERATED", visibility: "PUBLIC" }, select: { id: true, name: true, visibility: true } });
+    if (generated) tones.unshift({ ...generated, name: `${generated.name} (Resoniq-generated)` });
+  }
   const caps = await mediaCapabilities();
   const mine = new Set(joined.map((j) => j.communityId));
   return (

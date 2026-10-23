@@ -8,6 +8,7 @@ import { compareAgainstDummy, normalizeEmail } from "@/lib/credentials";
 import { checkRateLimit, clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { isEnabled } from "@/lib/flags";
 import { googleCredentials } from "@/lib/hosting";
+import { isReservedDisplayName } from "@/lib/system-identity";
 
 class RateLimited extends CredentialsSignin {
   code = "rate_limited";
@@ -39,7 +40,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             checks: ["pkce", "state"],
             profile: (p) => ({
               id: p.sub,
-              name: p.name,
+              // A Google name can't make a member look like Resoniq's own identity.
+              name: p.name && !isReservedDisplayName(p.name) ? p.name : null,
               email: p.email,
               image: p.picture,
               emailVerified: p.email_verified ? new Date() : null,

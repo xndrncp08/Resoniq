@@ -108,7 +108,14 @@ export function Chip({ children, active = false, icon, className = "" }: { child
  * The provenance label that runs through the whole product: what the creator
  * declared about their rig versus what Resoniq's analysis inferred.
  */
-export function Provenance({ kind, edited = false, className = "" }: { kind: "declared" | "inferred"; edited?: boolean; className?: string }) {
+export function Provenance({ kind, edited = false, className = "" }: { kind: "declared" | "inferred" | "generated"; edited?: boolean; className?: string }) {
+  if (kind === "generated") {
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-amber ${className}`} title="Suggested starting settings written by Resoniq. Not taken from a recording, and not tested on the listed gear.">
+        <Icon name="knob" size={13} /> Resoniq-generated
+      </span>
+    );
+  }
   return kind === "declared" ? (
     <span className={`inline-flex items-center gap-1 rounded-full border border-copper/40 bg-copper/10 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-copper ${className}`} title="Gear the creator says they used">
       <Icon name="declared" size={13} /> Creator declared

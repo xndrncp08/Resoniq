@@ -8,6 +8,7 @@ import { assignHandle, handleFromName } from "@/lib/handles";
 import { passwordSignupsOpen } from "@/lib/hosting";
 import { isUniqueViolation } from "@/lib/validation";
 import { sendVerificationEmail } from "@/lib/email-tokens";
+import { isReservedDisplayName } from "@/lib/system-identity";
 
 /**
  * Creates an email/password account.
@@ -30,6 +31,7 @@ export const POST = route("register", async (req) => {
   const problem = passwordProblem(password);
   if (problem) throw new ApiError(400, problem);
   const displayName = typeof name === "string" ? name.trim().slice(0, MAX_NAME_LENGTH) || null : null;
+  if (displayName && isReservedDisplayName(displayName)) throw new ApiError(400, "That name is reserved.");
 
   const passwordHash = await bcrypt.hash(password as string, BCRYPT_ROUNDS);
 

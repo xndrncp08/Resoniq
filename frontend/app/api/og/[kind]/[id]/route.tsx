@@ -38,7 +38,12 @@ export async function GET(_req: Request, { params }: Ctx) {
     if (!t) return new Response("Not found", { status: 404 });
     const chain = t.declared ? [t.declared.instrument?.ref?.model, ...t.declared.chain.map((b) => b.ref?.model ?? b.category), t.declared.amp?.ref?.model].filter(Boolean).slice(0, 4).join("  →  ") : null;
     return new ImageResponse(
-      <Frame eyebrow={t.declared ? "CREATOR-DECLARED RIG" : "TONE RECIPE · INFERRED FROM AUDIO"} title={t.name} by={`@${t.author.handle}${chain ? `  ·  ${chain}` : ""}`} chips={[...(t.declared ? [{ text: "Creator declared", color: C.copper }] : []), ...(t.inferred ? [{ text: "Resoniq inferred", color: C.signal }] : [])]} />,
+      <Frame
+        eyebrow={t.origin === "generated" ? "SUGGESTED SETTINGS · RESONIQ-GENERATED" : t.declared ? "CREATOR-DECLARED RIG" : "TONE RECIPE · INFERRED FROM AUDIO"}
+        title={t.name}
+        by={`${t.anonymous ? t.author.name : `@${t.author.handle}`}${chain ? `  ·  ${chain}` : ""}`}
+        chips={[...(t.origin === "generated" ? [{ text: "Resoniq-generated", color: C.ink }] : t.declared ? [{ text: "Creator declared", color: C.copper }] : []), ...(t.inferred ? [{ text: "Resoniq inferred", color: C.signal }] : [])]}
+      />,
       { width: 1200, height: 630, headers },
     );
   }

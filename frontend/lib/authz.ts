@@ -17,11 +17,11 @@ export async function getActor(): Promise<Actor | null> {
   if (!id) return null;
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, handle: true, role: true, status: true, suspendedUntil: true, sessionVersion: true },
+    select: { id: true, handle: true, role: true, status: true, suspendedUntil: true, sessionVersion: true, kind: true },
   });
-  // Sessions issued before the last password reset are dead.
-  if (!user || (user.sessionVersion ?? 0) !== (session?.user?.sv ?? 0)) return null;
-  const { sessionVersion: _v, ...actor } = user;
+  // Sessions issued before the last password reset are dead; system identities never act.
+  if (!user || user.kind === "SYSTEM" || (user.sessionVersion ?? 0) !== (session?.user?.sv ?? 0)) return null;
+  const { sessionVersion: _v, kind: _k, ...actor } = user;
   return actor;
 }
 

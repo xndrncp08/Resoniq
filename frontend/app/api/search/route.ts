@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { enforceRateLimit, optionalActor, route } from "@/lib/api";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { parseToneSource } from "@/lib/tones";
 import { searchAll, searchCommunities, searchGearItems, searchMusicians, searchPosts, searchTones, SEARCH_PAGE, SEARCH_TYPES, type SearchType } from "@/lib/search";
 
-/** ?q= &type=posts|tones|musicians|communities|gear (omit for a mix) &page= */
+/** ?q= &type=posts|tones|musicians|communities|gear (omit for a mix) &page= &source=members|generated (tones) */
 export const GET = route("search", async (req) => {
   await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const p = new URL(req.url).searchParams;
@@ -15,7 +16,7 @@ export const GET = route("search", async (req) => {
   if (!type || !SEARCH_TYPES.includes(type)) return NextResponse.json(await searchAll(q, viewer?.id ?? null));
   const items = await {
     posts: () => searchPosts(q, viewer?.id ?? null, offset),
-    tones: () => searchTones(q, viewer?.id ?? null, offset),
+    tones: () => searchTones(q, viewer?.id ?? null, offset, SEARCH_PAGE, parseToneSource(p.get("source"))),
     musicians: () => searchMusicians(q, offset),
     communities: () => searchCommunities(q, offset),
     gear: () => searchGearItems(q, offset),

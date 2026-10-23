@@ -1,6 +1,7 @@
 import { MAX_NAME_LENGTH } from "@/lib/credentials";
 import { normalizeHandle } from "@/lib/handles";
 import { fail } from "@/lib/validation";
+import { isReservedDisplayName } from "@/lib/system-identity";
 
 export const INSTRUMENTS = [
   "electric-guitar", "acoustic-guitar", "bass", "extended-range", "keys", "drums", "vocals", "production",
@@ -51,7 +52,10 @@ export function parseLink(v: unknown): ProfileLink {
 /** Validates a profile edit. Unknown keys are ignored. */
 export function parseProfilePatch(body: Record<string, unknown>): ProfilePatch {
   const out: ProfilePatch = {};
-  if (body.name !== undefined) out.name = optionalText(body.name, "Name", MAX_NAME_LENGTH);
+  if (body.name !== undefined) {
+    out.name = optionalText(body.name, "Name", MAX_NAME_LENGTH);
+    if (out.name && isReservedDisplayName(out.name)) fail("That name is reserved.");
+  }
   if (body.handle !== undefined) out.handle = normalizeHandle(body.handle);
   if (body.bio !== undefined) out.bio = optionalText(body.bio, "Bio", MAX_BIO);
   if (body.instruments !== undefined) {

@@ -11,6 +11,8 @@ const view = (over: Partial<ToneView> = {}): ToneView => ({
   description: null,
   visibility: "PUBLIC",
   author,
+  anonymous: false,
+  origin: "member",
   inferred: null,
   recipeEdited: false,
   declared: null,

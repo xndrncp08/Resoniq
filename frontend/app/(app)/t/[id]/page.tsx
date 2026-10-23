@@ -4,7 +4,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { optionalActor } from "@/lib/api";
-import { getTone } from "@/lib/tones";
+import { GENERATED_DISCLOSURE, getTone } from "@/lib/tones";
 import { listPosts } from "@/lib/posts";
 import Icon from "@/components/icons/Icon";
 import { Avatar, Chip, compact, Provenance, TimeAgo } from "@/components/app/ui";
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tone) return { title: "Tone not found", robots: { index: false } };
   return {
     title: `${tone.name} · tone`,
-    description: tone.description ?? tone.inferred?.recipeDescription ?? `A tone by @${tone.author.handle} on Resoniq`,
+    description: tone.description ?? tone.inferred?.recipeDescription ?? (tone.anonymous ? "A tone on Resoniq" : `A tone by @${tone.author.handle} on Resoniq`),
     // Only public tones are meant to be found; unlisted ones are shared by link.
     robots: tone.visibility === "PUBLIC" ? undefined : { index: false, follow: false },
     openGraph: { images: [`/api/og/tone/${tone.id}`] },
@@ -41,6 +41,7 @@ export default async function TonePage({ params }: Props) {
   const heardIn = await listPosts({ toneId: tone.id }, viewer?.id ?? null, { sort: "top", window: "all", cursor: null, limit: 3 });
   const songTitle = tone.songId ? (await prisma.song.findUnique({ where: { id: tone.songId }, select: { title: true } }))?.title : null;
   const inferred = tone.inferred;
+  const generated = tone.origin === "generated";
 
   return (
     <div className="space-y-8">
@@ -51,29 +52,39 @@ export default async function TonePage({ params }: Props) {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Chip icon="tone">Tone</Chip>
             {tone.visibility !== "PUBLIC" && <Chip icon={tone.visibility === "PRIVATE" ? "lock" : "link"}>{tone.visibility.toLowerCase()}</Chip>}
-            {tone.declared && <Provenance kind="declared" />}
+            {generated ? <Provenance kind="generated" /> : tone.declared && <Provenance kind="declared" />}
             {inferred && <Provenance kind="inferred" edited={tone.recipeEdited} />}
           </div>
           <h1 className="max-w-4xl font-display text-display-md font-semibold tracking-tight">{tone.name}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-body text-sm text-muted">
-            <Link href={`/u/${tone.author.handle}`} className="flex items-center gap-2 text-ink hover:underline"><Avatar user={tone.author} size={28} /> {tone.author.name ?? `@${tone.author.handle}`}</Link>
+            {tone.anonymous ? (
+              <span className="text-ink">{tone.author.name}</span>
+            ) : (
+              <Link href={`/u/${tone.author.handle}`} className="flex items-center gap-2 text-ink hover:underline"><Avatar user={tone.author} size={28} /> {tone.author.name ?? `@${tone.author.handle}`}</Link>
+            )}
             <span>Updated <TimeAgo iso={tone.updatedAt} /></span>
             <span className="font-mono">{compact(tone.saveCount)} saves · {compact(tone.remixCount)} remixes</span>
           </div>
           {tone.remixOf && (
             <p className="mt-3 flex items-center gap-2 font-body text-sm text-ink-dim">
-              <Icon name="remix" size={16} className="text-copper" /> Remixed from <Link href={`/t/${tone.remixOf.id}`} className="text-copper hover:underline">{tone.remixOf.name}</Link> by <Link href={`/u/${tone.remixOf.author.handle}`} className="hover:underline">@{tone.remixOf.author.handle}</Link>
+              <Icon name="remix" size={16} className="text-copper" /> Remixed from <Link href={`/t/${tone.remixOf.id}`} className="text-copper hover:underline">{tone.remixOf.name}</Link> by {tone.remixOf.anonymous ? tone.remixOf.author.name : <Link href={`/u/${tone.remixOf.author.handle}`} className="hover:underline">@{tone.remixOf.author.handle}</Link>}
             </p>
           )}
           {tone.description && <p className="mt-4 max-w-3xl whitespace-pre-wrap font-body text-[15px] leading-relaxed text-ink-dim">{tone.description}</p>}
-          <div className="mt-6"><ToneActions id={tone.id} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} /></div>
+          {generated && <p className="mt-3 max-w-3xl font-body text-sm text-amber">{GENERATED_DISCLOSURE}</p>}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <ToneActions id={tone.id} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
+            {generated && tone.visibility === "PUBLIC" && viewer && (
+              <Link href={`/new?tone=${tone.id}&category=TONE_COMPARISON`} className="focus-ring inline-flex h-10 items-center gap-2 rounded-full border border-line px-4 font-body text-sm text-ink hover:border-copper/50"><Icon name="comment" size={16} /> Discuss this tone</Link>
+            )}
+          </div>
         </div>
       </header>
 
       <section id="rig" aria-labelledby="declared-h" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="declared-h" className="font-display text-2xl font-semibold">The rig</h2>
-          <Provenance kind="declared" />
+          <h2 id="declared-h" className="font-display text-2xl font-semibold">{generated ? "Suggested rig" : "The rig"}</h2>
+          <Provenance kind={generated ? "generated" : "declared"} />
         </div>
         {tone.declared ? (
           <RigBoard rig={tone.declared} />
@@ -109,7 +120,7 @@ export default async function TonePage({ params }: Props) {
 
       {heardIn.items.length > 0 && (
         <section aria-labelledby="heard-h" className="space-y-4">
-          <h2 id="heard-h" className="font-display text-2xl font-semibold">Heard in</h2>
+          <h2 id="heard-h" className="font-display text-2xl font-semibold">{generated ? "Discussions" : "Heard in"}</h2>
           <div className="grid gap-4 lg:grid-cols-2">{heardIn.items.map((p) => <PostCard key={p.id} post={p} signedIn={!!viewer} />)}</div>
         </section>
       )}

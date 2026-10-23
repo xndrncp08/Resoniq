@@ -59,15 +59,26 @@ model User {
   media              Media[]
 
   // Profile banner, served from /api/media (avatars reuse `image`).
-  bannerUrl String?
+  bannerUrl      String?
   // Bumped on password reset: every JWT minted before it stops working (lib/authz.ts).
-  sessionVersion Int @default(0)
+  sessionVersion Int     @default(0)
+
+  // SYSTEM rows are reserved publishing identities (lib/system-identity.ts): no
+  // credentials, never signed in, never staff (check constraint User_system_not_staff).
+  kind UserKind @default(PERSON)
+
+  toneDraftsReviewed ToneDraft[]
 }
 
 enum Role {
   USER
   MODERATOR
   ADMIN
+}
+
+enum UserKind {
+  PERSON
+  SYSTEM
 }
 
 enum AccountStatus {
@@ -166,6 +177,11 @@ model Tone {
   publishedAt  DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @default(now()) @updatedAt
+  // Who wrote it: a member, or Resoniq's preset generator (always shown as Anonymous).
+  origin       ToneOrigin     @default(MEMBER)
+  // Shown publicly as "Anonymous" instead of the owner. Generated tones always are
+  // (check constraint Tone_generated_is_anonymous); members may opt in later.
+  anonymous    Boolean        @default(false)
 
   user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   remixOf Tone?      @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
@@ -173,17 +189,63 @@ model Tone {
   posts   Post[]
   gear    ToneGear[]
   saves   ToneSave[]
+  draft   ToneDraft?
 
   @@index([userId, favorite, createdAt])
   @@index([visibility, publishedAt])
   @@index([visibility, saveCount])
   @@index([remixOfId])
+  @@index([origin, visibility, createdAt])
 }
 
 enum ToneVisibility {
   PRIVATE
   UNLISTED
   PUBLIC
+}
+
+enum ToneOrigin {
+  MEMBER
+  GENERATED
+}
+
+enum ToneDraftStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  UNPUBLISHED
+}
+
+/// A Resoniq-generated preset awaiting review (lib/tone-drafts.ts). Publishing
+/// copies it into a public Tone owned by the system identity.
+model ToneDraft {
+  id           String          @id @default(cuid())
+  // Preset key from lib/tone-presets.ts; generating the same preset twice is a no-op.
+  key          String          @unique
+  // Hash of the normalized name, instrument and rig: catches duplicate content under another key.
+  fingerprint  String          @unique
+  status       ToneDraftStatus @default(DRAFT)
+  name         String
+  description  String
+  instrument   String
+  genres       String[]        @default([])
+  rig          Json
+  scheduledFor DateTime?
+  toneId       String?         @unique
+  error        String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  publishedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now()) @updatedAt
+
+  tone       Tone? @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledFor])
 }
 
 enum GearKind {
