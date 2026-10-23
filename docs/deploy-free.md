@@ -1,4 +1,4 @@
-# Free-tier deployment (Vercel Hobby · Prisma Postgres Free · Supabase Free · Render Free)
+# Free-tier deployment (Vercel Hobby · Supabase Free · Render Free)
 
 Target: $0/month, no credit card. This records what a free deployment supports
 and what it doesn't, and the exact steps it takes.
@@ -8,7 +8,7 @@ and what it doesn't, and the exact steps it takes.
 | Piece | Where | Plan | Notes |
 | --- | --- | --- | --- |
 | Next.js app + API | Vercel project `resoniq` (root `frontend`, Git-connected to `main`) | Hobby | Already exists: https://resoniq-two.vercel.app |
-| PostgreSQL | Prisma Postgres store `prisma-postgres-resoniq` (Vercel Marketplace) | Free | Already attached: `DATABASE_URL`, `POSTGRES_URL`, `PRISMA_DATABASE_URL`. Reused rather than creating a second database |
+| PostgreSQL | Supabase project `Resoniq` (us-east-1) | Free | Schema, seed and Prisma migration history applied; RLS on with no policies so the Data API can't read app tables. The older Prisma Postgres store `prisma-postgres-resoniq` is left untouched (it was never migrated) |
 | Private file storage | Supabase project, private bucket `songs` | Free | Needed for any upload (photos, avatars, songs for analysis) |
 | Analysis engine | Render web service from `render.yaml` | Free | Sleeps after 15 min idle; first request wakes it (≈30–60 s) |
 | Background worker | none | — | No free always-on host. See "What runs without a worker" |
@@ -45,24 +45,23 @@ and what it doesn't, and the exact steps it takes.
 
 ## Steps
 
-### 1. Database (Prisma Postgres; existing)
+### 1. Database (Supabase; done)
 
-The connection strings are Sensitive in Vercel, so they can't be read back
-through the CLI. Copy the **direct** `postgres://…` string from Vercel → Storage
-→ `prisma-postgres-resoniq` (or the Prisma console), then:
+The schema, structural seed and `_prisma_migrations` history are already in
+the Supabase project. Vercel can't reach Supabase's IPv6-only direct host, so
+set `DATABASE_URL` on Vercel (Production, Sensitive) to the **transaction
+pooler** string from Supabase → Connect, with Prisma's pooler flags:
 
-```bash
-brew install postgresql@17   # pg_dump must be ≥ the server version
-PROD_DATABASE_URL='postgres://…' scripts/deploy-db.sh
+```
+postgresql://postgres.<ref>:<db-password>@<pooler-host>:6543/postgres?pgbouncer=true&connection_limit=1
 ```
 
-It backs up first, refuses to drop non-empty legacy tables, applies pending
-migrations (never resets), and runs the idempotent structural seed.
+Later migrations: `PROD_DATABASE_URL='<session pooler string, port 5432>' scripts/deploy-db.sh`
+(backs up first, applies pending migrations only, never resets).
 
 ### 2. Storage (Supabase)
 
-Create a free project, then a **private** bucket named `songs` with a 50 MB
-file size limit. Add to the Vercel project (Production, Sensitive):
+The **private** bucket `songs` (50 MB file limit) exists. Add to the Vercel project (Production, Sensitive):
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. The service-role key stays
 server-side. The browser only ever gets short-lived signed URLs.
 
@@ -86,15 +85,12 @@ automatically. Then grant yourself admin against the production database:
 
 ## Limits to know
 
-- **Prisma Postgres Free** has a monthly operation and storage quota. Every
-  API request costs a few operations, plus one for the shared rate limit.
-  Watch usage in the Prisma console.
+- **Supabase Free** gives 500 MB of database and 1 GB of storage, and pauses
+  the project after a week without activity.
 - **Render Free** sleeps when idle (cold start ≈ 30–60 s, inside the app's
   180 s engine timeout), has 512 MB of memory (analysis capped at 4 minutes of
   audio via `RESONIQ_MAX_AUDIO_SECONDS=240`), and 0.1 CPU, so an analysis can
   take a minute or more.
 - **Vercel Hobby** functions run up to 300 s (analysis needs that), one cron
   per day, and Hobby is for non-commercial use.
-- **Supabase Free** pauses projects after a week of inactivity and has 1 GB of
-  storage.
 - Video and audio posts need a worker, which no free tier here runs reliably.
