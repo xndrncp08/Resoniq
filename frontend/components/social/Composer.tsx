@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
 import { Button, Provenance } from "@/components/app/ui";
-import Uploader from "@/components/media/Uploader";
+import Uploader, { type UploadKinds } from "@/components/media/Uploader";
 import RigEditor, { emptyRig, rigIsEmpty } from "@/components/tone/rig/RigEditor";
 import { CATEGORY_META } from "@/components/social/categories";
 import { api, errorMessage } from "@/lib/client-api";
@@ -13,7 +13,7 @@ import type { RigSpec } from "@/types/rig";
 type Community = { slug: string; name: string; joined: boolean };
 type Tone = { id: string; name: string; visibility: string };
 
-export default function Composer({ communities, tones, initial }: { communities: Community[]; tones: Tone[]; initial: { category?: string; community?: string; toneId?: string } }) {
+export default function Composer({ communities, tones, initial, uploadKinds }: { communities: Community[]; tones: Tone[]; initial: { category?: string; community?: string; toneId?: string }; uploadKinds: UploadKinds }) {
   const router = useRouter();
   const [category, setCategory] = useState(initial.category && CATEGORY_META[initial.category] ? initial.category : "DISCUSSION");
   const [community, setCommunity] = useState(initial.community ?? "");
@@ -78,7 +78,11 @@ export default function Composer({ communities, tones, initial }: { communities:
         <p className="text-right font-mono text-[11px] text-muted">{body.length.toLocaleString()} / 10,000</p>
       </div>
 
-      <Uploader onChange={(ids, busyNow) => { setMediaIds(ids); setUploading(busyNow); }} />
+      {uploadKinds.images ? (
+        <Uploader kinds={uploadKinds} onChange={(ids, busyNow) => { setMediaIds(ids); setUploading(busyNow); }} />
+      ) : (
+        uploadKinds.note && <p className="panel-inset rounded-2xl p-4 font-body text-sm text-muted">{uploadKinds.note}</p>
+      )}
 
       <div className="panel space-y-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

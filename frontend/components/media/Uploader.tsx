@@ -12,7 +12,9 @@ export type UploadItem = { key: string; file: File; progress: number; state: "up
  * Attachments for the composer: drop or pick files, watch progress, retry or
  * remove. Reports the finished media ids (in order) through onChange.
  */
-export default function Uploader({ max = 10, onChange }: { max?: number; onChange: (ids: string[], busy: boolean) => void }) {
+export type UploadKinds = { images: boolean; video: boolean; audio: boolean; note: string | null };
+
+export default function Uploader({ max = 10, onChange, kinds = { images: true, video: true, audio: true, note: null } }: { max?: number; onChange: (ids: string[], busy: boolean) => void; kinds?: UploadKinds }) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -37,7 +39,9 @@ export default function Uploader({ max = 10, onChange }: { max?: number; onChang
   function add(files: FileList | File[]) {
     const room = max - items.length;
     const fresh = [...files].slice(0, Math.max(0, room)).map<UploadItem>((file) => {
-      const problem = precheck(file);
+      const kind = kindOf(file);
+      const allowed = kind === "IMAGE" ? kinds.images : kind === "VIDEO" ? kinds.video : kind === "AUDIO" ? kinds.audio : true;
+      const problem = allowed ? precheck(file) : (kinds.note ?? "That kind of file can't be posted right now.");
       return {
         key: crypto.randomUUID(),
         file,
@@ -72,11 +76,12 @@ export default function Uploader({ max = 10, onChange }: { max?: number; onChang
         onDrop={(e) => { e.preventDefault(); setDrag(false); add(e.dataTransfer.files); }}
         className={`panel-inset grille flex flex-col items-center gap-3 rounded-2xl border-dashed px-4 py-8 text-center transition-colors ${drag ? "border-copper bg-copper/5" : ""}`}
       >
-        <span className="flex gap-2 text-copper"><Icon name="video" size={26} /><Icon name="audio" size={26} /><Icon name="image" size={26} /></span>
-        <p className="font-body text-sm text-ink-dim">Drop a performance video, an audio clip or photos of your board</p>
-        <p className="font-mono text-[11px] text-muted">Video ≤ 500 MB / 10 min · Audio ≤ 50 MB · Images ≤ 15 MB · up to {max} files</p>
+        <span className="flex gap-2 text-copper">{kinds.video && <Icon name="video" size={26} />}{kinds.audio && <Icon name="audio" size={26} />}<Icon name="image" size={26} /></span>
+        <p className="font-body text-sm text-ink-dim">{kinds.video ? "Drop a performance video, an audio clip or photos of your board" : "Drop photos of your rig or board"}</p>
+        <p className="font-mono text-[11px] text-muted">{[kinds.video && "Video ≤ 500 MB / 10 min", kinds.audio && "Audio ≤ 50 MB", "Images ≤ 15 MB"].filter(Boolean).join(" · ")} · up to {max} files</p>
+        {kinds.note && <p className="max-w-md font-body text-xs text-amber">{kinds.note}</p>}
         <Button size="sm" icon="upload" onClick={() => input.current?.click()} disabled={items.length >= max}>Choose files</Button>
-        <input ref={input} type="file" multiple hidden accept="video/mp4,video/quicktime,video/webm,.mkv,audio/*,image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
+        <input ref={input} type="file" multiple hidden accept={[kinds.video && "video/mp4,video/quicktime,video/webm,.mkv", kinds.audio && "audio/*", "image/jpeg,image/png,image/webp"].filter(Boolean).join(",")} onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
       </div>
       {items.length > 0 && (
         <ul className="space-y-2" aria-live="polite">

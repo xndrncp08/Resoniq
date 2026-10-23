@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-error";
 import type { Actor } from "@/lib/authz";
 import { recordAudit } from "@/lib/audit";
-import { isEnabled } from "@/lib/flags";
+import { mediaCapabilities, mediaWorkerAvailable } from "@/lib/hosting";
+import { processMedia } from "@/lib/media/process";
 import { enqueue } from "@/lib/jobs/queue";
 import { notify } from "@/lib/notify";
 import { can } from "@/lib/permissions";
@@ -43,8 +44,9 @@ export async function uploadedLastDay(ownerId: string, now = new Date()): Promis
 }
 
 export async function createUpload(actor: Actor, req: UploadRequest) {
-  if (!(await isEnabled("uploads.enabled"))) throw new ApiError(503, "Uploads are paused right now.");
-  if (req.kind === "VIDEO" && !(await isEnabled("uploads.video"))) throw new ApiError(503, "Video uploads are paused right now.");
+  const caps = await mediaCapabilities();
+  const allowed = req.kind === "IMAGE" ? caps.images : req.kind === "VIDEO" ? caps.video : caps.audio;
+  if (!allowed) throw new ApiError(503, caps.note ?? `${req.kind === "VIDEO" ? "Video" : "Audio"} uploads are paused right now.`);
   if ((await uploadedLastDay(actor.id)) + req.size > DAILY_UPLOAD_BYTES) {
     throw new ApiError(429, "You've reached today's upload allowance (3 GB). Try again tomorrow.");
   }
@@ -79,11 +81,15 @@ export async function completeUpload(actor: Actor, id: string) {
     await prisma.media.update({ where: { id }, data: { status: "FAILED", error: "The file is larger than declared." } });
     throw new ApiError(413, `${MEDIA_LIMITS[media.kind].label}.`);
   }
-  return prisma.$transaction(async (tx) => {
+  // Without a worker, images (quick, no ffmpeg) are processed in this request instead of the queue.
+  const inline = media.kind === "IMAGE" && !mediaWorkerAvailable();
+  const claimed = await prisma.$transaction(async (tx) => {
     const { count } = await tx.media.updateMany({ where: { id, status: "UPLOADING" }, data: { status: "PROCESSING", sizeBytes: stored.size } });
-    if (count) await enqueue("media.process", { mediaId: id }, { db: tx, maxAttempts: 3 });
-    return tx.media.findUniqueOrThrow({ where: { id } });
+    if (count && !inline) await enqueue("media.process", { mediaId: id }, { db: tx, maxAttempts: 3 });
+    return count === 1;
   });
+  if (claimed && inline) await processMedia(id);
+  return prisma.media.findUniqueOrThrow({ where: { id } });
 }
 
 /** Attaches the actor's own unattached post media, in order. Returns whether any is still processing. */

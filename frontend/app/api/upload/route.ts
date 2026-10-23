@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, requireUserId, route } from "@/lib/api";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { CONTENT_TYPES, getStorage, sniffAudio } from "@/lib/storage";
+import { storageAvailable } from "@/lib/hosting";
+import { createSongRecord, MAX_SONG_BYTES } from "@/lib/songs";
 
-const MAX_BYTES = 50 * 1024 * 1024; // 50MB
+const MAX_BYTES = MAX_SONG_BYTES;
 const MULTIPART_OVERHEAD = 64 * 1024;
-const MAX_TITLE_LENGTH = 200;
 
 export const POST = route("upload", async (req) => {
   const userId = await requireUserId("Sign in to upload a song.", { write: true });
   await enforceRateLimit("upload", userId, RATE_LIMITS.upload);
+  if (!storageAvailable()) throw new ApiError(503, "Uploads aren't available on this deployment yet.");
 
   // Refuse oversized bodies before buffering them.
   const declared = Number(req.headers.get("content-length"));
@@ -40,28 +41,7 @@ export const POST = route("upload", async (req) => {
   const storageKey = `${userId}/${crypto.randomUUID()}.${ext}`;
   await storage.put(storageKey, bytes, CONTENT_TYPES[ext]);
 
-  const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "").slice(0, MAX_TITLE_LENGTH);
-  const [maybeArtist, maybeTitle] = nameWithoutExt.split(/\s*-\s*/, 2);
-
-  let song;
-  try {
-    song = await prisma.song.create({
-      data: {
-        userId,
-        title: maybeTitle || nameWithoutExt || "Untitled upload",
-        artist: maybeTitle ? maybeArtist : null,
-        storageKey,
-        durationSec: Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null,
-        sourceType: "UPLOAD",
-        status: "UPLOADED",
-      },
-      select: { id: true, title: true, artist: true, status: true, createdAt: true },
-    });
-  } catch (err) {
-    // Don't leave an orphaned file behind if the row can't be written.
-    await storage.remove(storageKey).catch((cleanupErr) => console.error("[api] upload cleanup failed", cleanupErr));
-    throw err;
-  }
+  const song = await createSongRecord(userId, storageKey, file.name, Number.isFinite(durationSec) ? durationSec : null);
 
   // The Song row doubles as the analysis job: its status moves
   // UPLOADED -> ANALYZING -> ANALYZED | FAILED via POST /api/analyze.

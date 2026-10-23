@@ -28,7 +28,7 @@ async function uploadImage(file: File, purpose: "AVATAR" | "BANNER", onProgress:
   throw new Error("Processing is taking longer than usual. Try again in a minute.");
 }
 
-export function ProfileForm({ initial }: { initial: ProfileValues }) {
+export function ProfileForm({ initial, imagesEnabled = true }: { initial: ProfileValues; imagesEnabled?: boolean }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [genres, setGenres] = useState(initial.genres.join(", "));
@@ -71,15 +71,19 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
         <div className="relative h-32 bg-gradient-to-br from-copper-deep/60 via-surface to-signal-dim/30">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {v.bannerUrl && <img src={v.bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-          <label className="absolute bottom-3 right-3 cursor-pointer rounded-full bg-black/60 px-3 py-1.5 font-body text-xs text-ink backdrop-blur hover:bg-black/80">
+          {imagesEnabled && <label className="absolute bottom-3 right-3 cursor-pointer rounded-full bg-black/60 px-3 py-1.5 font-body text-xs text-ink backdrop-blur hover:bg-black/80">
             Change banner<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickImage("BANNER", e.target.files?.[0])} />
-          </label>
+          </label>}
         </div>
         <div className="flex items-center gap-4 p-4">
           <Avatar user={v} size={72} />
-          <label className="cursor-pointer rounded-full border border-line-strong px-4 py-2 font-body text-sm hover:border-copper/50">
-            Change photo<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickImage("AVATAR", e.target.files?.[0])} />
-          </label>
+          {imagesEnabled ? (
+            <label className="cursor-pointer rounded-full border border-line-strong px-4 py-2 font-body text-sm hover:border-copper/50">
+              Change photo<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickImage("AVATAR", e.target.files?.[0])} />
+            </label>
+          ) : (
+            <span className="font-body text-sm text-muted">Photo uploads aren&apos;t available on this deployment yet.</span>
+          )}
           {v.image && <button type="button" className="font-body text-sm text-muted hover:text-danger" onClick={async () => { await api("/api/me", { method: "PATCH", body: { avatarMediaId: null } }); setV({ ...v, image: null }); }}>Remove</button>}
           {imgProgress && <span role="status" className="font-body text-sm text-muted">{imgProgress}</span>}
         </div>

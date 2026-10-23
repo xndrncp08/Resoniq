@@ -57,7 +57,26 @@ function readDuration(file: File, timeoutMs = 3000): Promise<number | null> {
   });
 }
 
-export default function UploadPanel() {
+/** Remote storage: reserve a signed URL, PUT the bytes straight to storage, then let the server verify them. */
+async function uploadDirect(file: File, durationSec: number | null, onProgress: (percent: number) => void): Promise<UploadResult> {
+  const reserve = await fetch("/api/upload/direct", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ size: file.size, name: file.name }) });
+  const r = await reserve.json().catch(() => ({}));
+  if (!reserve.ok) return { ok: false, body: r };
+  const put = await new Promise<boolean>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", r.url);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress((e.loaded / e.total) * 100);
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.send(file);
+  });
+  if (!put) return { ok: false, body: { error: "Upload to storage failed. Try again." } };
+  const done = await fetch("/api/upload/complete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: r.key, name: file.name, durationSec }) });
+  return { ok: done.ok, body: await done.json().catch(() => ({})) };
+}
+
+export default function UploadPanel({ mode = "multipart", unavailable }: { mode?: "multipart" | "direct"; unavailable?: string | null }) {
   const router = useRouter();
   const [tab, setTab] = useState<"file" | "link">("file");
   const [stage, setStage] = useState<Stage>("idle");
@@ -85,7 +104,7 @@ export default function UploadPanel() {
     if (durationSec) body.append("durationSec", String(durationSec));
 
     try {
-      const res = await uploadWithProgress(body, setProgress);
+      const res = mode === "direct" ? await uploadDirect(file, durationSec, setProgress) : await uploadWithProgress(body, setProgress);
       if (!res.ok) {
         setError(res.body.error ?? "Upload failed.");
         setAttempt((n) => n + 1);
@@ -100,6 +119,14 @@ export default function UploadPanel() {
       setAttempt((n) => n + 1);
       setStage("error");
     }
+  }
+
+  if (unavailable) {
+    return (
+      <div className="panel mx-auto w-full max-w-2xl p-6 text-center font-body text-ink-dim" role="status">
+        {unavailable}
+      </div>
+    );
   }
 
   return (

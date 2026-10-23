@@ -29,9 +29,42 @@ async function head(file: string, n = 4096): Promise<Uint8Array> {
 
 type Outputs = Partial<Pick<Media, "playbackKey" | "posterKey" | "previewKey" | "peaksKey" | "width" | "height" | "durationSec" | "mime">> & { flac?: string };
 
+/**
+ * Images go through sharp rather than ffmpeg: it runs anywhere (including
+ * serverless functions), refuses decompression bombs before decoding via
+ * limitInputPixels, applies EXIF rotation, and drops all metadata (GPS,
+ * camera) because withMetadata() is never called.
+ */
+async function processImage(media: Media, input: string, ext: string): Promise<Outputs> {
+  const sharp = (await import("sharp")).default;
+  const limit = (MEDIA_LIMITS.IMAGE.megapixels ?? 40) * 1e6;
+  let meta;
+  try {
+    meta = await sharp(input, { limitInputPixels: limit }).metadata();
+  } catch {
+    throw new MediaRejected("That image couldn't be read.");
+  }
+  if (!meta.width || !meta.height) throw new MediaRejected("That image couldn't be read.");
+  if (meta.width * meta.height > limit) throw new MediaRejected("That image has too many pixels (40 MP max).");
+  const png = ext === "png";
+  let pipeline = sharp(input, { limitInputPixels: limit }).rotate().resize({ width: 2560, height: 2560, fit: "inside", withoutEnlargement: true });
+  pipeline = png ? pipeline.png({ compressionLevel: 9 }) : pipeline.jpeg({ quality: 82, mozjpeg: true });
+  let result;
+  try {
+    result = await pipeline.toBuffer({ resolveWithObject: true });
+  } catch {
+    throw new MediaRejected("That image couldn't be processed.");
+  }
+  const name = `display.${png ? "png" : "jpg"}`;
+  const key = `media/${media.ownerId}/${media.id}/${name}`;
+  await getStorage().put(key, result.data, png ? "image/png" : "image/jpeg");
+  return { playbackKey: key, width: result.info.width, height: result.info.height, mime: png ? "image/png" : "image/jpeg" };
+}
+
 async function processFile(media: Media, dir: string, input: string): Promise<Outputs> {
   const sniffed = sniffMedia(await head(input));
   if (!sniffed || sniffed.kind !== media.kind) throw new MediaRejected(`That file isn't a supported ${media.kind.toLowerCase()} format.`);
+  if (media.kind === "IMAGE") return processImage(media, input, sniffed.ext);
   const limits = MEDIA_LIMITS[media.kind];
   let info: ff.Probe;
   try {
@@ -67,7 +100,7 @@ async function processFile(media: Media, dir: string, input: string): Promise<Ou
         out.previewKey = await put("preview.mp4", preview, "video/mp4");
       }
       Object.assign(out, { width: info.video.width, height: info.video.height, durationSec: info.durationSec });
-    } else if (media.kind === "AUDIO") {
+    } else {
       if (!info.audio) throw new MediaRejected("That file has no audio.");
       const playback = path.join(dir, "playback.m4a");
       await ff.transcodeAudio(input, playback);
@@ -76,16 +109,8 @@ async function processFile(media: Media, dir: string, input: string): Promise<Ou
       await writeFile(file, JSON.stringify(await ff.peaks(input)));
       out.peaksKey = await put("peaks.json", file, "application/json");
       out.durationSec = info.durationSec;
-    } else {
-      if (!info.video) throw new MediaRejected("That image couldn't be read.");
-      if ((info.video.width * info.video.height) / 1e6 > (limits.megapixels ?? Infinity)) throw new MediaRejected("That image has too many pixels (40 MP max).");
-      const ext = sniffed.ext === "png" ? "png" : "jpg";
-      const display = path.join(dir, `display.${ext}`);
-      await ff.reencodeImage(input, display);
-      out.playbackKey = await put(`display.${ext}`, display, ext === "png" ? "image/png" : "image/jpeg");
-      Object.assign(out, { width: info.video.width, height: info.video.height });
     }
-    if (media.kind !== "IMAGE" && info.audio && media.purpose === "POST") {
+    if (info.audio && media.purpose === "POST") {
       out.flac = path.join(dir, "analysis.flac");
       await ff.extractFlac(input, out.flac, ANALYSIS_MAX_SEC);
     }

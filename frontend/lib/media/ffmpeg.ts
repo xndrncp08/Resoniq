@@ -84,13 +84,6 @@ export const extractFlac = (input: string, output: string, maxSec: number) =>
 export const transcodeAudio = (input: string, output: string) =>
   run(FFMPEG, ["-y", "-v", "error", "-i", input, "-vn", "-c:a", "aac", "-b:a", "192k", "-map_metadata", "-1", "-movflags", "+faststart", output]);
 
-/** Re-encoding is what strips EXIF (including GPS). PNG stays PNG to keep transparency. */
-export const reencodeImage = (input: string, output: string) =>
-  run(FFMPEG, [
-    "-y", "-v", "error", "-i", input, "-frames:v", "1", "-vf", "scale='min(2560,iw)':'min(2560,ih)':force_original_aspect_ratio=decrease",
-    "-map_metadata", "-1", ...(output.endsWith(".jpg") ? ["-q:v", "3"] : []), output,
-  ]);
-
 /** Waveform peaks (0–1) for the audio player, from 8 kHz mono PCM. */
 export async function peaks(input: string, buckets = 800): Promise<number[]> {
   const pcm = await run(FFMPEG, ["-v", "error", "-i", input, "-vn", "-ac", "1", "-ar", "8000", "-t", "900", "-f", "s16le", "-"], { capture: true });

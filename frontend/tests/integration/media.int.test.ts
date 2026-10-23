@@ -163,6 +163,31 @@ describe.skipIf(!hasFfmpeg)("media processing", () => {
   });
 });
 
+describe("hosts without a worker", () => {
+  it("processes images inline with sharp and refuses video up front", async () => {
+    vi.stubEnv("RESONIQ_MEDIA_WORKER", "off");
+    try {
+      const owner = await makeActor();
+      const sharp = (await import("sharp")).default;
+      const jpg = await sharp({ create: { width: 3000, height: 2000, channels: 3, background: "#ff8a3d" } })
+        .jpeg()
+        .withExif({ IFD0: { Copyright: "GPS 51.5N secret" } })
+        .toBuffer();
+      const { id } = await createUpload(owner, { kind: "IMAGE", size: jpg.length, mime: "image/jpeg", purpose: "POST", alt: null });
+      const media = await prisma.media.findUniqueOrThrow({ where: { id } });
+      await storage.put(media.originalKey, jpg, "image/jpeg");
+      const done = await completeUpload(owner, id);
+      expect(done).toMatchObject({ status: "READY", width: 2560, height: 1707 });
+      expect(await prisma.job.count()).toBe(0);
+      const out = (await storage.get(done.playbackKey!))!.bytes;
+      expect(out.includes("GPS 51.5N")).toBe(false);
+      await expect(createUpload(owner, { kind: "VIDEO", size: 1000, mime: "video/mp4", purpose: "POST", alt: null })).rejects.toThrow(/paused/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("upload rules", () => {
   it("queues processing only once when completion requests race", async () => {
     const owner = await makeActor();

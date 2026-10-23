@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requirePageActor } from "@/lib/session";
 import { isSuspended } from "@/lib/authz";
+import { mediaCapabilities } from "@/lib/hosting";
 import { PageHeader } from "@/components/app/ui";
 import { DangerZone, ProfileForm } from "@/components/social/SettingsForms";
 import { ResendVerification } from "@/components/auth/TokenForms";
@@ -23,7 +24,7 @@ export default async function SettingsPage() {
           Your account is suspended{actor.suspendedUntil ? ` until ${actor.suspendedUntil.toISOString().slice(0, 10)}` : ""}. You can still browse. <a href="/appeals?type=ACCOUNT" className="underline">Appeal</a>
         </p>
       )}
-      <section className="space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm initial={{ ...u, links }} /></section>
+      <section className="space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm initial={{ ...u, links }} imagesEnabled={(await mediaCapabilities()).images} /></section>
       <section className="panel space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Sign-in</h2>
         <p className="font-body text-sm text-muted">Email: <span className="text-ink">{u.email ?? "—"}</span> {u.email && (u.emailVerified ? <span className="text-signal">· verified</span> : <span className="text-amber">· not verified</span>)}</p>
