@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const page = (path: string, priority = 0.5, lastModified?: Date) => ({ url: `${origin}${path}`, priority, ...(lastModified && { lastModified }) });
   return [
     page("/", 1),
-    ...["/practice", "/tones", "/explore", "/c", "/gear"].map((p) => page(p, 0.8)),
+    ...["/practice", "/tones", "/explore", "/musicians", "/c", "/gear"].map((p) => page(p, 0.8)),
     ...["/privacy", "/terms", "/copyright"].map((p) => page(p, 0.2)),
     ...tones.map((t) => page(`/t/${t.id}`, 0.6, t.updatedAt)),
     ...communities.map((c) => page(`/c/${c.slug}`, 0.6)),

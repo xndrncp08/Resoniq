@@ -50,6 +50,7 @@ export default async function ExplorePage() {
           <label htmlFor="xq" className="sr-only">Search</label>
           <input id="xq" name="q" placeholder="Musicians, tones, pedals, communities…" className="panel-inset h-14 w-full rounded-full pl-13 pr-5 font-body text-lg outline-none focus:border-copper/60" style={{ paddingLeft: "3.25rem" }} />
         </form>
+        <div className="mt-5 flex flex-wrap items-center gap-3"><LinkButton href="/musicians" icon="user">Find musicians</LinkButton><span className="font-body text-sm text-muted">Explore by instrument and genre.</span></div>
         {tags.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">{tags.map((t) => <Link key={t.tag} href={`/tag/${t.tag}`} className="rounded-full border border-line px-3 py-1 font-mono text-xs text-signal hover:border-signal/50">#{t.tag}</Link>)}</div>
         )}

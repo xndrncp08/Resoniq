@@ -52,9 +52,19 @@ HANDLE_B=$(api "$B" GET /api/me | json 'd["profile"]["handle"]')
 echo "@$HANDLE_A and @$HANDLE_B"
 
 step "edit profile; public profile hides email"
-api "$A" PATCH /api/me '{"bio":"Tele into a cranked tweed. #twang","instruments":["electric-guitar"],"genres":["country","blues"]}' >/dev/null
+api "$A" PATCH /api/me '{"bio":"Tele into a cranked tweed. #twang","instruments":["electric-guitar","woodwinds"],"genres":["country","blues"]}' >/dev/null
 curl -s "$BASE_URL/api/users/$HANDLE_A" | grep -q "resoniq.test" && fail "public profile leaked an email"
 api "$B" PUT "/api/users/$HANDLE_A/follow" | json 'd["followerCount"]' | grep -qx 1 || fail "follow count"
+
+step "discover musicians by instrument and genre"
+curl -fsS "$BASE_URL/musicians?q=$HANDLE_A&instrument=woodwinds&genre=blues" > "$WORK/musicians.html"
+grep -q "href=\"/u/$HANDLE_A\"" "$WORK/musicians.html" || fail "musician filters missed a matching profile"
+grep -q 'noindex' "$WORK/musicians.html" || fail "filtered directory is indexable"
+if grep -q 'resoniq.test' "$WORK/musicians.html"; then fail "musician directory leaked an email"; fi
+curl -fsS "$BASE_URL/musicians?q=$HANDLE_A&instrument=drums" > "$WORK/musicians-empty.html"
+grep -q 'No musicians match yet' "$WORK/musicians-empty.html" || fail "musician filter did not narrow results"
+curl -fsS "$BASE_URL/u/$HANDLE_A" > "$WORK/profile.html"
+grep -q 'href="/musicians?instrument=woodwinds"' "$WORK/profile.html" || fail "profile instrument discovery link missing"
 
 step "practice room and editable conversation prompts"
 curl -fsS "$BASE_URL/practice" > "$WORK/practice.html"

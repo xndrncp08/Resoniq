@@ -6,7 +6,8 @@ import { optionalActor } from "@/lib/api";
 import { getPublicProfile } from "@/lib/profiles";
 import { listPosts } from "@/lib/posts";
 import { listedToneWhere, listTones, savedTones } from "@/lib/tones";
-import { INSTRUMENTS } from "@/lib/profile-validation";
+import { INSTRUMENT_LABEL, type Instrument } from "@/lib/instruments";
+import { musicianDirectoryHref } from "@/lib/musician-directory";
 import Icon from "@/components/icons/Icon";
 import { Avatar, Chip, compact, EmptyState, LinkButton, ManagedCreatorBadge, Tabs } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
@@ -16,10 +17,6 @@ import ToneGrid from "@/components/tone/ToneGrid";
 import ProfileMenu from "@/components/social/ProfileMenu";
 
 type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string }> };
-
-const INSTRUMENT_LABEL: Record<(typeof INSTRUMENTS)[number], string> = {
-  "electric-guitar": "Electric guitar", "acoustic-guitar": "Acoustic guitar", bass: "Bass", "extended-range": "Extended range", keys: "Keys", drums: "Drums", vocals: "Vocals", production: "Production",
-};
 
 const load = cache(async (handle: string) => {
   const viewer = await optionalActor();
@@ -62,8 +59,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           {profile.managed && <ManagedCreatorBadge />}
           {profile.bio && <RichText text={profile.bio} className="mt-3 max-w-2xl font-body text-[15px] leading-relaxed text-ink-dim" />}
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {profile.instruments.map((i) => <Chip key={i} icon={i === "bass" ? "bass" : i.includes("guitar") || i === "extended-range" ? "guitar" : "audio"}>{INSTRUMENT_LABEL[i as keyof typeof INSTRUMENT_LABEL] ?? i}</Chip>)}
-            {profile.genres.map((g) => <Chip key={g}>{g}</Chip>)}
+            {profile.instruments.map((i) => <Link key={i} href={musicianDirectoryHref({ instrument: i as Instrument })} className="focus-ring rounded-full" aria-label={`Find musicians: ${INSTRUMENT_LABEL[i as Instrument] ?? i}`}><Chip icon={i === "bass" ? "bass" : i.includes("guitar") || i === "extended-range" ? "guitar" : "audio"}>{INSTRUMENT_LABEL[i as Instrument] ?? i}</Chip></Link>)}
+            {profile.genres.map((g) => <Link key={g} href={musicianDirectoryHref({ genre: g })} className="focus-ring rounded-full" aria-label={`Find musicians playing ${g}`}><Chip>{g}</Chip></Link>)}
           </div>
           {profile.links.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-body text-sm">

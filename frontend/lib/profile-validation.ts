@@ -2,11 +2,9 @@ import { MAX_NAME_LENGTH } from "@/lib/credentials";
 import { normalizeHandle } from "@/lib/handles";
 import { fail } from "@/lib/validation";
 import { isReservedDisplayName } from "@/lib/system-identity";
+import { INSTRUMENTS } from "@/lib/instruments";
 
-export const INSTRUMENTS = [
-  "electric-guitar", "acoustic-guitar", "bass", "extended-range", "keys", "drums", "vocals", "production",
-] as const;
-export type Instrument = (typeof INSTRUMENTS)[number];
+export { INSTRUMENTS, type Instrument } from "@/lib/instruments";
 
 export const MAX_BIO = 500;
 const GENRE = /^[a-z0-9][a-z0-9 -]{0,23}$/;
