@@ -9,10 +9,11 @@ import { Provenance } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Practice room", description: "A free practice room for any musician. Tap a tempo, loop a recording, slow down a phrase and keep a practice note. No account needed." };
 
-export default async function PracticePage({ searchParams }: { searchParams: Promise<{ tone?: string }> }) {
-  const { tone: id } = await searchParams;
+export default async function PracticePage({ searchParams }: { searchParams: Promise<{ tone?: string | string[] }> }) {
+  const { tone: rawId } = await searchParams;
+  const id = typeof rawId === "string" && rawId.length <= 100 ? rawId : undefined;
   const viewer = id ? await optionalActor() : null;
-  const tone = id && id.length <= 100 ? await getTone(id, viewer?.id ?? null) : null;
+  const tone = id ? await getTone(id, viewer?.id ?? null) : null;
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="relative overflow-hidden border-b border-line pb-8 pt-2 sm:pb-10">
