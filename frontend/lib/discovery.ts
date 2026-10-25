@@ -2,6 +2,30 @@ import { prisma } from "@/lib/prisma";
 import { memo } from "@/lib/memo";
 import { AUTHOR_SELECT } from "@/lib/profiles";
 import { COMMUNITY_SELECT } from "@/lib/communities";
+import type { MusicianFilters } from "@/lib/musician-directory";
+
+/** Public member profiles only. A unique handle gives stable, inexpensive paging. */
+export async function discoverMusicians({ q, instrument, genre, after }: MusicianFilters) {
+  const limit = 24;
+  const needle = q.replace(/[\\%_]/g, "\\$&");
+  const rows = await prisma.user.findMany({
+    where: {
+      kind: "PERSON", status: "ACTIVE", managedCreator: { is: null },
+      ...(instrument && { instruments: { has: instrument } }),
+      ...(genre && { genres: { has: genre } }),
+      ...(after && { handle: { gt: after } }),
+      ...(q && { OR: [
+        { handle: { contains: needle, mode: "insensitive" } },
+        { name: { contains: needle, mode: "insensitive" } },
+        { bio: { contains: needle, mode: "insensitive" } },
+      ] }),
+    },
+    select: { id: true, handle: true, name: true, image: true, bio: true, instruments: true, genres: true },
+    orderBy: { handle: "asc" },
+    take: limit + 1,
+  });
+  return { items: rows.slice(0, limit), nextCursor: rows.length > limit ? rows[limit - 1].handle : null };
+}
 
 /** Real activity only: everything here is computed from published content. */
 
@@ -47,8 +71,9 @@ export async function risingMusicians(viewerId: string | null, limit = 5) {
 async function loadRisingMusicians(limit: number) {
   const rows = await prisma.$queryRaw<{ id: string; amps: bigint }[]>`
     SELECT p."authorId" AS id, SUM(p."upCount") AS amps FROM "Post" p
-    JOIN "User" u ON u.id = p."authorId" AND u.status = 'ACTIVE'
+    JOIN "User" u ON u.id = p."authorId" AND u.status = 'ACTIVE' AND u.kind = 'PERSON'
     WHERE p.status = 'PUBLISHED' AND p."createdAt" > (now() AT TIME ZONE 'UTC') - interval '30 days'
+      AND NOT EXISTS (SELECT 1 FROM "ManagedCreator" m WHERE m."userId" = u.id)
     GROUP BY p."authorId" HAVING SUM(p."upCount") > 0 ORDER BY amps DESC LIMIT ${limit}`;
   const users = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: { ...AUTHOR_SELECT, instruments: true, followerCount: true } });
   const byId = new Map(users.map((u) => [u.id, u]));

@@ -18,6 +18,7 @@ function primary(): Item[] {
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag"] },
     { href: "/practice", label: "Practice", icon: "audio" },
     { href: "/studio", label: "Amp Studio", icon: "amp" },
+    { href: "/musicians", label: "Musicians", icon: "user" },
     { href: "/c", label: "Communities", icon: "community" },
     { href: "/tones", label: "Tones", icon: "tone", match: ["/t", "/compare"] },
     { href: "/gear", label: "Gear", icon: "gear-catalog" },
@@ -118,7 +119,7 @@ export function MobileNav({ user, unread: initialUnread }: { user: NavUser; unre
   const unread = useUnreadCount(user?.id ?? null, initialUnread);
   const tabs: Item[] = [
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
-    { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag", "/c", "/gear"] },
+    { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag", "/c", "/gear", "/musicians"] },
     { href: "/tones", label: "Tones", icon: "tone", match: ["/t", "/library", "/analyze"] },
     user ? { href: `/u/${user.handle}`, label: "You", icon: "user", match: ["/settings", "/bookmarks"] } : { href: "/login", label: "Sign in", icon: "user" },
   ];

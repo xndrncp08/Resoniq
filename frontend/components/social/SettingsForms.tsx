@@ -6,11 +6,7 @@ import { signOut } from "next-auth/react";
 import { Avatar, Button, IconButton } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
 import { uploadFile } from "@/lib/upload-client";
-
-const INSTRUMENTS = [
-  ["electric-guitar", "Electric guitar"], ["acoustic-guitar", "Acoustic guitar"], ["bass", "Bass"], ["extended-range", "Extended range"],
-  ["keys", "Keys"], ["drums", "Drums"], ["vocals", "Vocals"], ["production", "Production"],
-] as const;
+import { INSTRUMENTS, INSTRUMENT_LABEL } from "@/lib/instruments";
 
 export type ProfileValues = { handle: string; name: string | null; image: string | null; bannerUrl: string | null; bio: string | null; instruments: string[]; genres: string[]; links: { label: string; url: string }[] };
 
@@ -96,11 +92,12 @@ export function ProfileForm({ initial, imagesEnabled = true }: { initial: Profil
         <fieldset className="sm:col-span-2">
           <legend className="label-engraved mb-2">Instruments (up to 4)</legend>
           <div className="flex flex-wrap gap-2">
-            {INSTRUMENTS.map(([k, l]) => {
+            {INSTRUMENTS.map((k) => {
               const on = v.instruments.includes(k);
-              return <button key={k} type="button" aria-pressed={on} onClick={() => setV({ ...v, instruments: on ? v.instruments.filter((i) => i !== k) : [...v.instruments, k].slice(0, 4) })} className={`rounded-full border px-3 py-1.5 font-body text-sm ${on ? "border-copper bg-copper/10" : "border-line text-muted"}`}>{l}</button>;
+              return <button key={k} type="button" aria-pressed={on} disabled={!on && v.instruments.length >= 4} onClick={() => setV({ ...v, instruments: on ? v.instruments.filter((i) => i !== k) : [...v.instruments, k] })} className={`focus-ring rounded-full border px-3 py-2 font-body text-sm disabled:opacity-40 ${on ? "border-copper bg-copper/10" : "border-line text-muted"}`}>{INSTRUMENT_LABEL[k]}</button>;
             })}
           </div>
+          <p className="mt-2 font-body text-xs text-muted">Your instruments and genres are public and help other musicians find you. Use your bio for a specific instrument or tradition.</p>
         </fieldset>
         <label className="block sm:col-span-2"><span className="label-engraved">Genres, comma separated</span><input value={genres} onChange={(e) => setGenres(e.target.value)} placeholder="blues, shoegaze, prog" className={`${field} h-11`} /></label>
         <fieldset className="space-y-2 sm:col-span-2">

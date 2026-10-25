@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { platformCounts, risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
+import { discoverMusicians, platformCounts, risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
+import { parseMusicianFilters } from "@/lib/musician-directory";
+import { ensureManagedCreators } from "@/lib/managed-creators";
 import { createPost, votePost } from "@/lib/posts";
 import { searchAll, searchCommunities, searchGearItems, searchMusicians, searchPosts, searchTones } from "@/lib/search";
 import { createTone } from "@/lib/tones";
@@ -17,6 +19,52 @@ beforeEach(async () => {
 });
 
 describe("discovery", () => {
+  it("finds members by their instruments, genre and bio without requiring posts or votes", async () => {
+    const a = await makeActor({ handle: "mia_sax", name: "Mia Santos" });
+    await prisma.user.update({ where: { id: a.id }, data: { instruments: ["woodwinds", "keys"], genres: ["jazz"], bio: "Learning kundiman arrangements" } });
+    await makeActor({ handle: "mia_bass" });
+    for (const q of ["MIA", "santos", "KUNDIMAN", "@mia_sax"]) {
+      const found = await discoverMusicians(parseMusicianFilters({ q, instrument: "woodwinds", genre: "Jazz" }));
+      expect(found.items.map((u) => u.handle)).toEqual(["mia_sax"]);
+      expect(Object.keys(found.items[0]).sort()).toEqual(["bio", "genres", "handle", "id", "image", "instruments", "name"]);
+    }
+    expect((await discoverMusicians(parseMusicianFilters({ instrument: "bass", genre: "jazz" }))).items).toEqual([]);
+    expect((await discoverMusicians(parseMusicianFilters({ instrument: "woodwinds", genre: "jaz" }))).items).toEqual([]);
+    await prisma.user.update({ where: { id: a.id }, data: { instruments: ["bass"] } });
+    expect((await discoverMusicians(parseMusicianFilters({ instrument: "bass", genre: "jazz" }))).items.map((u) => u.handle)).toEqual(["mia_sax"]);
+  });
+
+  it("excludes banned, suspended, system and managed identities", async () => {
+    await ensureManagedCreators(prisma);
+    const demo = await prisma.user.findUniqueOrThrow({ where: { handle: "resoniq_clara" } });
+    await prisma.post.create({ data: { authorId: demo.id, body: "An editorial demo", category: "DISCUSSION", status: "PUBLISHED", upCount: 5 } });
+    await prisma.user.createMany({ data: [
+      { handle: "human_player" }, { handle: "hidden_banned", status: "BANNED" },
+      { handle: "hidden_suspended", status: "SUSPENDED" }, { handle: "hidden_system", kind: "SYSTEM" },
+    ] });
+    expect((await discoverMusicians(parseMusicianFilters({}))).items.map((u) => u.handle)).toEqual(["human_player"]);
+    expect(await risingMusicians(null)).toEqual([]);
+  });
+
+  it("pages alphabetically without overlap even when the previous last profile is removed", async () => {
+    await prisma.user.createMany({ data: Array.from({ length: 26 }, (_, i) => ({ handle: `player_${String(i).padStart(2, "0")}`, instruments: ["bass"], genres: ["jazz"] })) });
+    const filters = parseMusicianFilters({ instrument: "bass", genre: "jazz" });
+    const first = await discoverMusicians(filters);
+    expect(first.items).toHaveLength(24);
+    expect(first.nextCursor).toBe("player_23");
+    await prisma.user.delete({ where: { handle: "player_23" } });
+    const next = await discoverMusicians({ ...filters, after: first.nextCursor! });
+    expect(next.items.map((u) => u.handle)).toEqual(["player_24", "player_25"]);
+    expect(next.nextCursor).toBeNull();
+  });
+
+  it("treats SQL wildcard characters as literal search text", async () => {
+    await makeActor({ handle: "mia_sax" });
+    await makeActor({ handle: "miaxsax" });
+    expect((await discoverMusicians(parseMusicianFilters({ q: "mia_sax" }))).items.map((u) => u.handle)).toEqual(["mia_sax"]);
+    expect((await discoverMusicians(parseMusicianFilters({ q: "%" }))).items).toEqual([]);
+  });
+
   it("excludes banned accounts from refreshed public aggregates", async () => {
     const banned = await makeActor();
     await createPost(banned, { ...base, body: "A hidden #bancheck" });
