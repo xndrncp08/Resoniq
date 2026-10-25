@@ -3,17 +3,72 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnalysisProgress from "@/components/tone/AnalysisProgress";
 import ToneDashboard from "@/components/tone/ToneDashboard";
-import type { StageEvent } from "@/lib/analysis-stages";
+import Icon from "@/components/icons/Icon";
+import { Button, LinkButton } from "@/components/app/ui";
+import type { AnalysisNotice, StageEvent } from "@/lib/analysis-stages";
+import { ANALYSIS_FAILURES, fixFor, isRetryable } from "@/lib/analysis-errors";
 import { NDJSON, readNdjson } from "@/lib/ndjson";
 import { recipeFromAnalysis, type SongMeta } from "@/lib/tone-recipe";
 import type { EngineAnalysis } from "@/types/engine";
 
 const POLL_MS = 3000;
+const OFFLINE = "Couldn't reach Resoniq. Check your connection and try again.";
+
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, "0")}`;
+
+/**
+ * What happened, whether the upload is safe, and what to do next. Retrying
+ * reuses the stored file and the same song, so it's always safe; it's only
+ * offered first when it can help.
+ */
+function AnalysisFailed({ title, error, onRetry }: { title: string | null; error: string; onRetry: () => void }) {
+  const retryable = isRetryable(error) || error === OFFLINE;
+  const missing = error === ANALYSIS_FAILURES.missing;
+  const fix = fixFor(error);
+  return (
+    <section role="alert" aria-labelledby="analysis-failed-h" className="panel mx-auto max-w-2xl overflow-hidden">
+      <div className="grille flex gap-4 border-b border-line p-5 sm:p-7">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger">
+          <Icon name="alert" size={22} />
+        </span>
+        <div className="min-w-0">
+          <p className="label-engraved text-danger">{retryable ? "Analysis stopped" : "Can't measure this file"}</p>
+          <h2 id="analysis-failed-h" className="mt-1.5 font-display text-xl font-semibold tracking-tight sm:text-2xl">
+            {retryable ? "We couldn't finish this one." : "This recording needs a change first."}
+          </h2>
+          <p className="mt-2 text-pretty font-body text-[15px] leading-relaxed text-ink-dim">{error}</p>
+        </div>
+      </div>
+      <dl className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
+        <div>
+          <dt className="label-engraved">Your upload</dt>
+          <dd className="mt-2 font-body text-sm text-ink-dim">
+            <span className="block truncate text-ink">{title ?? "Untitled upload"}</span>
+            {missing ? "The stored copy is gone, so it needs uploading again." : retryable ? "Saved privately. Trying again reuses it; nothing is uploaded twice." : "Saved privately in your account."}
+          </dd>
+        </div>
+        <div>
+          <dt className="label-engraved">What you can do</dt>
+          <dd className="mt-2 font-body text-sm text-ink-dim">
+            {fix ?? (retryable ? "Try again. If the engine was waking up, the next run is usually quick." : "Upload a different take.")}
+          </dd>
+        </div>
+      </dl>
+      <div className="flex flex-col-reverse gap-2 border-t border-line p-4 sm:flex-row sm:justify-end sm:p-5">
+        <LinkButton href="/analyze" icon="upload" className="w-full sm:w-auto">Upload a different file</LinkButton>
+        {retryable && !missing && (
+          <Button variant="primary" icon="analyze" onClick={onRetry} className="w-full sm:w-auto">Try again</Button>
+        )}
+      </div>
+    </section>
+  );
+}
 
 type SongStatus = { status: string; analysisData: EngineAnalysis | null; analysisError: string | null };
 
 type AnalyzeEvent =
   | StageEvent
+  | AnalysisNotice
   | { type: "done"; song: { analysisData: EngineAnalysis } }
   | { type: "error"; error: string };
 
@@ -33,6 +88,7 @@ export default function AnalysisRunner({
   const [data, setData] = useState<EngineAnalysis | null>(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const [stage, setStage] = useState<StageEvent | null>(null);
+  const [notice, setNotice] = useState<AnalysisNotice | null>(null);
   // True when this page is polling a job rather than streaming it.
   const [following, setFollowing] = useState(initialStatus === "ANALYZING");
   const started = useRef(false);
@@ -51,6 +107,7 @@ export default function AnalysisRunner({
     setStatus("ANALYZING");
     setError(null);
     setStage(null);
+    setNotice(null);
     setFollowing(false);
     try {
       const res = await fetch("/api/analyze", {
@@ -62,7 +119,11 @@ export default function AnalysisRunner({
         let settled = false;
         await readNdjson<AnalyzeEvent>(res.body, (event) => {
           if (event.type === "stage") setStage(event);
-          else if (event.type === "done") {
+          else if (event.type === "notice") {
+            // Waiting out a restart, then starting over: progress restarts too.
+            setNotice(event);
+            setStage(null);
+          } else if (event.type === "done") {
             settled = true;
             setData(event.song.analysisData);
             setStatus("ANALYZED");
@@ -97,7 +158,7 @@ export default function AnalysisRunner({
         setStatus("FAILED");
       }
     } catch {
-      setError("Couldn't reach Resoniq. Check your connection and try again.");
+      setError(OFFLINE);
       setStatus("FAILED");
     }
   }, [songId, adopt]);
@@ -126,26 +187,25 @@ export default function AnalysisRunner({
   }, [following, status, songId, adopt]);
 
   if (status === "ANALYZING" || status === "UPLOADED") {
-    return <AnalysisProgress stage={following ? null : stage} />;
+    return <AnalysisProgress stage={following ? null : stage} notice={following ? null : notice} />;
   }
 
   if (status === "FAILED") {
-    return (
-      <div className="text-center" role="alert">
-        <p className="font-body text-sm text-danger">{error ?? "Analysis failed."}</p>
-        <button
-          type="button"
-          onClick={run}
-          className="focus-ring mt-4 rounded-full border border-white/10 px-5 py-2 font-body text-sm text-ink transition hover:bg-white/[0.05]"
-        >
-          Try again
-        </button>
-      </div>
-    );
+    return <AnalysisFailed title={song.title} error={error ?? ANALYSIS_FAILURES.engine} onRetry={run} />;
   }
 
   if (status === "ANALYZED" && data && recipe) {
-    return <ToneDashboard songId={songId} initialRecipe={recipe} measurements={data.raw_features} />;
+    const w = data.analysis_window;
+    return (
+      <>
+        {w?.total_s && w.total_s > w.duration_s + 1 && (
+          <p className="mx-auto mb-6 max-w-2xl text-center font-body text-xs leading-relaxed text-muted">
+            Measured <span className="font-mono text-ink-dim">{clock(w.start_s)}–{clock(w.start_s + w.duration_s)}</span> of {clock(w.total_s)}, the loudest stretch of the recording. A full mix can&apos;t isolate one guitar exactly: treat this as a starting point to dial in by ear.
+          </p>
+        )}
+        <ToneDashboard songId={songId} initialRecipe={recipe} measurements={data.raw_features} />
+      </>
+    );
   }
 
   return null;

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/lib/api";
-import { analyzeAudio, analyzeAudioStream, EngineError } from "@/lib/engine";
-import type { StageEvent } from "@/lib/analysis-stages";
+import { analyzeAudio, analyzeAudioStream, EngineError, engineHealthy } from "@/lib/engine";
+import { ANALYSIS_FAILURES } from "@/lib/analysis-errors";
+import type { AnalysisNotice, StageEvent } from "@/lib/analysis-stages";
 import { NDJSON } from "@/lib/ndjson";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { getStorage } from "@/lib/storage";
@@ -11,6 +12,21 @@ import { STALE_ANALYSIS_MS } from "@/lib/analysis-status";
 
 // Analysis of a long track can take a while; don't let a platform default cut it off.
 export const maxDuration = 300;
+
+// Everything (a wait for the engine included) finishes inside maxDuration.
+const BUDGET_MS = 285_000;
+// A retry only starts if an analysis still has this long to run.
+const MIN_ANALYSIS_MS = 75_000;
+const HEALTH_POLL_MS = 5_000;
+
+/** Polls the engine's health until it answers or `until` passes. */
+async function waitForEngine(until: number): Promise<boolean> {
+  while (Date.now() < until) {
+    if (await engineHealthy(Math.min(10_000, Math.max(1_000, until - Date.now())))) return true;
+    await new Promise((r) => setTimeout(r, HEALTH_POLL_MS));
+  }
+  return false;
+}
 
 type Outcome =
   | { ok: true; song: { id: string; status: string; analysisData: Prisma.JsonValue } }
@@ -22,7 +38,8 @@ type Outcome =
  * the JSON and streaming paths. With `onStage`, the engine's progress is
  * reported as it happens.
  */
-async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (event: StageEvent) => void): Promise<Outcome> {
+async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (event: StageEvent | AnalysisNotice) => void): Promise<Outcome> {
+  const deadline = Date.now() + BUDGET_MS;
   const fail = async (detail: unknown, error: string): Promise<Outcome> => {
     console.error(`[api] analyze ${job.id} failed`, detail);
     try {
@@ -36,12 +53,27 @@ async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (e
 
   try {
     const stored = await getStorage().get(job.storageKey);
-    if (!stored) return await fail(`storage object ${job.storageKey} missing`, "The uploaded file is missing. Upload it again.");
+    if (!stored) return await fail(`storage object ${job.storageKey} missing`, ANALYSIS_FAILURES.missing);
 
     const filename = job.storageKey.split("/").pop()!;
-    const analysis = onStage
-      ? await analyzeAudioStream(stored.bytes, filename, stored.contentType, onStage)
-      : await analyzeAudio(stored.bytes, filename, stored.contentType);
+    const attempt = () => {
+      const timeout = deadline - Date.now();
+      return onStage ? analyzeAudioStream(stored.bytes, filename, stored.contentType, onStage, timeout) : analyzeAudio(stored.bytes, filename, stored.contentType, timeout);
+    };
+    let analysis;
+    try {
+      analysis = await attempt();
+    } catch (err) {
+      // Asleep, restarting or dropped mid-way: wait for it and run the same
+      // job once more. The song row was claimed above, so this can't duplicate
+      // anything, and the stored upload is reused.
+      if (!(err instanceof EngineError && err.transient)) throw err;
+      console.warn(`[api] analyze ${job.id}: ${err.message}; waiting for the engine to retry`);
+      onStage?.({ type: "notice", code: "waking" });
+      if (!(await waitForEngine(deadline - MIN_ANALYSIS_MS))) throw err;
+      onStage?.({ type: "notice", code: "retrying" });
+      analysis = await attempt();
+    }
     const song = await prisma.song.update({
       where: { id: job.id },
       // EngineAnalysis is plain JSON from the engine; Prisma's input type can't see that.
@@ -50,7 +82,7 @@ async function runAnalysis(job: { id: string; storageKey: string }, onStage?: (e
     });
     return { ok: true, song };
   } catch (err) {
-    return fail(err, err instanceof EngineError ? err.publicMessage : "Analysis failed. Try again.");
+    return fail(err, err instanceof EngineError ? err.publicMessage : ANALYSIS_FAILURES.engine);
   }
 }
 

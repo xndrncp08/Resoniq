@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ANALYSIS_STAGES, stageProgress, type StageEvent } from "@/lib/analysis-stages";
+import { ANALYSIS_STAGES, stageProgress, type AnalysisNotice, type StageEvent } from "@/lib/analysis-stages";
 import { gsap, REDUCED_MOTION, useGSAP } from "@/lib/gsap";
 import { spring } from "@/lib/motion";
 
@@ -21,8 +21,27 @@ const GROUPS = [
  * under "Measure". With no stage info (the job is running in another tab and
  * this page is only polling), it says so instead of inventing progress.
  */
-export default function AnalysisProgress({ stage }: { stage: StageEvent | null }) {
+const NOTICE: Record<AnalysisNotice["code"], string> = {
+  waking: "The analysis engine was asleep or restarting. Waiting for it to come back, which usually takes under two minutes.",
+  retrying: "The engine is back. Running your analysis again from the saved upload.",
+};
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/** Seconds since this panel appeared, so a long wait visibly isn't a hang. */
+function useElapsed() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return seconds;
+}
+
+export default function AnalysisProgress({ stage, notice = null }: { stage: StageEvent | null; notice?: AnalysisNotice | null }) {
   const root = useRef<HTMLDivElement>(null);
+  const elapsed = useElapsed();
   const current = stage ? ANALYSIS_STAGES.findIndex((s) => s.id === stage.stage) : -1;
   const progress = stage ? stageProgress(stage.index, stage.total) : 0;
   const activeGroup = current >= 0 ? ANALYSIS_STAGES[current].group : stage ? "decode" : null;
@@ -47,7 +66,9 @@ export default function AnalysisProgress({ stage }: { stage: StageEvent | null }
     <div ref={root} className="glass mx-auto max-w-2xl rounded-panel p-6">
       <div className="flex items-baseline justify-between gap-4">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">analyzing</p>
-        <p className="font-mono text-[11px] tabular-nums text-muted">{stage ? `${stage.index + 1} / ${stage.total}` : "in progress"}</p>
+        <p className="font-mono text-[11px] tabular-nums text-muted">
+          {stage ? `${stage.index + 1} / ${stage.total}` : "in progress"} · <span aria-label={`${elapsed} seconds elapsed`}>{clock(elapsed)}</span>
+        </p>
       </div>
 
       <div
@@ -118,7 +139,10 @@ export default function AnalysisProgress({ stage }: { stage: StageEvent | null }
       </ul>
 
       <p role="status" aria-live="polite" className="mt-5 text-center font-body text-sm text-muted">
-        {stage ? `${label}…` : "This song is being analyzed elsewhere (another tab or an earlier request). This page will update when it's done."}
+        {notice && !stage ? NOTICE[notice.code] : stage ? `${label}…` : "This song is being analyzed elsewhere (another tab or an earlier request). This page will update when it's done."}
+      </p>
+      <p className="mt-4 border-t border-white/[0.06] pt-4 text-center font-body text-xs leading-relaxed text-muted">
+        Your upload is saved privately, so you can leave this page and come back. Long recordings are measured on their loudest minute.
       </p>
     </div>
   );
