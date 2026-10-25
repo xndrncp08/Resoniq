@@ -63,15 +63,19 @@ bucket or a local volume shared by frontend and worker.
 
 ## Motion
 
-Two animation libraries, each with one job:
+Three rendering libraries, each with one job:
 
 | Library | Used for |
 | --- | --- |
 | [Motion](https://motion.dev) (`motion/react`) | Layout and presence: signal-chain nodes, pedal reorder, pickup selector, library grid, share dialog, dropzone gestures, page entrances |
 | [GSAP](https://gsap.com) | Timelines and render loops: hero waveform morph, How it works, the measurement-to-recipe reveal, measurement meters, the spectrum analyzer, EQ-curve tweening |
+| [three.js](https://threejs.org) via React Three Fiber | The 3D amp head on tone pages, the analysis editor and the landing hero; loaded on demand |
 
-Both honor `prefers-reduced-motion`. GSAP is free to use under its own
-[standard license](https://gsap.com/standard-license) (not open source).
+All of them honor `prefers-reduced-motion`. Client state is Zustand (tool
+stores, device preferences) and TanStack Query (server data that changes while
+a page is open); see `docs/state-and-3d.md` for who owns what.
+
+GSAP is free to use under its own [standard license](https://gsap.com/standard-license) (not open source).
 
 Fonts are bundled under `frontend/public/fonts` with their SIL Open Font
 License, so builds don't need to contact Google Fonts.

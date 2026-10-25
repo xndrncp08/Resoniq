@@ -68,7 +68,7 @@ export default function AmpScene({ amp, onKnob, className }: { amp: AmpSettings;
       <ambientLight intensity={0.15} />
       <directionalLight position={[2.5, 3, 3]} intensity={1.6} color="#ffe1c4" />
       <directionalLight position={[-3, 1.5, -2]} intensity={1.2} color="#7fe9da" />
-      <Environment resolution={256} frames={1}>
+      <Environment resolution={128} frames={1}>
         <Lightformer form="rect" intensity={3} position={[0, 2.2, 2]} scale={[4, 1.2, 1]} rotation-x={Math.PI / 3} color="#fff4e8" />
         <Lightformer form="rect" intensity={2} position={[-3, 0.5, 1]} scale={[1, 3, 1]} rotation-y={Math.PI / 2} color="#ffb680" />
         <Lightformer form="rect" intensity={1.5} position={[3, 0.5, -1]} scale={[1, 3, 1]} rotation-y={-Math.PI / 2} color="#37e6c9" />
@@ -77,7 +77,7 @@ export default function AmpScene({ amp, onKnob, className }: { amp: AmpSettings;
       <Stage>
         <AmpHead amp={amp} onKnob={onKnob} />
       </Stage>
-      <ContactShadows position={[0, -0.42, 0]} opacity={0.7} scale={4} blur={2.4} far={1} resolution={512} />
+      <ContactShadows position={[0, -0.42, 0]} opacity={0.7} scale={4} blur={2.4} far={1} resolution={256} />
     </Canvas>
   );
 }

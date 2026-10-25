@@ -145,7 +145,7 @@ export default function AmpHead({ amp, onKnob }: { amp: AmpSettings; onKnob?: (k
   const knobGeo = useDisposal(useMemo(() => new THREE.LatheGeometry(KNOB_PROFILE, 64), []));
 
   const mats = useDisposal(useMemo(() => {
-    const tolex = new THREE.MeshPhysicalMaterial({ color: "#121316", roughness: 0.82, bumpMap: bump, bumpScale: 1.6, sheen: 0.4, sheenColor: new THREE.Color("#3a3d44"), sheenRoughness: 0.6 });
+    const tolex = new THREE.MeshStandardMaterial({ color: "#141518", roughness: 0.8, bumpMap: bump, bumpScale: 1.6 });
     const grille = new THREE.MeshStandardMaterial({ map: cloth, roughness: 0.95, emissive: new THREE.Color("#ff9448"), emissiveMap: glowMask, emissiveIntensity: 0.4 });
     const panel = new THREE.MeshStandardMaterial({ map: panelTex, metalness: 0.75, roughness: 0.38 });
     const piping = new THREE.MeshStandardMaterial({ color: "#d8cbb0", roughness: 0.45 });
@@ -153,7 +153,7 @@ export default function AmpHead({ amp, onKnob }: { amp: AmpSettings; onKnob?: (k
     const knobBody = new THREE.MeshStandardMaterial({ color: "#16181c", metalness: 0.55, roughness: 0.32 });
     const knobCap = new THREE.MeshStandardMaterial({ color: "#e4e7ec", metalness: 0.9, roughness: 0.34 });
     const pointer = new THREE.MeshStandardMaterial({ color: "#ff8a3d", emissive: new THREE.Color("#ff8a3d"), emissiveIntensity: 1.4 });
-    const jewel = new THREE.MeshPhysicalMaterial({ color: "#ff3b1f", emissive: new THREE.Color("#ff2a10"), emissiveIntensity: 2.4, roughness: 0.1, transmission: 0.2, clearcoat: 1 });
+    const jewel = new THREE.MeshStandardMaterial({ color: "#ff3b1f", emissive: new THREE.Color("#ff2a10"), emissiveIntensity: 2.4, roughness: 0.12 });
     const leather = new THREE.MeshStandardMaterial({ color: "#1b1512", roughness: 0.7 });
     const list = { tolex, grille, panel, piping, chrome, knobBody, knobCap, pointer, jewel, leather };
     return { ...list, dispose: () => Object.values(list).forEach((m) => m.dispose()) };

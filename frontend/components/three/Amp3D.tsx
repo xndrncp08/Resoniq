@@ -13,6 +13,11 @@ const AmpScene = dynamic(() => import("@/components/three/AmpScene"), { ssr: fal
 
 const noSubscribe = () => () => {};
 
+function lowPowerDevice() {
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+  return !!nav.connection?.saveData || (nav.deviceMemory !== undefined && nav.deviceMemory < 4);
+}
+
 function Loading() {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
@@ -48,15 +53,28 @@ export default function Amp3D({ amp, onKnob, caption, className = "" }: { amp: A
   const [failed, setFailed] = useState(false);
   const supported = probed === null ? null : probed && !failed;
   const [near, setNear] = useState(false);
+  // Data saver or a low-memory device: draw the amp only when asked.
+  const manual = useSyncExternalStore(noSubscribe, lowPowerDevice, () => false) && !near;
   const box = useRef<HTMLDivElement>(null);
 
+  // Mount only once the stage is on screen and the browser is idle, so the 3D
+  // parse and shader compile never compete with the page's own load.
   useEffect(() => {
     const el = box.current;
-    if (!el || near) return;
-    const io = new IntersectionObserver(([e]) => e?.isIntersecting && setNear(true), { rootMargin: "300px" });
+    if (!el || near || manual) return;
+    let idle = 0;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e?.isIntersecting) return;
+      io.disconnect();
+      idle = typeof requestIdleCallback === "function" ? requestIdleCallback(() => setNear(true), { timeout: 2500 }) : window.setTimeout(() => setNear(true), 300);
+    }, { threshold: 0.25 });
     io.observe(el);
-    return () => io.disconnect();
-  }, [near, pref, supported]);
+    return () => {
+      io.disconnect();
+      if (typeof cancelIdleCallback === "function") cancelIdleCallback(idle);
+      else clearTimeout(idle);
+    };
+  }, [near, manual, pref, supported]);
 
   const decision = supported === null ? null : decideScene3d(pref, supported);
   if (decision === "unsupported") return null;
@@ -71,6 +89,13 @@ export default function Amp3D({ amp, onKnob, caption, className = "" }: { amp: A
   return (
     <figure className={`relative overflow-hidden rounded-panel border border-line bg-[radial-gradient(120%_90%_at_50%_0%,#1b1f27_0%,#0b0d11_60%,#06080b_100%)] ${className}`}>
       <div ref={box} className="relative aspect-[16/9] w-full sm:aspect-[21/9]">
+        {manual && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <button type="button" onClick={() => setNear(true)} className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong bg-surface-2 px-5 font-body text-sm text-ink hover:border-copper/50">
+              <Icon name="play" size={16} /> Load the 3D amp
+            </button>
+          </div>
+        )}
         {near && decision === "render" && (
           <SceneBoundary onError={() => setFailed(true)}>
             <AmpScene amp={amp} onKnob={onKnob} className="!absolute inset-0" />
