@@ -45,6 +45,25 @@ describe("votes", () => {
 });
 
 describe("feeds and visibility", () => {
+  it("filters categories across pagination and both feeds without exposing held posts", async () => {
+    const author = await makeActor();
+    const viewer = await makeActor();
+    await follow(viewer.id, author.id);
+    const first = await createPost(author, { ...base, category: "QUESTION", body: "How do you practice changes?" });
+    const second = await createPost(author, { ...base, category: "QUESTION", body: "How do you count this?" });
+    await createPost(author, { ...base, category: "PERFORMANCE", body: "A take" });
+    const held = await createPost(author, { ...base, category: "QUESTION", body: "Held question" });
+    await prisma.post.update({ where: { id: held.id }, data: { status: "HELD" } });
+    const { decodeCursor } = await import("@/lib/pagination");
+    for (const load of [() => forYouFeed(null, { ...q(), sort: "new", category: "QUESTION", limit: 1 }), () => followingFeed(viewer.id, { ...q(), sort: "new", category: "QUESTION", limit: 1 })]) {
+      const page = await load();
+      expect(page.items).toHaveLength(1);
+      expect(page.items[0].category).toBe("QUESTION");
+      const next = await listPosts({}, null, { ...q(), sort: "new", category: "QUESTION", limit: 1, cursor: decodeCursor(page.nextCursor) });
+      expect(new Set([...page.items, ...next.items].map((p) => p.id))).toEqual(new Set([first.id, second.id]));
+      expect(next.nextCursor).toBeNull();
+    }
+  });
   it("paginates hot and new without gaps or duplicates", async () => {
     const a = await makeActor();
     const voter = await makeActor();

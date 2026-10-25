@@ -13,12 +13,12 @@ import type { RigSpec } from "@/types/rig";
 type Community = { slug: string; name: string; joined: boolean };
 type Tone = { id: string; name: string; visibility: string };
 
-export default function Composer({ communities, tones, initial, uploadKinds }: { communities: Community[]; tones: Tone[]; initial: { category?: string; community?: string; toneId?: string }; uploadKinds: UploadKinds }) {
+export default function Composer({ communities, tones, initial, uploadKinds }: { communities: Community[]; tones: Tone[]; initial: { category?: string; community?: string; toneId?: string; title?: string; body?: string }; uploadKinds: UploadKinds }) {
   const router = useRouter();
   const [category, setCategory] = useState(initial.category && CATEGORY_META[initial.category] ? initial.category : "DISCUSSION");
   const [community, setCommunity] = useState(initial.community ?? "");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [title, setTitle] = useState(initial.title ?? "");
+  const [body, setBody] = useState(initial.body ?? "");
   const [mediaIds, setMediaIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [toneId, setToneId] = useState(initial.toneId ?? "");
@@ -74,7 +74,7 @@ export default function Composer({ communities, tones, initial, uploadKinds }: {
 
       <div className="panel space-y-3 p-4">
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder="Title (optional)" aria-label="Title" className="w-full bg-transparent font-display text-2xl font-semibold outline-none placeholder:text-muted/60" />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={10000} rows={5} placeholder="Tell the story behind the tone. Mention @musicians and add #tags." aria-label="Post text" className="w-full resize-y bg-transparent font-body text-[15px] leading-relaxed outline-none placeholder:text-muted" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={10000} rows={7} placeholder="What are you playing, learning or looking for? Mention @musicians and add #tags." aria-label="Post text" className="w-full resize-y bg-transparent font-body text-[15px] leading-relaxed outline-none placeholder:text-muted" />
         <p className="text-right font-mono text-[11px] text-muted">{body.length.toLocaleString()} / 10,000</p>
       </div>
 

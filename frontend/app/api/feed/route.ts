@@ -4,7 +4,7 @@ import { decodeCursor, parseLimit } from "@/lib/pagination";
 import { followingFeed, forYouFeed, parseFeedQuery } from "@/lib/posts";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
-/** ?tab=for-you|following &sort=hot|new|top &t=day|week|month|year|all &cursor &limit */
+/** ?tab=for-you|following &sort=hot|new|top &t=day|week|month|year|all &category &cursor &limit */
 export const GET = route("feed", async (req) => {
   await enforceRateLimit("social-read", clientIp(req), RATE_LIMITS.socialRead);
   const viewer = await optionalActor();

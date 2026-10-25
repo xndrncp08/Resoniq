@@ -5,8 +5,8 @@ import { Avatar } from "@/components/app/ui";
 const QUICK: { href: string; label: string; icon: IconName }[] = [
   { href: "/new?category=PERFORMANCE", label: "Performance", icon: "video" },
   { href: "/new?category=TONE_COMPARISON", label: "Tone A/B", icon: "compare" },
-  { href: "/new?category=PEDALBOARD", label: "Board tour", icon: "signal-chain" },
-  { href: "/analyze", label: "Analyze a song", icon: "analyze" },
+  { href: "/new?prompt=feedback", label: "Ask for feedback", icon: "comment" },
+  { href: "/new?prompt=collaboration", label: "Collaborate", icon: "community" },
 ];
 
 /** The "what are you playing?" bar at the top of the feed. */

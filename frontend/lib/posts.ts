@@ -339,12 +339,13 @@ const SORTS: Record<FeedSort, SortSpec> = {
   top: { field: "score", parse: Number, key: (r) => String(r.score) },
 };
 
-export type FeedQuery = { sort?: FeedSort; window?: TopWindow; cursor: Cursor | null; limit: number };
+export type FeedQuery = { sort?: FeedSort; window?: TopWindow; category?: PostCategory; cursor: Cursor | null; limit: number };
 
 /** Keyset-paginated posts matching `where`, visible to the viewer, newest/hottest/top first. */
 export async function listPosts(where: Prisma.PostWhereInput, viewerId: string | null, q: FeedQuery) {
   const spec = SORTS[q.sort ?? "hot"];
   const and: Prisma.PostWhereInput[] = [where, visiblePostWhere(viewerId)];
+  if (q.category) and.push({ category: q.category });
   if (q.sort === "top" && q.window && q.window !== "all") and.push({ createdAt: { gte: new Date(Date.now() - WINDOW_MS[q.window]) } });
   if (q.cursor) {
     const v = spec.parse(q.cursor.t);
@@ -426,8 +427,10 @@ export async function bookmarksFeed(viewerId: string, cursor: Cursor | null, lim
 export function parseFeedQuery(url: URL): Omit<FeedQuery, "cursor" | "limit"> {
   const sort = url.searchParams.get("sort") as FeedSort | null;
   const window = url.searchParams.get("t") as TopWindow | null;
+  const category = url.searchParams.get("category") as PostCategory | null;
   return {
     sort: sort && FEED_SORTS.includes(sort) ? sort : undefined,
-    window: window && window in WINDOW_MS ? window : "week",
+    window: window && Object.hasOwn(WINDOW_MS, window) ? window : "week",
+    category: category && POST_CATEGORIES.includes(category) ? category : undefined,
   };
 }

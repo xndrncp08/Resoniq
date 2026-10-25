@@ -15,6 +15,7 @@ function primary(): Item[] {
   return [
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag"] },
+    { href: "/practice", label: "Practice", icon: "audio" },
     { href: "/c", label: "Communities", icon: "community" },
     { href: "/tones", label: "Tones", icon: "tone", match: ["/t", "/compare"] },
     { href: "/gear", label: "Gear", icon: "gear-catalog" },
@@ -126,6 +127,7 @@ export function MobileNav({ user, unread }: { user: NavUser; unread: number }) {
           <span className="font-display text-lg font-semibold">Resoniq</span>
         </Link>
         <div className="flex items-center gap-1">
+          <Link href="/practice" aria-label="Practice room" className={`focus-ring flex h-10 w-10 items-center justify-center rounded-full ${pathname === "/practice" ? "text-signal" : "text-muted hover:text-ink"}`}><Icon name="audio" size={22} /></Link>
           <Link href="/search" aria-label="Search" className="focus-ring flex h-10 w-10 items-center justify-center rounded-full text-muted hover:text-ink">
             <Icon name="search" size={22} />
           </Link>

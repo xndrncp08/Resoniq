@@ -12,6 +12,7 @@ import MusicianRow from "@/components/social/MusicianRow";
 import ToneCard from "@/components/tone/ToneCard";
 import { KIND_ICON } from "@/components/tone/gear-icons";
 import FeaturedStrip from "@/components/social/FeaturedStrip";
+import ConversationStarters from "@/components/social/ConversationStarters";
 
 export const metadata: Metadata = { title: "Explore" };
 
@@ -55,15 +56,16 @@ export default async function ExplorePage() {
       </header>
 
       <FeaturedStrip placement="EXPLORE" viewerId={vid} />
+      <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-2xl font-semibold">Make room for music today.</h2><LinkButton href="/practice" icon="audio" variant="signal">Open practice room</LinkButton></div><ConversationStarters /></section>
 
       {empty && <EmptyState icon="explore" title="Discovery fills up as people post" action={<LinkButton href="/new" variant="primary">Share something</LinkButton>}>Trending posts, popular tones and rising musicians appear here from real activity only.</EmptyState>}
 
       {videos.items.length > 0 && (
-        <section><Head icon="video" title="Performances" href="/feed?sort=hot" /><div className="grid gap-4 lg:grid-cols-2">{videos.items.map((p) => <PostCard key={p.id} post={p} signedIn={!!viewer} />)}</div></section>
+        <section><Head icon="video" title="Performances" href="/feed?sort=hot&category=PERFORMANCE" /><div className="grid gap-4 lg:grid-cols-2">{videos.items.map((p) => <PostCard key={p.id} post={p} signedIn={!!viewer} />)}</div></section>
       )}
 
       {tones.items.length > 0 && (
-        <section><Head icon="tone" title="Most-saved tones" href="/tones?sort=popular" /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{tones.items.map((t) => <ToneCard key={t.id} tone={t} />)}</div></section>
+        <section><Head icon="tone" title={tones.items.some((t) => t.saveCount > 0) ? "Most-saved tones" : "Sounds to make your own"} href="/tones?sort=popular" /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{tones.items.map((t) => <ToneCard key={t.id} tone={t} />)}</div></section>
       )}
 
       <section>

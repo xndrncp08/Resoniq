@@ -12,7 +12,7 @@ export default async function LiveBoard({ tones, viewerId }: { tones: ToneView[]
       {tones.length > 0 && (
         <div>
           <div className="mb-6 flex items-end justify-between gap-4">
-            <h2 className="flex items-center gap-3 font-display text-4xl font-semibold tracking-tight"><Icon name="tone" size={30} className="text-copper" /> Most-saved tones</h2>
+            <h2 className="flex items-center gap-3 font-display text-4xl font-semibold tracking-tight"><Icon name="tone" size={30} className="text-copper" /> {tones.some((t) => t.saveCount > 0) ? "Most-saved tones" : "Sounds to make your own"}</h2>
             <Link href="/tones?sort=popular" className="font-body text-sm text-copper hover:underline">All tones</Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{tones.map((t) => <ToneCard key={t.id} tone={t} />)}</div>

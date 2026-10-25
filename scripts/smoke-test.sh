@@ -100,7 +100,13 @@ if grep -q "$user_id" "$WORK/shared.html"; then fail "shared page leaks the owne
 step "delete"
 code=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -X DELETE "$BASE_URL/api/tones/$tone_id")
 [ "$code" = 200 ] || fail "delete returned $code"
-code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/t/$tone_id")
-[ "$code" = 404 ] || fail "deleted tone page returned $code"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/tones/$tone_id")
+[ "$code" = 404 ] || fail "deleted tone API returned $code"
+# A streamed not-found page can send 200; verify the denial and absence of content too.
+code=$(curl -s -o "$WORK/deleted.html" -w '%{http_code}' "$BASE_URL/t/$tone_id")
+[[ "$code" = 200 || "$code" = 404 ]] || fail "deleted tone page returned $code"
+grep -q 'Nothing on this channel' "$WORK/deleted.html" || fail "deleted tone has no not-found view"
+grep -q 'noindex' "$WORK/deleted.html" || fail "deleted tone is indexable"
+if grep -q 'Smoke test tone (renamed)' "$WORK/deleted.html"; then fail "deleted tone content is still exposed"; fi
 
 printf '\nSMOKE TEST PASSED\n'
