@@ -29,7 +29,7 @@ describe("analysis recovery", () => {
 
 describe("tone validation", () => {
   it("clamps knobs, trims text and renumbers slots", () => {
-    const { recipe } = parseStoredToneData({ version: 2, recipe: validRecipe() });
+    const recipe = parseStoredToneData({ version: 2, recipe: validRecipe() }).recipe!;
     expect(recipe.confidenceScore).toBe(100);
     expect(recipe.amp.gain).toBe(71);
     expect(recipe.amp.bass).toBe(0);

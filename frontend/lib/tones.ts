@@ -7,7 +7,9 @@ import { notify } from "@/lib/notify";
 import { page, type Cursor } from "@/lib/pagination";
 import { AUTHOR_SELECT, type Author } from "@/lib/profiles";
 import { parseRig, rigGearIds } from "@/lib/rig-validation";
-import { recipeCoreFromStored } from "@/lib/tone-recipe";
+import { recipeCoreFromStored, studioPatchFromStored } from "@/lib/tone-recipe";
+import type { StudioPatch } from "@/lib/studio/patch";
+import { TANK_G_SLUG, validateTankGRig } from "@/lib/devices/tank-g";
 import { parseStoredToneData, parseToneName } from "@/lib/tone-validation";
 import { fail } from "@/lib/validation";
 import { ANONYMOUS_AUTHOR } from "@/lib/system-identity";
@@ -61,6 +63,8 @@ export type ToneView = {
   /** "generated": suggested settings written by Resoniq, not a member's rig or an analysis. */
   origin: "member" | "generated";
   inferred: RecipeCore | null;
+  /** Settings built in the Amp Studio (never labelled as analysis). */
+  studio: StudioPatch | null;
   recipeEdited: boolean;
   declared: RigSpec | null;
   saveCount: number;
@@ -88,6 +92,7 @@ export function toToneView(t: ToneRow, viewerId: string | null, saved = false): 
     anonymous: t.anonymous,
     origin: t.origin === "GENERATED" ? "generated" : "member",
     inferred: recipeCoreFromStored(t.data),
+    studio: studioPatchFromStored(t.data),
     recipeEdited: t.recipeEdited,
     declared: (t.rig as RigSpec | null) ?? null,
     saveCount: t.saveCount,
@@ -164,7 +169,16 @@ export function parseToneInput(body: Record<string, unknown>, { partial }: { par
 type Db = Prisma.TransactionClient;
 
 /** Catalog gear a rig references must exist (approved, or the owner's own pending submission). */
+/** A rig that claims to be a hardware preset must be one the hardware can actually hold. */
+async function assertDevice(tx: Db, rig: RigSpec | null | undefined) {
+  if (rig?.device?.slug !== TANK_G_SLUG) return;
+  const device = await tx.gearItem.findFirst({ where: { slug: TANK_G_SLUG }, select: { id: true } });
+  if (!device) throw new ApiError(400, "That device isn't in the catalog.");
+  validateTankGRig(rig, device.id);
+}
+
 async function assertGear(tx: Db, rig: RigSpec | null | undefined, userId: string) {
+  await assertDevice(tx, rig);
   const ids = rigGearIds(rig ?? null);
   if (!ids.length) return ids;
   const found = await tx.gearItem.count({ where: { id: { in: ids }, OR: [{ status: "APPROVED" }, { createdById: userId }] } });
@@ -214,9 +228,17 @@ export async function updateTone(actor: Actor, id: string, input: ToneInput) {
     if (input.favorite !== undefined) data.favorite = input.favorite;
     if (input.description !== undefined) data.description = input.description;
     if (input.data !== undefined) {
-      data.data = input.data === null ? (null as unknown as Prisma.InputJsonValue) : json(input.data);
+      // The recipe and the studio patch are updated independently: sending one never drops the other.
+      const merged = input.data && {
+        version: 2 as const,
+        ...((input.data.recipe ?? recipeCoreFromStored(tone.data)) && { recipe: input.data.recipe ?? recipeCoreFromStored(tone.data)! }),
+        ...((input.data.studio ?? studioPatchFromStored(tone.data)) && { studio: input.data.studio ?? studioPatchFromStored(tone.data)! }),
+      };
+      data.data = merged === null ? (null as unknown as Prisma.InputJsonValue) : json(merged);
       // An analysis recipe the creator retunes is labelled as adjusted, not as raw analysis.
-      if (input.data && tone.data && JSON.stringify(input.data) !== JSON.stringify(tone.data)) data.recipeEdited = true;
+      // Only the recipe counts: adding or changing a studio patch leaves the analysis as it was.
+      const before = recipeCoreFromStored(tone.data);
+      if (input.data?.recipe && before && JSON.stringify(input.data.recipe) !== JSON.stringify(before)) data.recipeEdited = true;
     }
     if (input.rig !== undefined) {
       data.rig = input.rig === null ? (null as unknown as Prisma.InputJsonValue) : json(input.rig);

@@ -55,6 +55,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       </form>
       {q && <Tabs label="Result type" items={[{ href: `/search?q=${enc}`, label: "All", active: !type }, ...SEARCH_TYPES.map((t) => ({ href: `/search?q=${enc}&type=${t}`, label: LABEL[t], active: type === t }))]} />}
       {q && type === "tones" && <Tabs label="Tone source" items={[{ href: `/search?q=${enc}&type=tones`, label: "All sources", active: !source }, { href: `/search?q=${enc}&type=tones&source=members`, label: "Members only", active: source === "members" }, { href: `/search?q=${enc}&type=tones&source=generated`, label: "Resoniq-generated", active: source === "generated" }]} />}
+      {(!q || type === "musicians") && <Link href="/musicians" className="focus-ring inline-flex rounded-lg py-2 font-body text-sm text-copper hover:underline">Find musicians by instrument and genre →</Link>}
       {!q && <p className="font-body text-muted">Try a player, a pedal (<Link className="text-copper" href="/search?q=tube%20screamer">tube screamer</Link>), a style (<Link className="text-copper" href="/search?q=%22edge%20of%20breakup%22">&quot;edge of breakup&quot;</Link>) or a community.</p>}
       {nothing && <EmptyState icon="search" title="Nothing matched">Try fewer words, or search a different type.</EmptyState>}
 

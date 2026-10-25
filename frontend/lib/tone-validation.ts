@@ -1,5 +1,6 @@
 import type { StoredToneData } from "@/lib/tone-recipe";
 import { fail } from "@/lib/validation";
+import { parseStudioPatch } from "@/lib/studio/patch";
 import type { AmpSettings, PedalSlot, PickupPosition, RecipeCore } from "@/types/tone";
 
 /**
@@ -89,5 +90,10 @@ export function parseRecipeCore(v: unknown): RecipeCore {
 export function parseStoredToneData(v: unknown): StoredToneData {
   const d = obj(v, "data");
   if (d.version !== 2) fail("data.version must be 2.");
-  return { version: 2, recipe: parseRecipeCore(d.recipe) };
+  if (d.recipe === undefined && d.studio === undefined) fail("data needs a recipe or a studio patch.");
+  return {
+    version: 2,
+    ...(d.recipe !== undefined && { recipe: parseRecipeCore(d.recipe) }),
+    ...(d.studio !== undefined && { studio: parseStudioPatch(d.studio) }),
+  };
 }

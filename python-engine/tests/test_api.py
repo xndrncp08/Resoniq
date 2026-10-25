@@ -135,8 +135,10 @@ def test_stream_reports_every_stage_in_order_then_the_same_result(client):
     assert res.headers["content-type"].startswith("application/x-ndjson")
     events = _events(res)
     stages = [e["stage"] for e in events if e["type"] == "stage"]
-    assert stages == list(main.STAGES)
-    assert [e["index"] for e in events if e["type"] == "stage"] == list(range(len(main.STAGES)))
+    # A short take has no sections, so it skips the scan; the rest arrive in order.
+    assert stages == [s for s in main.STAGES if s not in ("scanning", "sections")]
+    indexes = [e["index"] for e in events if e["type"] == "stage"]
+    assert indexes == sorted(indexes) and indexes == [main.STAGES.index(s) for s in stages]
     assert events[-1]["type"] == "result"
     plain = client.post("/analyze/file", files={"file": ("song.wav", audio, "audio/wav")}, headers=AUTH).json()
     assert events[-1]["data"] == plain

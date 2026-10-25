@@ -1,6 +1,7 @@
 import type { EngineAnalysis, EngineToneProfile } from "@/types/engine";
 import type { PedalSlot, PickupPosition, RecipeCore, ToneRecipe } from "@/types/tone";
 import { chainPosition, classifyEffect } from "@/lib/effectConfig";
+import type { StudioPatch } from "@/lib/studio/patch";
 
 /**
  * Adapters from storage/engine shapes to the ToneRecipe contract.
@@ -19,8 +20,12 @@ export function songAudioUrl(songId: string): string {
   return `/api/songs/${encodeURIComponent(songId)}/audio`;
 }
 
-/** What `Tone.data` holds for tones saved from the ToneRecipe dashboard. */
-export type StoredToneData = { version: 2; recipe: RecipeCore };
+/**
+ * What `Tone.data` holds: Resoniq's analysis recipe (possibly retuned), the
+ * Amp Studio patch, or both. They're kept apart so a studio-built sound is
+ * never labelled as something the analysis heard.
+ */
+export type StoredToneData = { version: 2; recipe?: RecipeCore; studio?: StudioPatch };
 
 /** What `Tone.data` held before the ToneRecipe contract existed. */
 type LegacyToneData = {
@@ -115,6 +120,13 @@ export function heuristicRecipe(profile: EngineToneProfile): RecipeCore {
   };
 }
 
+/** A section of an analysis, shaped like a whole analysis so every recipe adapter works on it. */
+export function sectionAnalysis(analysis: EngineAnalysis, sectionId: string): EngineAnalysis | null {
+  const s = analysis.sections?.find((x) => x.id === sectionId);
+  if (!s) return null;
+  return { ...analysis, raw_features: s.raw_features, tone_profile: s.tone_profile, recipe: s.recipe, analysis_window: s.excerpt };
+}
+
 export function recipeCoreFromAnalysis(analysis: EngineAnalysis): RecipeCore {
   if (analysis.recipe) {
     const { source, ...core } = analysis.recipe;
@@ -168,7 +180,12 @@ function coreFromLegacy(data: LegacyToneData): RecipeCore | null {
 /** The inferred recipe stored in `Tone.data` (v2 or legacy), or null for hand-built tones. */
 export function recipeCoreFromStored(data: unknown): RecipeCore | null {
   if (data === null || data === undefined) return null;
-  return isStored(data) ? data.recipe : coreFromLegacy(data as LegacyToneData);
+  return isStored(data) ? data.recipe ?? null : coreFromLegacy(data as LegacyToneData);
+}
+
+/** The Amp Studio patch stored in `Tone.data`, if the tone has one. */
+export function studioPatchFromStored(data: unknown): StudioPatch | null {
+  return isStored(data) ? data.studio ?? null : null;
 }
 
 /** A saved library tone. Returns null if `data` is in neither known format. */

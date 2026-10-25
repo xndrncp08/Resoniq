@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import Icon, { type IconName } from "@/components/icons/Icon";
+import AvatarImage from "@/components/app/AvatarImage";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "signal";
 type Size = "sm" | "md" | "lg";
@@ -81,10 +82,7 @@ export function Avatar({ user, size = 40, className = "" }: { user: { name: stri
   const initials = (user.name ?? user.handle).replace(/^u_/, "").slice(0, 2).toUpperCase();
   // A stable hue per handle so avatars without photos still tell people apart.
   const hue = [...user.handle].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
-  return user.image ? (
-    // eslint-disable-next-line @next/next/no-img-element -- avatars are served by our own access-checked media route
-    <img src={user.image} alt="" width={size} height={size} className={`shrink-0 rounded-full object-cover ring-1 ring-line ${className}`} style={{ width: size, height: size }} />
-  ) : (
+  const initialsBadge = (
     <span
       aria-hidden
       className={`inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-ink ring-1 ring-white/10 ${className}`}
@@ -92,6 +90,11 @@ export function Avatar({ user, size = 40, className = "" }: { user: { name: stri
     >
       {initials}
     </span>
+  );
+  return user.image ? (
+    <AvatarImage src={user.image} size={size} className={`shrink-0 rounded-full object-cover ring-1 ring-line ${className}`} fallback={initialsBadge} />
+  ) : (
+    initialsBadge
   );
 }
 

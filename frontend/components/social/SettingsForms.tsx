@@ -3,14 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Avatar, Button, IconButton } from "@/components/app/ui";
+import { Button, IconButton } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
 import { uploadFile } from "@/lib/upload-client";
-
-const INSTRUMENTS = [
-  ["electric-guitar", "Electric guitar"], ["acoustic-guitar", "Acoustic guitar"], ["bass", "Bass"], ["extended-range", "Extended range"],
-  ["keys", "Keys"], ["drums", "Drums"], ["vocals", "Vocals"], ["production", "Production"],
-] as const;
+import { INSTRUMENTS, INSTRUMENT_LABEL } from "@/lib/instruments";
+import AvatarPicker from "@/components/social/AvatarPicker";
 
 export type ProfileValues = { handle: string; name: string | null; image: string | null; bannerUrl: string | null; bio: string | null; instruments: string[]; genres: string[]; links: { label: string; url: string }[] };
 
@@ -28,12 +25,13 @@ async function uploadImage(file: File, purpose: "AVATAR" | "BANNER", onProgress:
   throw new Error("Processing is taking longer than usual. Try again in a minute.");
 }
 
-export function ProfileForm({ initial, imagesEnabled = true }: { initial: ProfileValues; imagesEnabled?: boolean }) {
+export function ProfileForm({ initial, avatarSources, imagesEnabled = true }: { initial: ProfileValues; avatarSources: { upload: string | null; google: string | null }; imagesEnabled?: boolean }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [genres, setGenres] = useState(initial.genres.join(", "));
   const [state, setState] = useState<{ busy: boolean; msg: string | null; error: string | null }>({ busy: false, msg: null, error: null });
   const [imgProgress, setImgProgress] = useState<string | null>(null);
+  const [sources, setSources] = useState(avatarSources);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +56,7 @@ export function ProfileForm({ initial, imagesEnabled = true }: { initial: Profil
       const id = await uploadImage(file, purpose, (p) => setImgProgress(`${purpose === "AVATAR" ? "Photo" : "Banner"} ${Math.round(p * 100)}%`));
       const { profile } = await api<{ profile: ProfileValues }>("/api/me", { method: "PATCH", body: purpose === "AVATAR" ? { avatarMediaId: id } : { bannerMediaId: id } });
       setV((cur) => ({ ...cur, image: profile.image, bannerUrl: profile.bannerUrl }));
+      if (purpose === "AVATAR") setSources((cur) => ({ ...cur, upload: profile.image }));
       setImgProgress(null);
       router.refresh();
     } catch (err) {
@@ -75,17 +74,31 @@ export function ProfileForm({ initial, imagesEnabled = true }: { initial: Profil
             Change banner<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickImage("BANNER", e.target.files?.[0])} />
           </label>}
         </div>
-        <div className="flex items-center gap-4 p-4">
-          <Avatar user={v} size={72} />
-          {imagesEnabled ? (
-            <label className="cursor-pointer rounded-full border border-line-strong px-4 py-2 font-body text-sm hover:border-copper/50">
-              Change photo<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickImage("AVATAR", e.target.files?.[0])} />
-            </label>
-          ) : (
-            <span className="font-body text-sm text-muted">Photo uploads aren&apos;t available on this deployment yet.</span>
-          )}
-          {v.image && <button type="button" className="font-body text-sm text-muted hover:text-danger" onClick={async () => { await api("/api/me", { method: "PATCH", body: { avatarMediaId: null } }); setV({ ...v, image: null }); }}>Remove</button>}
-          {imgProgress && <span role="status" className="font-body text-sm text-muted">{imgProgress}</span>}
+        <div className="p-4 sm:p-5">
+          <AvatarPicker
+            // Remount when an upload lands, so the picker starts from the new photo.
+            key={sources.upload ?? "none"}
+            user={v}
+            sources={sources}
+            onChange={(image) => setV((cur) => ({ ...cur, image }))}
+            upload={
+              <div className="flex flex-wrap items-center gap-2">
+                {imagesEnabled ? (
+                  <label className="focus-within:ring-2 focus-within:ring-signal cursor-pointer rounded-full border border-line-strong px-4 py-2 font-body text-sm hover:border-copper/50">
+                    Upload a photo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => pickImage("AVATAR", e.target.files?.[0])} />
+                  </label>
+                ) : (
+                  <span className="font-body text-xs text-muted">Photo uploads aren&apos;t available on this deployment yet.</span>
+                )}
+                {sources.upload && (
+                  <button type="button" className="focus-ring rounded-full px-2 py-1 font-body text-sm text-muted hover:text-danger" onClick={async () => { await api("/api/me", { method: "PATCH", body: { avatarMediaId: null } }); setSources((cur) => ({ ...cur, upload: null })); setV((cur) => ({ ...cur, image: cur.image === sources.upload ? null : cur.image })); router.refresh(); }}>
+                    Remove uploaded photo
+                  </button>
+                )}
+                {imgProgress && <span role="status" className="font-body text-sm text-muted">{imgProgress}</span>}
+              </div>
+            }
+          />
         </div>
       </div>
 
@@ -96,11 +109,12 @@ export function ProfileForm({ initial, imagesEnabled = true }: { initial: Profil
         <fieldset className="sm:col-span-2">
           <legend className="label-engraved mb-2">Instruments (up to 4)</legend>
           <div className="flex flex-wrap gap-2">
-            {INSTRUMENTS.map(([k, l]) => {
+            {INSTRUMENTS.map((k) => {
               const on = v.instruments.includes(k);
-              return <button key={k} type="button" aria-pressed={on} onClick={() => setV({ ...v, instruments: on ? v.instruments.filter((i) => i !== k) : [...v.instruments, k].slice(0, 4) })} className={`rounded-full border px-3 py-1.5 font-body text-sm ${on ? "border-copper bg-copper/10" : "border-line text-muted"}`}>{l}</button>;
+              return <button key={k} type="button" aria-pressed={on} disabled={!on && v.instruments.length >= 4} onClick={() => setV({ ...v, instruments: on ? v.instruments.filter((i) => i !== k) : [...v.instruments, k] })} className={`focus-ring rounded-full border px-3 py-2 font-body text-sm disabled:opacity-40 ${on ? "border-copper bg-copper/10" : "border-line text-muted"}`}>{INSTRUMENT_LABEL[k]}</button>;
             })}
           </div>
+          <p className="mt-2 font-body text-xs text-muted">Your instruments and genres are public and help other musicians find you. Use your bio for a specific instrument or tradition.</p>
         </fieldset>
         <label className="block sm:col-span-2"><span className="label-engraved">Genres, comma separated</span><input value={genres} onChange={(e) => setGenres(e.target.value)} placeholder="blues, shoegaze, prog" className={`${field} h-11`} /></label>
         <fieldset className="space-y-2 sm:col-span-2">

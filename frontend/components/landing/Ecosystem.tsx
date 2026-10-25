@@ -30,7 +30,7 @@ export default function Ecosystem({ communities, gearByKind, gearTotal }: { comm
         <Tile span="lg:col-span-4" eyebrow="Feed" title="Performances with the rig attached." href="/feed" cta="Open the feed">
           <div className="grid h-full gap-4 sm:grid-cols-[1.3fr_1fr]">
             <div className="panel-inset relative overflow-hidden rounded-2xl">
-              <Image src="/images/studio-bassist-768.webp" alt="A bassist playing beside their studio rig" fill sizes="(max-width: 640px) 90vw, 40vw" className="object-cover" />
+              <Image src="/images/musicians/live-red-640.webp" alt="A guitarist on stage in red light, filmed from the crowd" fill sizes="(max-width: 640px) 90vw, 40vw" className="object-cover" />
               <div className="relative flex h-full min-h-[240px] items-center justify-center bg-gradient-to-br from-copper-deep/50 via-transparent to-signal-dim/30">
                 <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 font-body text-xs"><Icon name="declared" size={14} className="text-copper" /> Rig: your guitar · your amp</span>
                 <span className="absolute bottom-3 left-3 label-engraved">Interface preview</span>
