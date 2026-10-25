@@ -41,7 +41,7 @@ export function proxy(request: NextRequest) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "frame-src https://sketchfab.com",
+    "frame-src 'none'",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, type Variants } from "motion/react";
 import { RotateCcw } from "lucide-react";
 import type { ToneRecipe } from "@/types/tone";
@@ -18,6 +18,9 @@ import type { EngineAnalysis } from "@/types/engine";
 import Feedback from "@/components/ui/Feedback";
 import { spring } from "@/lib/motion";
 import { MAX_TONE_NAME_LENGTH } from "@/lib/tone-validation";
+import { soundOf } from "@/lib/stores/rig-store";
+import { RigStoreProvider, useRig, useRigStore } from "@/components/tone/RigStoreProvider";
+import Amp3D from "@/components/three/Amp3D";
 
 // The moment analysis lands: panels assemble down the signal path, one
 // after another. Reduced motion keeps the fade and drops the movement.
@@ -27,7 +30,20 @@ const panel: Variants = {
   show: { opacity: 1, y: 0, filter: "blur(0px)", transition: spring.enter },
 };
 
-export default function ToneDashboard({
+export default function ToneDashboard(props: { songId: string; initialRecipe: ToneRecipe; measurements?: EngineAnalysis["raw_features"] }) {
+  const { amp, cabinet, pickup, pedalboard } = props.initialRecipe;
+  return (
+    <RigStoreProvider initial={{ amp, cabinet, pickup, pedalboard }}>
+      <Dashboard {...props} />
+    </RigStoreProvider>
+  );
+}
+
+/**
+ * Every view of the rig (3D amp, knobs, EQ curve, pedalboard, signal chain,
+ * audio preview) reads and writes the same store, so they can't disagree.
+ */
+function Dashboard({
   songId,
   initialRecipe,
   measurements,
@@ -36,24 +52,28 @@ export default function ToneDashboard({
   initialRecipe: ToneRecipe;
   measurements?: EngineAnalysis["raw_features"];
 }) {
-  const [recipe, setRecipe] = useState<ToneRecipe>(initialRecipe);
+  const store = useRigStore();
+  const amp = useRig((s) => s.amp);
+  const cabinet = useRig((s) => s.cabinet);
+  const pickup = useRig((s) => s.pickup);
+  const pedalboard = useRig((s) => s.pedalboard);
+  const { setAmp, setKnob, setPickup, setPedalboard, reset } = store.getState();
+  const recipe: ToneRecipe = { ...initialRecipe, amp, cabinet, pickup, pedalboard };
   const [toneName, setToneName] = useState(initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveAttempts, setSaveAttempts] = useState(0);
   const [savedId, setSavedId] = useState<string | null>(null);
 
-  function update(patch: Partial<ToneRecipe>) {
-    setRecipe((r) => ({ ...r, ...patch }));
-    if (saveState === "saved") setSaveState("idle");
-  }
+  // Any edit after a save means the vault copy is behind again.
+  useEffect(() => store.subscribe(() => setSaveState((s) => (s === "saved" ? "idle" : s))), [store]);
 
   async function handleSave() {
     setSaveAttempts((n) => n + 1);
     setSaveState("saving");
-    const { confidenceScore, recipeDescription, amp, cabinet, pickup, pedalboard, similarArtists } = recipe;
+    const { confidenceScore, recipeDescription, similarArtists } = initialRecipe;
     const data: StoredToneData = {
       version: 2,
-      recipe: { confidenceScore, recipeDescription, amp, cabinet, pickup, pedalboard, similarArtists },
+      recipe: { confidenceScore, recipeDescription, ...soundOf(store.getState()), similarArtists },
     };
     try {
       const res = await fetch("/api/tones", {
@@ -80,7 +100,7 @@ export default function ToneDashboard({
 
       {recipe.audioUrl && (
         <motion.div variants={panel}>
-          <SignalMonitor audioUrl={recipe.audioUrl} amp={recipe.amp} />
+          <SignalMonitor audioUrl={recipe.audioUrl} amp={amp} />
         </motion.div>
       )}
 
@@ -91,7 +111,7 @@ export default function ToneDashboard({
           </h2>
           <button
             type="button"
-            onClick={() => update({ amp: initialRecipe.amp, pickup: initialRecipe.pickup, pedalboard: initialRecipe.pedalboard })}
+            onClick={reset}
             className="focus-ring flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition hover:text-ink"
           >
             <RotateCcw size={12} /> reset to analysis
@@ -103,7 +123,7 @@ export default function ToneDashboard({
         </div>
 
         <div className="mt-5">
-          <Pedalboard pedals={recipe.pedalboard} onChange={(pedalboard) => update({ pedalboard })} />
+          <Pedalboard pedals={pedalboard} onChange={setPedalboard} />
         </div>
         {recipe.pedalboard.length > 1 && (
           <p className="mt-3 font-body text-xs text-muted">
@@ -112,14 +132,12 @@ export default function ToneDashboard({
         )}
       </motion.section>
 
+      <motion.div variants={panel}>
+        <Amp3D amp={amp} onKnob={setKnob} caption={<>Drag a knob up or right to turn it up. The panel below, the EQ curve{recipe.audioUrl ? " and the audio preview" : ""} follow.</>} />
+      </motion.div>
+
       <motion.div variants={panel} className="grid gap-6 @3xl:grid-cols-[1.2fr_1fr]">
-        <AmpPanel
-          amp={recipe.amp}
-          cabinet={recipe.cabinet}
-          pickup={recipe.pickup}
-          onAmpChange={(amp) => update({ amp })}
-          onPickupChange={(pickup) => update({ pickup })}
-        />
+        <AmpPanel amp={amp} cabinet={cabinet} pickup={pickup} onAmpChange={setAmp} onPickupChange={setPickup} />
         <RecipeSummary recipe={recipe} />
       </motion.div>
 
