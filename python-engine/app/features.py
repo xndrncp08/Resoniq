@@ -23,23 +23,20 @@ def _normalize(value: float, low: float, high: float) -> float:
     return float(np.clip((value - low) / (high - low), 0.0, 1.0))
 
 
-def _thd_estimate(y_harm: np.ndarray, sr: int, n_fft: int = 4096, hop: int = 1024, n_harmonics: int = 6) -> float:
+def _thd_frames(y_harm: np.ndarray, sr: int, n_fft: int = 4096, hop: int = 1024, n_harmonics: int = 6) -> tuple[np.ndarray, np.ndarray]:
     """
-    Rough total-harmonic-distortion estimate: per frame, track f0 with YIN
-    on the harmonic component, then compare energy at 2f0..6f0 against f0.
+    Per-frame (energy, harmonic ratio) for the rough total-harmonic-distortion
+    estimate: track f0 with YIN on the harmonic component, then compare energy
+    at 2f0..6f0 against f0. The ratio is NaN where there's no fundamental.
 
     True THD needs a known pure input tone; on a finished mix with chords
     and other instruments this is only a relative indicator (a driven
-    amp adds harmonics, a clean one mostly doesn't). Only the loudest half
-    of frames are used, since YIN always returns a pitch, even for silence.
+    amp adds harmonics, a clean one mostly doesn't).
     """
     f0 = librosa.yin(y_harm, fmin=65, fmax=1000, sr=sr, frame_length=n_fft, hop_length=hop)
     mag = np.abs(librosa.stft(y_harm, n_fft=n_fft, hop_length=hop))
     frames = min(f0.size, mag.shape[1])
-    if frames == 0:
-        return 0.0
     energy = mag[:, :frames].sum(axis=0)
-    loud = energy >= np.median(energy)
     bin_hz = sr / n_fft
     nyquist_bin = mag.shape[0] - 1
 
@@ -49,14 +46,32 @@ def _thd_estimate(y_harm: np.ndarray, sr: int, n_fft: int = 4096, hop: int = 102
             return 0.0
         return float(mag[max(b - 1, 0):b + 2, frame].max())
 
-    ratios = []
-    for t in np.flatnonzero(loud[:frames]):
+    ratios = np.full(frames, np.nan)
+    for t in range(frames):
         fundamental = peak(t, f0[t])
         if fundamental < 1e-6:
             continue
         harmonics = [peak(t, f0[t] * k) for k in range(2, n_harmonics + 1)]
-        ratios.append(np.sqrt(np.sum(np.square(harmonics))) / fundamental)
-    return float(np.median(ratios)) if ratios else 0.0
+        ratios[t] = np.sqrt(np.sum(np.square(harmonics))) / fundamental
+    return energy, ratios
+
+
+def _thd_from_frames(energy: np.ndarray, ratios: np.ndarray) -> float:
+    """Median ratio over the loudest half of frames (YIN always returns a pitch, even for silence)."""
+    if energy.size == 0:
+        return 0.0
+    picked = ratios[(energy >= np.median(energy)) & np.isfinite(ratios)]
+    return float(np.median(picked)) if picked.size else 0.0
+
+
+def _thd_estimate(y_harm: np.ndarray, sr: int) -> float:
+    return _thd_from_frames(*_thd_frames(y_harm, sr))
+
+
+# Harmonic/percussive separation and the THD estimate run on chunks of this
+# length: HPSS's median filters span well under a second, so chunking barely
+# changes the result, and peak memory stops growing with the excerpt length.
+HPSS_CHUNK_S = 15.0
 
 
 # Measurement groups, in the order extract_features reaches them. Reported
@@ -75,17 +90,19 @@ def extract_features(y: np.ndarray, sr: int, on_step: Callable[[str], None] | No
     # --- Brightness: spectral centroid, where the "center of mass" of the
     # frequency spectrum sits. Bright/distorted tones skew high; dark,
     # warm cleans skew low.
-    centroid = librosa.feature.spectral_centroid(y=y_trimmed, sr=sr)[0]
+    # One magnitude spectrogram feeds every spectral measurement below
+    # (each would otherwise compute its own, identical, STFT).
+    stft = np.abs(librosa.stft(y_trimmed))
+    centroid = librosa.feature.spectral_centroid(S=stft, sr=sr)[0]
     centroid_hz = float(np.mean(centroid))
     brightness = _normalize(centroid_hz, 500, 6000)
 
     # --- Rolloff: frequency below which 85% of the spectral energy sits.
     # Tracks how far up the "fizz" extends — high-gain and bright cleans
     # push it up, dark jazz tones and rolled-off tone knobs pull it down.
-    rolloff_hz = float(np.mean(librosa.feature.spectral_rolloff(y=y_trimmed, sr=sr, roll_percent=0.85)[0]))
+    rolloff_hz = float(np.mean(librosa.feature.spectral_rolloff(S=stft, sr=sr, roll_percent=0.85)[0]))
 
     # --- Warmth: ratio of energy below ~500Hz to total energy.
-    stft = np.abs(librosa.stft(y_trimmed))
     freqs = librosa.fft_frequencies(sr=sr)
     low_band = stft[freqs < 500, :]
     warmth_ratio = float(np.sum(low_band) / (np.sum(stft) + 1e-9))
@@ -100,9 +117,10 @@ def extract_features(y: np.ndarray, sr: int, on_step: Callable[[str], None] | No
     # would drag the mean toward "clean". Checked against CC-licensed clean,
     # crunch and metal recordings (about -52, -34 and -23 dB) — a sanity
     # check of the range, not a fit to a dataset.
-    frame_rms = librosa.feature.rms(y=y_trimmed)[0]
-    active = frame_rms > np.max(frame_rms) * 10 ** (-30 / 20)
-    flatness = librosa.feature.spectral_flatness(y=y_trimmed)[0]
+    rms = librosa.feature.rms(y=y_trimmed)[0]
+    active = rms > np.max(rms) * 10 ** (-30 / 20)
+    flatness = librosa.feature.spectral_flatness(S=stft)[0]
+    del stft, low_band
     frames = min(flatness.size, active.size)
     flat_active = flatness[:frames][active[:frames]]
     flatness_db = float(np.mean(10 * np.log10(flat_active + 1e-12))) if flat_active.size else -100.0
@@ -112,7 +130,6 @@ def extract_features(y: np.ndarray, sr: int, on_step: Callable[[str], None] | No
     # --- Compression: inverse crest factor (peak/RMS). Heavily
     # compressed or high-gain signals have a low crest factor (loud and
     # consistent); dynamic clean playing has a high one.
-    rms = librosa.feature.rms(y=y_trimmed)[0]
     peak = float(np.max(np.abs(y_trimmed))) + 1e-9
     mean_rms = float(np.mean(rms)) + 1e-9
     crest_factor = peak / mean_rms
@@ -168,18 +185,29 @@ def extract_features(y: np.ndarray, sr: int, on_step: Callable[[str], None] | No
     step("harmonics")
     # --- Harmonic/percussive split: how much of the signal is tonal
     # (sustained pitches) vs transient (picking/strumming attack noise).
-    y_harm, y_perc = librosa.effects.hpss(y_trimmed)
-    harm_energy = float(np.sum(y_harm ** 2))
-    perc_energy = float(np.sum(y_perc ** 2))
+    harm_energy = perc_energy = 0.0
+    thd_energy, thd_ratios = [], []
+    chunk = int(HPSS_CHUNK_S * sr)
+    for start in range(0, y_trimmed.size, chunk):
+        piece = y_trimmed[start:start + chunk]
+        if piece.size < 2048:  # too short for a frame; it carries no meaningful energy split
+            continue
+        y_harm, y_perc = librosa.effects.hpss(piece)
+        harm_energy += float(np.sum(y_harm ** 2))
+        perc_energy += float(np.sum(y_perc ** 2))
+        energy, ratios = _thd_frames(y_harm, sr)
+        thd_energy.append(energy)
+        thd_ratios.append(ratios)
+        del y_harm, y_perc
     percussive_ratio = perc_energy / (harm_energy + perc_energy + 1e-9)
     harmonic_percussive_ratio = float(harm_energy / (perc_energy + 1e-9))
-
-    thd_estimate = _thd_estimate(y_harm, sr)
+    # Loudness is judged across the whole excerpt, not per chunk.
+    thd_estimate = _thd_from_frames(np.concatenate(thd_energy), np.concatenate(thd_ratios)) if thd_energy else 0.0
 
     step("tempo")
     # --- Tempo (informational, not used in gear heuristics directly)
     try:
-        tempo, _ = librosa.beat.beat_track(y=y_trimmed, sr=sr)
+        tempo, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
         tempo_value = float(np.atleast_1d(tempo)[0])
         tempo_bpm = tempo_value if tempo_value > 0 else None
     except Exception:

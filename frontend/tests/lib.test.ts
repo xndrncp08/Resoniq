@@ -15,7 +15,7 @@ import { recoverAnalysisStatus, STALE_ANALYSIS_MS } from "@/lib/analysis-status"
 describe("analysis recovery", () => {
   it.each([null, new Date(Date.now() - STALE_ANALYSIS_MS - 1000)])("makes an abandoned job retryable (%s)", (analysisStartedAt) => {
     const song = { status: "ANALYZING", analysisStartedAt, analysisError: null };
-    expect(recoverAnalysisStatus(song)).toMatchObject({ status: "FAILED", analysisError: "Analysis was interrupted. Try again." });
+    expect(recoverAnalysisStatus(song)).toMatchObject({ status: "FAILED", analysisError: "The analysis engine stopped partway through this recording." });
     expect(song.status).toBe("ANALYZING");
   });
 

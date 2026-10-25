@@ -24,6 +24,8 @@ export interface EngineRecipe extends RecipeCore {
 
 export interface EngineAnalysis {
   raw_features: Record<string, number | null>;
+  /** Which stretch was measured; long recordings are measured on their loudest minute. Absent on older analyses. */
+  analysis_window?: { start_s: number; duration_s: number; total_s: number | null };
   tone_profile: EngineToneProfile;
   /** Absent in analyses stored before the recipe step existed. */
   recipe?: EngineRecipe;

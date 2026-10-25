@@ -21,7 +21,8 @@ export default function Dropzone({ onFile }: { onFile: (file: File) => void }) {
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError(`"${file.name}" is over the 50MB limit.`);
+      // A 6-minute WAV is ~60 MB; the same take as MP3 is ~15 MB.
+      setError(`"${file.name}" is ${Math.round(file.size / 1024 / 1024)} MB, over the 50 MB limit. Export it as MP3 or FLAC (much smaller), or trim it.`);
       return;
     }
     setError(null);
@@ -59,7 +60,7 @@ export default function Dropzone({ onFile }: { onFile: (file: File) => void }) {
         </motion.span>
         <span className="mt-4 font-display text-lg font-medium">Drop a song here, or click to browse</span>
         <span id="dropzone-hint" className="mt-1.5 font-mono text-xs text-muted">
-          MP3, WAV, or FLAC · up to 50MB · up to 10 minutes
+          MP3, WAV, or FLAC · up to 50 MB · up to 30 minutes
         </span>
       </motion.button>
       <input

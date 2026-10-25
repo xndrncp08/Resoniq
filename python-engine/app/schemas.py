@@ -110,7 +110,15 @@ class ToneRecipe(RecipeDraft):
     source: Literal["llm", "heuristic"]
 
 
+class AnalysisWindow(BaseModel):
+    """The part of the recording that was measured. Long recordings are measured on their loudest stretch."""
+    start_s: float
+    duration_s: float
+    total_s: Optional[float] = None  # None when the file's header doesn't state a length
+
+
 class AnalyzeResponse(BaseModel):
     raw_features: RawFeatures
+    analysis_window: Optional[AnalysisWindow] = None
     tone_profile: ToneProfile
     recipe: ToneRecipe

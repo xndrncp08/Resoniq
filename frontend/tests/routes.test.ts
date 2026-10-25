@@ -26,10 +26,12 @@ vi.mock("@/lib/storage", async (importOriginal) => ({
 
 const analyzeAudio = vi.fn();
 const analyzeAudioStream = vi.fn();
+const engineHealthy = vi.fn();
 vi.mock("@/lib/engine", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/engine")>()),
   analyzeAudio: (...args: unknown[]) => analyzeAudio(...args),
   analyzeAudioStream: (...args: unknown[]) => analyzeAudioStream(...args),
+  engineHealthy: (...args: unknown[]) => engineHealthy(...args),
 }));
 
 const register = await import("@/app/api/register/route");
@@ -43,6 +45,7 @@ const users = await import("@/app/api/users/[handle]/route");
 const followRoute = await import("@/app/api/users/[handle]/follow/route");
 const me = await import("@/app/api/me/route");
 const { EngineError } = await import("@/lib/engine");
+const { ANALYSIS_FAILURES } = await import("@/lib/analysis-errors");
 
 const json = (body: unknown, { headers, ...init }: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
   new Request("http://localhost/api", {
@@ -284,7 +287,7 @@ describe("GET /api/songs/[id]", () => {
     db.song.findFirst.mockResolvedValue({ id: "s1", status: "ANALYZING", analysisStartedAt: new Date(0), analysisError: null });
     const res = await songStatus.GET(new Request("http://localhost"), ctx("s1"));
     expect(res.status).toBe(200);
-    expect((await res.json()).song).toMatchObject({ status: "FAILED", analysisError: "Analysis was interrupted. Try again." });
+    expect((await res.json()).song).toMatchObject({ status: "FAILED", analysisError: "The analysis engine stopped partway through this recording." });
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect(db.song.findFirst.mock.calls[0][0].where).toEqual({ id: "s1", userId: "user-a" });
     expect(db.song.update).not.toHaveBeenCalled();
@@ -368,14 +371,56 @@ describe("POST /api/analyze (streaming)", () => {
     analyzeAudioStream.mockRejectedValue(new Error("engine unavailable"));
     db.song.update.mockRejectedValue(new Error("database unavailable"));
     const events = await readAll(await analyze.POST(streamReq(), undefined));
-    expect(events).toEqual([{ type: "error", error: "Analysis failed. Try again." }]);
+    expect(events).toEqual([{ type: "error", error: ANALYSIS_FAILURES.engine }]);
   });
 
   it("reports persistence failures instead of claiming the analysis was saved", async () => {
     analyzeAudioStream.mockResolvedValue({ tone_profile: {}, raw_features: {} });
     db.song.update.mockRejectedValue(new Error("database unavailable"));
     const events = await readAll(await analyze.POST(streamReq(), undefined));
-    expect(events).toEqual([{ type: "error", error: "Analysis failed. Try again." }]);
+    expect(events).toEqual([{ type: "error", error: ANALYSIS_FAILURES.engine }]);
+  });
+
+  it("waits out an engine restart and runs the same job once more, without a second claim or record", async () => {
+    // Production: the engine was killed mid-analysis, then answered 502 while it rebooted.
+    analyzeAudioStream
+      .mockRejectedValueOnce(new EngineError("python-engine stream ended without a result", ANALYSIS_FAILURES.interrupted, true))
+      .mockImplementationOnce(async (_b, _f, _c, onStage: (e: unknown) => void) => {
+        onStage({ type: "stage", stage: "decoding", index: 0, total: 9 });
+        return { tone_profile: {}, raw_features: {} };
+      });
+    engineHealthy.mockResolvedValue(true);
+    db.song.update.mockResolvedValue({ id: "s1", status: "ANALYZED", analysisData: {} });
+    const events = await readAll(await analyze.POST(streamReq(), undefined));
+    expect(events.map((e) => e.code ?? e.stage ?? e.type)).toEqual(["waking", "retrying", "decoding", "done"]);
+    expect(analyzeAudioStream).toHaveBeenCalledTimes(2);
+    expect(db.song.updateMany).toHaveBeenCalledTimes(1);
+    expect(db.song.update).toHaveBeenCalledTimes(1);
+    expect(db.song.update.mock.calls[0][0].data.status).toBe("ANALYZED");
+  });
+
+  it("never retries a failure that retrying can't fix", async () => {
+    analyzeAudioStream.mockRejectedValue(new EngineError("python-engine returned 422", "Could not decode audio file."));
+    const events = await readAll(await analyze.POST(streamReq(), undefined));
+    expect(events).toEqual([{ type: "error", error: "Could not decode audio file." }]);
+    expect(analyzeAudioStream).toHaveBeenCalledTimes(1);
+    expect(engineHealthy).not.toHaveBeenCalled();
+  });
+
+  it("gives up with a retryable message when the engine doesn't come back in time", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "Date"] });
+    try {
+      analyzeAudioStream.mockRejectedValue(new EngineError("python-engine returned 502", ANALYSIS_FAILURES.unavailable, true));
+      engineHealthy.mockResolvedValue(false);
+      const pending = analyze.POST(streamReq(), undefined).then(readAll);
+      await vi.advanceTimersByTimeAsync(300_000);
+      const events = await pending;
+      expect(events.at(-1)).toEqual({ type: "error", error: ANALYSIS_FAILURES.unavailable });
+      expect(analyzeAudioStream).toHaveBeenCalledTimes(1);
+      expect(db.song.update.mock.calls[0][0].data).toEqual({ status: "FAILED", analysisError: ANALYSIS_FAILURES.unavailable });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps going and saves the result when the browser disconnects mid-stream", async () => {

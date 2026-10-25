@@ -35,6 +35,11 @@ from a raw recording, and Resoniq doesn't pretend to. The engine:
    recipe text (with `ANTHROPIC_API_KEY`); otherwise a deterministic rule-based
    recipe is used.
 
+Recordings longer than a minute are measured on their loudest 60 seconds
+(found by streaming the file, then decoding only that stretch), which keeps
+the engine's memory flat on a 512 MB instance however long the song is; the
+result says which stretch was measured.
+
 The UI frames every result as a closest match with a *heuristic* confidence,
 not a verified rig. The guitar isn't separated from the mix first, so sparse,
 guitar-forward recordings give the clearest readings. Known weak spots:

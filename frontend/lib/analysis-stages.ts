@@ -17,5 +17,8 @@ export const ANALYSIS_STAGES = [
 
 export type StageEvent = { type: "stage"; stage: string; index: number; total: number };
 
+/** Progress beyond the engine's own stages (waiting out a cold start or restart), so a wait never looks like a hang. */
+export type AnalysisNotice = { type: "notice"; code: "waking" | "retrying" };
+
 /** 0..1 through the analysis for a reported stage index (a stage counts as half done while it runs). */
 export const stageProgress = (index: number, total: number) => Math.min(1, (index + 0.5) / Math.max(1, total));
