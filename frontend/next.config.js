@@ -6,7 +6,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+    value: "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()",
   },
   // Legacy equivalent of the CSP's frame-ancestors 'none', for older browsers.
   { key: "X-Frame-Options", value: "DENY" },

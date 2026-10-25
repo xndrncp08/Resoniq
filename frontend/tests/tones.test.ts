@@ -10,6 +10,7 @@ const view = (over: Partial<ToneView> = {}): ToneView => ({
   name: "Edge of breakup",
   description: null,
   visibility: "PUBLIC",
+  studio: null,
   author,
   anonymous: false,
   origin: "member",

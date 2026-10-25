@@ -61,6 +61,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
         {!isOwner && <Button variant={isSaved ? "secondary" : "primary"} icon={isSaved ? "bookmark-filled" : "bookmark"} onClick={save}>{isSaved ? "Saved" : "Save tone"}</Button>}
         <Button icon="remix" onClick={remix} disabled={busy}>{isOwner ? "Duplicate" : "Remix"}</Button>
         <LinkButton href={`/compare?a=${id}`} icon="compare">Compare</LinkButton>
+        <LinkButton href={`/studio?tone=${id}`} icon="amp">Open in Studio</LinkButton>
         <LinkButton href={`/practice?tone=${id}`} icon="audio">Practice with it</LinkButton>
         <a href={`/api/tones/${id}/export`} className={buttonClass("secondary", "md")}><Icon name="download" size={18} /> Export JSON</a>
         <IconButton icon="link" label="Copy link" onClick={copyLink} />

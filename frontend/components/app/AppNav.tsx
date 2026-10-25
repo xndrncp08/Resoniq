@@ -17,6 +17,7 @@ function primary(): Item[] {
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag"] },
     { href: "/practice", label: "Practice", icon: "audio" },
+    { href: "/studio", label: "Amp Studio", icon: "amp" },
     { href: "/c", label: "Communities", icon: "community" },
     { href: "/tones", label: "Tones", icon: "tone", match: ["/t", "/compare"] },
     { href: "/gear", label: "Gear", icon: "gear-catalog" },
