@@ -32,7 +32,8 @@ export function proxy(request: NextRequest) {
     // React needs eval in development only, for its debugging stack traces.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' blob: data:${storageOrigin}`,
+    // Google sign-in stores the account photo's URL (always this host) on User.image.
+    `img-src 'self' blob: data: https://lh3.googleusercontent.com${storageOrigin}`,
     "font-src 'self'",
     // blob: for the upload preview (the waveform player loads a local File).
     `media-src 'self' blob:${storageOrigin}`,
