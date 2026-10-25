@@ -42,7 +42,7 @@ export default function Players() {
                 className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transition-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+              <div className="absolute inset-x-0 bottom-0 p-4 [text-shadow:0_1px_10px_rgb(0_0_0/0.9)] sm:p-5">
                 <p className="label-engraved text-copper">{t.who}</p>
                 <p className="mt-1.5 max-w-xs text-pretty font-body text-sm leading-snug text-ink sm:text-[15px]">{t.line}</p>
                 <span className="mt-2 inline-flex items-center gap-1 font-body text-xs font-medium text-ink-dim group-hover:text-ink">{t.cta} <Icon name="chevron-right" size={14} /></span>
