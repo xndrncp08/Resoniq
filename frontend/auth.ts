@@ -8,6 +8,7 @@ import { compareAgainstDummy, normalizeEmail } from "@/lib/credentials";
 import { checkRateLimit, clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { isEnabled } from "@/lib/flags";
 import { googleCredentials } from "@/lib/hosting";
+import { syncGooglePhoto } from "@/lib/avatar-sync";
 import { isReservedDisplayName } from "@/lib/system-identity";
 
 class RateLimited extends CredentialsSignin {
@@ -88,6 +89,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    // Remember the Google photo so the avatar picker can offer it even after a
+    // default avatar is chosen; if someone is showing it, follow Google's changes.
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google" && user.id) await syncGooglePhoto(user.id, profile?.picture);
+    },
+  },
   callbacks: {
     // Covers OAuth sign-ins; credentials sign-ins are refused in authorize().
     async signIn({ user, account, profile }) {

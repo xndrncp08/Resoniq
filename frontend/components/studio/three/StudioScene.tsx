@@ -24,11 +24,13 @@ export type SceneProps = {
   onEffectParam: (id: string, key: string, v: number) => void;
   onEffectToggle: (id: string) => void;
   className?: string;
+  /** A fixed camera (avatar renders); otherwise the camera follows the view. */
+  shot?: { pos: [number, number, number]; look: [number, number, number] };
 };
 
 const FLOOR = -1.55;
 
-function geometry(p: StudioPatch) {
+export function geometry(p: StudioPatch) {
   const [, ch] = CAB_SIZE[p.cab.model];
   const cabY = FLOOR + ch / 2;
   const [, ah] = LOOKS[p.amp.model].size;
@@ -41,7 +43,7 @@ function geometry(p: StudioPatch) {
  * lower) and the pedalboard on the floor. Reduced motion cuts instead.
  * Narrow screens pull back so the rig always fits.
  */
-function CameraRig({ patch, view }: { patch: StudioPatch; view: StudioView }) {
+function CameraRig({ patch, view, shot }: { patch: StudioPatch; view: StudioView; shot?: SceneProps["shot"] }) {
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const reduced = useRef(false);
   const target = useRef(new THREE.Vector3());
@@ -51,17 +53,18 @@ function CameraRig({ patch, view }: { patch: StudioPatch; view: StudioView }) {
   }, []);
   const g = geometry(patch);
   const fit = Math.max(1, 2.1 / aspect);
-  const station =
-    view === "cab" ? { pos: [0.3, g.cabY + 0.1, 3.7 * fit], look: [0, g.cabY, 0.2] }
+  const station = shot
+    ? { pos: shot.pos, look: shot.look }
+    : view === "cab" ? { pos: [0.3, g.cabY + 0.1, 3.7 * fit], look: [0, g.cabY, 0.2] }
     : view === "fx" ? { pos: [0, FLOOR + 0.85, g.boardZ + (0.75 + Math.max(2, patch.effects.length) * 0.2) * fit], look: [0, FLOOR + 0.05, g.boardZ] }
     : { pos: [0, g.ampY - 0.02, 3.25 * fit], look: [0, g.ampY - 0.1, 0] };
   useFrame((state, dt) => {
     const cam = state.camera;
-    const px = reduced.current ? 0 : state.pointer.x * 0.12;
-    const py = reduced.current ? 0 : state.pointer.y * 0.05;
+    const px = reduced.current || shot ? 0 : state.pointer.x * 0.12;
+    const py = reduced.current || shot ? 0 : state.pointer.y * 0.05;
     const goal = new THREE.Vector3(station.pos[0] + px, station.pos[1] + py, station.pos[2]);
     const look = new THREE.Vector3(...(station.look as [number, number, number]));
-    const k = first.current || reduced.current ? 1 : 1 - Math.exp(-3.2 * dt);
+    const k = first.current || reduced.current || shot ? 1 : 1 - Math.exp(-3.2 * dt);
     first.current = false;
     cam.position.lerp(goal, k);
     target.current.lerp(look, k);
@@ -99,7 +102,7 @@ export default function StudioScene(props: SceneProps) {
       style={{ touchAction: "pan-y" }}
       aria-hidden
     >
-      <CameraRig patch={patch} view={view} />
+      <CameraRig patch={patch} view={view} shot={props.shot} />
       <ambientLight intensity={0.12} />
       <spotLight position={[0.5, 3.5, 3.2]} angle={0.55} penumbra={0.9} intensity={38} color="#fff1e2" />
       <directionalLight position={[-3, 1.5, 2]} intensity={0.5} color="#bcd7ff" />

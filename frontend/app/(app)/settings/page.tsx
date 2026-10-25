@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const actor = await requirePageActor("/settings");
   const u = await prisma.user.findUniqueOrThrow({
     where: { id: actor.id },
-    select: { handle: true, name: true, image: true, bannerUrl: true, bio: true, instruments: true, genres: true, links: true, email: true, emailVerified: true, passwordHash: true, createdAt: true },
+    select: { handle: true, name: true, image: true, bannerUrl: true, bio: true, instruments: true, genres: true, links: true, email: true, emailVerified: true, passwordHash: true, createdAt: true, uploadedImage: true, providerImage: true },
   });
   const links = Array.isArray(u.links) ? (u.links as { label: string; url: string }[]) : [];
   return (
@@ -25,7 +25,12 @@ export default async function SettingsPage() {
           Your account is suspended{actor.suspendedUntil ? ` until ${actor.suspendedUntil.toISOString().slice(0, 10)}` : ""}. You can still browse. <a href="/appeals?type=ACCOUNT" className="underline">Appeal</a>
         </p>
       )}
-      <section className="space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm initial={{ ...u, links }} imagesEnabled={(await mediaCapabilities()).images} /></section>
+      <section className="space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm
+        // Only profile fields reach the browser (never the email, hash or verification state).
+        initial={{ handle: u.handle, name: u.name, image: u.image, bannerUrl: u.bannerUrl, bio: u.bio, instruments: u.instruments, genres: u.genres, links }}
+        avatarSources={{ upload: u.uploadedImage, google: u.providerImage }}
+        imagesEnabled={(await mediaCapabilities()).images}
+      /></section>
       <section className="panel space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Sign-in</h2>
         <p className="font-body text-sm text-muted">Email: <span className="text-ink">{u.email ?? "—"}</span> {u.email && (u.emailVerified ? <span className="text-signal">· verified</span> : <span className="text-amber">· not verified</span>)}</p>

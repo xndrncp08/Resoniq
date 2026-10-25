@@ -186,7 +186,7 @@ function Button({ on, x, y, ring, ledColor, onToggle }: { on: boolean; x: number
 }
 
 function Power({ kind, on, x, y, chrome, onToggle }: { kind: Look["power"]; on: boolean; x: number; y: number; chrome: THREE.Material; onToggle: () => void }) {
-  const lamp = <meshStandardMaterial color="#3a0905" emissive={kind === "rocker" ? "#ff2a12" : "#7cf3d6"} emissiveIntensity={on ? 2.8 : 0.15} roughness={0.25} />;
+  const lamp = <meshStandardMaterial color="#3a0905" emissive={kind === "rocker" ? "#ff2a12" : "#7cf3d6"} emissiveIntensity={on ? (kind === "rocker" ? 1.5 : 2.4) : 0.15} roughness={0.25} />;
   return (
     <group position={[x, y, 0]} onClick={(e) => { e.stopPropagation(); onToggle(); }} {...hover("pointer")}>
       {kind === "rocker" ? (
@@ -253,6 +253,14 @@ function Tubes({ width, glowRef, color }: { width: number; glowRef: React.RefObj
 
 // ── The amp ────────────────────────────────────────────────────────────
 
+/** Where the parts of a head sit, in its own coordinates (also used to frame close-up renders). */
+export function ampFrame(look: Look) {
+  const [W, H, D] = look.size;
+  const GH = H - 0.1 - 0.25 - 0.04;
+  const PANEL = { h: 0.25, y: -H / 2 + 0.05 + 0.125 };
+  return { W, H, D, FRONT: D / 2, PANEL, GRILLE: { h: GH, y: H / 2 - 0.05 - GH / 2 }, PW: W - 0.12, RECESS: 0.22, controlsY: PANEL.y + (0.5 - 0.56) * PANEL.h };
+}
+
 export type AmpProps = {
   patch: StudioPatch;
   knobs: { key: AmpKnob; label: string }[];
@@ -271,12 +279,7 @@ export type AmpProps = {
  */
 export default function Amp({ patch, knobs, switches, powered, onKnob, onSwitch, onPower }: AmpProps) {
   const look = LOOKS[patch.amp.model];
-  const [W, H, D] = look.size;
-  const FRONT = D / 2;
-  const PANEL = { h: 0.25, y: -H / 2 + 0.05 + 0.125 };
-  const GRILLE = { h: H - 0.1 - 0.25 - 0.04, y: H / 2 - 0.05 - (H - 0.1 - 0.25 - 0.04) / 2 };
-  const PW = W - 0.12;
-  const RECESS = 0.22;
+  const { W, H, D, FRONT, PANEL, GRILLE, PW, RECESS } = ampFrame(look);
   const layout = useMemo(() => panelLayout(knobs, switches), [knobs, switches]);
   const [f] = useState(fonts);
 
@@ -336,7 +339,7 @@ export default function Amp({ patch, knobs, switches, powered, onKnob, onSwitch,
   });
 
   const knobByKey = new Map(knobs.map((k) => [k.key, k]));
-  const panelY = PANEL.y + (0.5 - 0.56) * PANEL.h;
+  const panelY = ampFrame(look).controlsY;
   return (
     <group>
       {/* A shallower core box plus a front frame, which leaves a real recess behind the grille for the tubes. */}
