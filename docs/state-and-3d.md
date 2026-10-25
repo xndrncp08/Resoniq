@@ -71,6 +71,10 @@ gzip size of the scripts each page's HTML loads; Lighthouse 13 mobile preset.
   put three.js parsing and shader compilation into the load window: tone-page
   TBT went to 4.1 s. Mounting on visibility + idle (and dropping the
   transmission and sheen shader passes) brought it back to 11 ms.
+- Production after deploy (`dpl_GnTxnjzAXAJj7oQVwGLM1ZDbzGet`, one mobile run
+  each): `/` 96 / LCP 2.82 s / TBT 0 ms, `/practice` 96 / 2.51 s / 31 ms,
+  `/tones` 100 / 1.59 s / 0 ms; CLS 0 everywhere. The October baseline for
+  `/` was 92 / 3.13 s.
 - Lighthouse runs vary by ±0.3 s LCP locally; treat single-run LCP differences
   under that as noise.
 
