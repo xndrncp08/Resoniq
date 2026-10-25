@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon, { type IconName } from "@/components/icons/Icon";
 import { Avatar } from "@/components/app/ui";
+import { useUnreadCount } from "@/lib/queries/notifications";
 
-export type NavUser = { handle: string; name: string | null; image: string | null; isStaff: boolean } | null;
+export type NavUser = { id: string; handle: string; name: string | null; image: string | null; isStaff: boolean } | null;
 type Item = { href: string; label: string; icon: IconName; badge?: number; match?: string[] };
 
 const isActive = (pathname: string, item: Item) =>
@@ -59,8 +60,9 @@ function NavLink({ item, pathname, compact }: { item: Item; pathname: string; co
 }
 
 /** Desktop sidebar (≥1280: full, 768–1279: icon rail). */
-export function SideNav({ user, unread }: { user: NavUser; unread: number }) {
+export function SideNav({ user, unread: initialUnread }: { user: NavUser; unread: number }) {
   const pathname = usePathname();
+  const unread = useUnreadCount(user?.id ?? null, initialUnread);
   const sections: [string, Item[]][] = [["Play", primary()], ...(user ? ([["You", personal(user, unread)]] as [string, Item[]][]) : [])];
   return (
     <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col border-r hairline bg-bg-0/60 px-3 py-5 md:flex md:w-[76px] xl:w-[248px]">
@@ -110,8 +112,9 @@ export function SideNav({ user, unread }: { user: NavUser; unread: number }) {
 }
 
 /** Phones: a top bar with search and alerts, and a bottom tab bar with a center create button. */
-export function MobileNav({ user, unread }: { user: NavUser; unread: number }) {
+export function MobileNav({ user, unread: initialUnread }: { user: NavUser; unread: number }) {
   const pathname = usePathname();
+  const unread = useUnreadCount(user?.id ?? null, initialUnread);
   const tabs: Item[] = [
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag", "/c", "/gear"] },

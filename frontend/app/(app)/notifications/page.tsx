@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
   return (
     <div className="mx-auto max-w-[680px]">
       <PageHeader eyebrow="Activity" title="Notifications" />
-      <NotificationList initial={initial} cursor={nextCursor} />
+      <NotificationList userId={actor.id} initial={initial} cursor={nextCursor} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
 import { Button, buttonClass, IconButton, LinkButton } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
+import { useServerToggle } from "@/lib/queries/toggle";
 
 const VIS = [["PRIVATE", "Private: only you"], ["UNLISTED", "Unlisted: anyone with the link"], ["PUBLIC", "Public: on your profile and in discovery"]] as const;
 
@@ -14,7 +15,7 @@ const VIS = [["PRIVATE", "Private: only you"], ["UNLISTED", "Unlisted: anyone wi
 const ReportDialog = dynamic(() => import("@/components/social/ReportDialog"), { ssr: false });
 export default function ToneActions({ id, isOwner, saved, visibility, signedIn }: { id: string; isOwner: boolean; saved: boolean; visibility: string; signedIn: boolean }) {
   const router = useRouter();
-  const [isSaved, setSaved] = useState(saved);
+  const { on: isSaved, toggle: flipSaved } = useServerToggle({ scope: `tone-save:${id}`, initial: saved, send: (next) => api(`/api/tones/${id}/save`, { method: next ? "PUT" : "DELETE" }) });
   const [vis, setVis] = useState(visibility);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -26,11 +27,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
     return false;
   };
 
-  async function save() {
-    if (!gate()) return;
-    setSaved(!isSaved);
-    await api(`/api/tones/${id}/save`, { method: isSaved ? "DELETE" : "PUT" }).catch(() => setSaved(isSaved));
-  }
+  const save = () => gate() && flipSaved();
   async function remix() {
     if (!gate()) return;
     setBusy(true);

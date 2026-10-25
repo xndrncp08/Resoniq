@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
 import { compact } from "@/components/app/ui";
@@ -26,31 +27,24 @@ export default function VoteControl({
   signedIn: boolean;
 }) {
   const router = useRouter();
-  const [vote, setVote] = useState(initialVote);
-  const [score, setScore] = useState(initialScore);
-  const [ups, setUps] = useState(initialUps);
-  const [busy, setBusy] = useState(false);
+  const [state, setState] = useState({ vote: initialVote, score: initialScore, ups: initialUps });
+  const { vote, score, ups } = state;
+  // Optimistic, rolled back on failure, and queued per target so fast taps land in order.
+  const { mutate } = useMutation({
+    scope: { id: url },
+    mutationFn: (value: -1 | 0 | 1) => api<{ score: number; vote: -1 | 0 | 1 }>(url, { method: "PUT", body: { value } }),
+    onMutate: (next) => {
+      const previous = state;
+      setState((s) => ({ vote: next, score: s.score + next - s.vote, ups: s.ups + (next === 1 ? 1 : 0) - (s.vote === 1 ? 1 : 0) }));
+      return previous;
+    },
+    onSuccess: (res) => setState((s) => ({ ...s, score: res.score, vote: res.vote })),
+    onError: (_err, _next, previous) => previous && setState(previous),
+  });
 
-  async function cast(next: -1 | 0 | 1) {
+  function cast(next: -1 | 0 | 1) {
     if (!signedIn) return router.push(`/login?callbackUrl=${encodeURIComponent(location.pathname)}`);
-    if (busy) return;
-    const prev = { vote, score, ups };
-    // Optimistic: the server's answer replaces it either way.
-    setVote(next);
-    setScore(score + next - vote);
-    setUps(ups + (next === 1 ? 1 : 0) - (vote === 1 ? 1 : 0));
-    setBusy(true);
-    try {
-      const res = await api<{ score: number; vote: -1 | 0 | 1 }>(url, { method: "PUT", body: { value: next } });
-      setScore(res.score);
-      setVote(res.vote);
-    } catch {
-      setVote(prev.vote);
-      setScore(prev.score);
-      setUps(prev.ups);
-    } finally {
-      setBusy(false);
-    }
+    mutate(next);
   }
 
   const up = vote === 1;

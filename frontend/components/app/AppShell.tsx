@@ -4,6 +4,7 @@ import { getActor } from "@/lib/authz";
 import { isStaff } from "@/lib/permissions";
 import { MobileNav, SideNav, type NavUser } from "@/components/app/AppNav";
 import AnnouncementBar from "@/components/app/AnnouncementBar";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 /** The signed-in (and public-browsing) app frame: navigation, announcements, content. */
 export default async function AppShell({ children }: { children: ReactNode }) {
@@ -15,8 +16,9 @@ export default async function AppShell({ children }: { children: ReactNode }) {
         prisma.notification.count({ where: { userId: viewer.id, readAt: null } }),
       ])
     : [null, 0];
-  const navUser: NavUser = user && viewer ? { ...user, isStaff: isStaff(viewer.role) } : null;
+  const navUser: NavUser = user && viewer ? { ...user, id: viewer.id, isStaff: isStaff(viewer.role) } : null;
   return (
+    <QueryProvider key={viewer?.id ?? "guest"}>
     <div className="flex min-h-dvh">
       <SideNav user={navUser} unread={unread} />
       <div className="min-w-0 flex-1">
@@ -27,5 +29,6 @@ export default async function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+    </QueryProvider>
   );
 }
