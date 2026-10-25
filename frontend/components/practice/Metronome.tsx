@@ -3,12 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/app/ui";
 import { MAX_BPM, MIN_BPM, startClickTrack, tappedTempo } from "@/lib/practice";
+import { usePreferences, usePreferencesHydration } from "@/lib/stores/preferences";
 
 export default function Metronome() {
-  const [bpm, setBpm] = useState(80);
-  const [tempoText, setTempoText] = useState("80");
-  const [beats, setBeats] = useState(4);
-  const [volume, setVolume] = useState(0.5);
+  // Tempo, meter and volume persist on this device; play state stays with this page.
+  usePreferencesHydration();
+  const { bpm, beats, volume } = usePreferences((s) => s.metronome);
+  const setMetronome = usePreferences((s) => s.setMetronome);
+  const [tempoText, setTempoText] = useState(String(bpm));
+  const [shownBpm, setShownBpm] = useState(bpm);
+  if (shownBpm !== bpm) {
+    // Stored tempo arrived (or tap tempo changed it): keep the text field in step.
+    setShownBpm(bpm);
+    setTempoText(String(bpm));
+  }
   const [running, setRunning] = useState(false);
   const [beat, setBeat] = useState(-1);
   const [error, setError] = useState("");
@@ -17,7 +25,7 @@ export default function Metronome() {
 
   function tempo(value: number) {
     const next = Number.isFinite(value) ? Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(value))) : bpm;
-    setBpm(next); setTempoText(String(next));
+    setMetronome({ bpm: next }); setTempoText(String(next));
   }
 
   useEffect(() => {
@@ -50,7 +58,7 @@ export default function Metronome() {
     const now = performance.now();
     taps.current = now - (taps.current.at(-1) ?? 0) > 2000 ? [now] : [...taps.current.slice(-5), now];
     const tempo = tappedTempo(taps.current);
-    if (tempo) { setBpm(tempo); setTempoText(String(tempo)); }
+    if (tempo) setMetronome({ bpm: tempo });
   }
 
   return (
@@ -65,10 +73,10 @@ export default function Metronome() {
       <label><span className="sr-only">Tempo</span><input type="range" min={MIN_BPM} max={MAX_BPM} value={bpm} onChange={(e) => tempo(Number(e.target.value))} className="h-6 w-full accent-signal" /></label>
       <div className="my-5 flex justify-center gap-2" aria-hidden="true">{Array.from({ length: beats }, (_, i) => <span key={i} className={`flex aspect-square max-w-10 min-w-0 flex-1 items-center justify-center rounded-full border font-mono text-sm ${running && beat === i ? "border-signal bg-signal text-bg" : "border-line bg-bg-0 text-muted"}`}>{i + 1}</span>)}</div>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <label className="text-sm text-muted">Beats per bar<select value={beats} onChange={(e) => setBeats(Number(e.target.value))} className="panel-inset ml-2 h-11 rounded-xl px-3 text-ink">{[2, 3, 4, 5, 6, 7].map((n) => <option key={n}>{n}</option>)}</select></label>
+        <label className="text-sm text-muted">Beats per bar<select value={beats} onChange={(e) => setMetronome({ beats: Number(e.target.value) })} className="panel-inset ml-2 h-11 rounded-xl px-3 text-ink">{[2, 3, 4, 5, 6, 7].map((n) => <option key={n}>{n}</option>)}</select></label>
         <Button onClick={tap}>Tap tempo</Button>
       </div>
-      <label className="my-5 flex items-center gap-3 text-sm text-muted">Click volume<input type="range" min="0" max="1" step="0.05" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="min-w-0 flex-1 accent-signal" /></label>
+      <label className="my-5 flex items-center gap-3 text-sm text-muted">Click volume<input type="range" min="0" max="1" step="0.05" value={volume} onChange={(e) => setMetronome({ volume: Number(e.target.value) })} className="min-w-0 flex-1 accent-signal" /></label>
       <Button variant="signal" size="lg" icon={running ? "pause" : "play"} onClick={toggle}>{running ? "Stop metronome" : "Start metronome"}</Button>
       <p className="mt-3 text-xs text-muted">Quarter-note pulse. First beat accented. Pauses when you leave this tab.</p>
       {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}

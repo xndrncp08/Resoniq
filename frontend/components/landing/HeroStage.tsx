@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/icons/Icon";
-import GuitarShowcase from "@/components/landing/GuitarShowcase";
+import AmpShowcase from "@/components/landing/AmpShowcase";
 
 export default function HeroStage({ facts }: { facts: { label: string; value: string }[] }) {
   return (
@@ -18,7 +18,7 @@ export default function HeroStage({ facts }: { facts: { label: string; value: st
               <Link href="/explore" className="focus-ring inline-flex min-h-12 items-center gap-2 rounded-full border border-line-strong px-6 font-body text-sm hover:border-copper">Find your people</Link>
             </div>
           </div>
-          <GuitarShowcase />
+          <AmpShowcase />
         </div>
         <div className="mt-12 grid gap-6 border-t hairline pt-6 sm:grid-cols-[1fr_auto] sm:items-center">
           <p className="max-w-md font-body text-sm text-muted">First chord or next record. You belong here.<br /><span className="text-ink-dim">Any instrument. Any setup. Your sound.</span></p>

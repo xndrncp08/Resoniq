@@ -8,6 +8,8 @@ import { AUTHOR_SELECT } from "@/lib/profiles";
 export const GET = route("notifications.list", async (req) => {
   const actor = await requireActor();
   const url = new URL(req.url);
+  // The nav badge polls this; it needs the number, not the list.
+  if (url.searchParams.get("count") === "1") return NextResponse.json({ unread: await prisma.notification.count({ where: { userId: actor.id, readAt: null } }) });
   const limit = parseLimit(url.searchParams.get("limit"), 30);
   const cursor = decodeCursor(url.searchParams.get("cursor"));
   const rows = await prisma.notification.findMany({

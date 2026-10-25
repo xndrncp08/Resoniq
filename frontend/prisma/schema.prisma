@@ -69,6 +69,7 @@ model User {
 
   toneDraftsReviewed ToneDraft[]
   managedCreator     ManagedCreator?
+  practicePassages   PracticePassage[]
 }
 
 enum Role {
@@ -866,4 +867,31 @@ model RateLimitBucket {
   resetAt BigInt
 
   @@index([resetAt])
+}
+
+// Tempo ladder: a passage a musician is working up, and the tempos they've
+// played it at. Private to its owner; deleted with the account.
+model PracticePassage {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  targetBpm Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  takes     PracticeTake[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model PracticeTake {
+  id        String          @id @default(cuid())
+  passageId String
+  passage   PracticePassage @relation(fields: [passageId], references: [id], onDelete: Cascade)
+  bpm       Int
+  // false: "not clean yet" at this tempo. Both are progress worth seeing.
+  clean     Boolean
+  createdAt DateTime        @default(now())
+
+  @@index([passageId, createdAt])
 }

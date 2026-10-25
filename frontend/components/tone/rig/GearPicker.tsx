@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/client-api";
 import type { GearRef } from "@/types/rig";
 
@@ -10,24 +11,25 @@ type Item = { id: string; brand: string; model: string; controls: string[]; stat
 export default function GearPicker({ kind, value, onChange, placeholder }: { kind: string | string[]; value?: GearRef; onChange: (ref: GearRef | undefined, controls?: string[]) => void; placeholder: string }) {
   const id = useId();
   const [q, setQ] = useState(value ? [value.brand, value.model].filter(Boolean).join(" ") : "");
-  const [items, setItems] = useState<Item[]>([]);
   const [open, setOpen] = useState(false);
+  const [term, setTerm] = useState(q.trim());
   const kinds = Array.isArray(kind) ? kind : [kind];
-  const shown = open && q.trim().length >= 2 ? items : [];
-
   useEffect(() => {
-    if (!open || q.trim().length < 2) return;
-    const ctrl = new AbortController();
-    const t = setTimeout(async () => {
-      const results = await Promise.all(kinds.map((k) => api<{ items: Item[] }>(`/api/gear?q=${encodeURIComponent(q)}&kind=${k}&limit=6`, { signal: ctrl.signal }).catch(() => ({ items: [] }))));
-      setItems(results.flatMap((r) => r.items).slice(0, 8));
-    }, 180);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- kinds is derived from a stable prop
-  }, [q, open]);
+    const t = setTimeout(() => setTerm(q.trim()), 180);
+    return () => clearTimeout(t);
+  }, [q]);
+  // Catalog lookups are cached, so retyping or reopening a picker answers instantly.
+  const { data: items = [] } = useQuery({
+    queryKey: ["gear", "search", kinds, term],
+    queryFn: async ({ signal }) => {
+      const results = await Promise.all(kinds.map((k) => api<{ items: Item[] }>(`/api/gear?q=${encodeURIComponent(term)}&kind=${k}&limit=6`, { signal }).catch(() => ({ items: [] }))));
+      return results.flatMap((r) => r.items).slice(0, 8);
+    },
+    enabled: open && term.length >= 2,
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+  const shown = open && q.trim().length >= 2 ? items : [];
 
   return (
     <div className="relative">

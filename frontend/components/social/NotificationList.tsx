@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import Icon, { type IconName } from "@/components/icons/Icon";
 import { Avatar, TimeAgo } from "@/components/app/ui";
 import InfiniteList from "@/components/social/InfiniteList";
-import { api } from "@/lib/client-api";
+import { useMarkAllRead } from "@/lib/queries/notifications";
 
 export type NotificationItem = {
   id: string;
@@ -49,11 +49,12 @@ function describe(n: NotificationItem): { text: string; href: string } {
   }
 }
 
-export default function NotificationList({ initial, cursor }: { initial: NotificationItem[]; cursor: string | null }) {
+export default function NotificationList({ userId, initial, cursor }: { userId: string; initial: NotificationItem[]; cursor: string | null }) {
+  const { mutate: markAllRead } = useMarkAllRead(userId);
   useEffect(() => {
-    // Opening the page reads everything; the badge clears on the next navigation.
-    if (initial.some((n) => !n.readAt)) void api("/api/notifications/read", { body: { all: true } }).catch(() => {});
-  }, [initial]);
+    // Opening the page reads everything; every badge clears at once.
+    if (initial.some((n) => !n.readAt)) markAllRead();
+  }, [initial, markAllRead]);
   return (
     <InfiniteList
       endpoint="/api/notifications?limit=30"

@@ -35,6 +35,7 @@ export const RATE_LIMITS = {
   mediaRead: { limit: 1200, windowMs: 60_000 },
   emailSend: { limit: 5, windowMs: 60 * 60_000 },
   tokenUse: { limit: 20, windowMs: 15 * 60_000 },
+  practiceWrite: { limit: 240, windowMs: 60 * 60_000 },
 } satisfies Record<string, RateLimitRule>;
 
 const MAX_KEYS = 10_000;

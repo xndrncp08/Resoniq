@@ -26,7 +26,7 @@ export default function PracticeNote() {
 
   return (
     <section aria-labelledby="note-h" className="panel p-5 sm:p-7">
-      <div className="flex flex-wrap items-baseline justify-between gap-3"><h2 id="note-h" className="font-display text-2xl font-semibold">Leave yourself a way back.</h2><span className="label-engraved">03 / Reflect</span></div>
+      <div className="flex flex-wrap items-baseline justify-between gap-3"><h2 id="note-h" className="font-display text-2xl font-semibold">Leave yourself a way back.</h2><span className="label-engraved">04 / Reflect</span></div>
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <label className="block"><span className="label-engraved">One thing to work on</span><input maxLength={160} value={goal} onChange={(e) => { setGoal(e.target.value); setStatus("Unsaved changes"); }} placeholder="Land the chorus changes cleanly at 80 BPM" className="panel-inset mt-2 h-12 w-full rounded-xl px-4 text-sm" /><span className="mt-2 block text-xs text-muted">A small, specific goal beats another hour of noodling.</span></label>
         <label className="block"><span className="label-engraved">What worked? What is next?</span><textarea maxLength={2000} rows={3} value={notes} onChange={(e) => { setNotes(e.target.value); setStatus("Unsaved changes"); }} placeholder="Clean at 70. Rushing the last beat at 80. Next time: two bars, lighter touch." className="panel-inset mt-2 w-full resize-y rounded-xl p-4 text-sm" /></label>

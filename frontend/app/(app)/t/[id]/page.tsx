@@ -14,6 +14,7 @@ import RigBoard from "@/components/tone/rig/RigBoard";
 import ToneActions from "@/components/tone/ToneActions";
 import TankGPanel from "@/components/tone/TankGPanel";
 import PostCard from "@/components/social/PostCard";
+import Amp3D from "@/components/three/Amp3D";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -108,6 +109,7 @@ export default async function TonePage({ params }: Props) {
             Estimated from the recording{songTitle ? ` “${songTitle}”` : ""} by Resoniq&apos;s analysis: a closest-match starting point with heuristic confidence, not a verified rig.
             {tone.recipeEdited && " The creator adjusted these settings after the analysis."}
           </p>
+          <Amp3D amp={inferred.amp} caption={<>{inferred.amp.model} at the analysed settings. Remix this tone to dial your own.</>} />
           <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
             <AmpPanel amp={inferred.amp} cabinet={inferred.cabinet} pickup={inferred.pickup} />
             <RecipeSummary recipe={inferred} />

@@ -65,7 +65,7 @@ original generated studio photographs, exported to seven local WebP files in
 `public/images/`: `studio-guitar-*`, `studio-bassist-*`, `studio-pedals-*`.
 They share copper practical lighting, restrained teal highlights, dark studio
 surfaces and credible equipment textures. These images are illustrative;
-they do not document an actual musician's rig or reproduce the Sketchfab model.
+they do not document an actual musician's rig.
 
 `public/brand/og-studio.jpg` is the new 1200×630 default social image, composed
 with the original wordmark. Rebuild it with `node scripts/brand-social.mjs`

@@ -53,7 +53,7 @@ hardware (pedal enclosures, rack units, pick shapes, pole pieces).
 Motion handles layout and presence; GSAP handles render loops (unchanged).
 New surfaces use short springs for state changes. The public landing is
 static; its former floating gear and marquee were removed. The detailed
-analysis example and the Sketchfab viewer load on explicit request. Motion
+analysis example and the 3D amp (see `docs/state-and-3d.md`) load on explicit request. Motion
 configuration is scoped to the application, authentication form, dialogs and
 deferred example. Reduced motion disables automatic video hover previews.
 The global `prefers-reduced-motion` rule also neutralises CSS movement.

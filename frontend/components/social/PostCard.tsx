@@ -12,6 +12,7 @@ import ToneAttachment, { RigOverlay } from "@/components/social/ToneAttachment";
 import VoteControl from "@/components/social/VoteControl";
 import { CATEGORY_META } from "@/components/social/categories";
 import { api } from "@/lib/client-api";
+import { useServerToggle } from "@/lib/queries/toggle";
 import type { PostView } from "@/lib/posts";
 
 
@@ -50,7 +51,7 @@ function Menu({ post, onReport, onDeleted }: { post: PostView; onReport: () => v
 
 export default function PostCard({ post, signedIn, detail = false, voteMode = "amp" }: { post: PostView; signedIn: boolean; detail?: boolean; voteMode?: "amp" | "updown" }) {
   const router = useRouter();
-  const [bookmarked, setBookmarked] = useState(post.viewer.bookmarked);
+  const { on: bookmarked, toggle: flipBookmark } = useServerToggle({ scope: `bookmark:${post.id}`, initial: post.viewer.bookmarked, send: (next) => api(`/api/posts/${post.id}/bookmark`, { method: next ? "PUT" : "DELETE" }) });
   const [reporting, setReporting] = useState(false);
   const [reportLoaded, setReportLoaded] = useState(false);
   const [gone, setGone] = useState(false);
@@ -59,16 +60,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
   const long = post.body.length > 420;
   if (gone) return null;
 
-  async function toggleBookmark() {
-    if (!signedIn) return router.push(`/login?callbackUrl=/p/${post.id}`);
-    const next = !bookmarked;
-    setBookmarked(next);
-    try {
-      await api(`/api/posts/${post.id}/bookmark`, { method: next ? "PUT" : "DELETE" });
-    } catch {
-      setBookmarked(!next);
-    }
-  }
+  const toggleBookmark = () => (signedIn ? flipBookmark() : router.push(`/login?callbackUrl=/p/${post.id}`));
 
   async function share() {
     const url = `${location.origin}/p/${post.id}`;
