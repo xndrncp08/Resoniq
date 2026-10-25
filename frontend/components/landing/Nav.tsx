@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 
 const links = [
   { label: "Platform", href: "/#ecosystem" },
-  { label: "Inspect a rig", href: "/#inspect" },
+  { label: "Practice", href: "/practice" },
   { label: "Analysis", href: "/#how-it-works" },
   { label: "Communities", href: "/c" },
   { label: "Tones", href: "/tones" },

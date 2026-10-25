@@ -22,9 +22,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: { default: "Resoniq: play it, share the rig, steal the tone", template: "%s — Resoniq" },
+  title: { default: "Resoniq: find your sound, make music together", template: "%s — Resoniq" },
   description:
-    "The community for guitarists and bassists: post performances with the exact rig attached, browse and remix tones, and get starting-point recipes from recordings.",
+    "A home for musicians: practice with a metronome and audio loops, discover tones, share your progress and find people to make music with. Any instrument. Any setup.",
   metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
   openGraph: { siteName: "Resoniq", images: ["/brand/og-studio.jpg"] },
   icons: { icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }], apple: "/brand/app-icon-180.png" },

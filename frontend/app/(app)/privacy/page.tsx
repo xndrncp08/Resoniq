@@ -10,8 +10,8 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-[720px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
       <PageHeader eyebrow="Policy" title="Privacy" />
-      <p className="font-mono text-xs text-muted">Last updated 23 October 2026</p>
-      <p>Resoniq is a community for sharing guitar and bass tones. This page describes what this Resoniq instance actually stores and why. There are no ads, no third-party analytics or tracking scripts, and no data is sold.</p>
+      <p className="font-mono text-xs text-muted">Last updated 24 October 2026</p>
+      <p>Resoniq is a community for musicians. This page describes what this Resoniq instance actually stores and why. There are no ads, no third-party analytics or tracking scripts, and no data is sold.</p>
 
       <H>What we store</H>
       <ul className="list-disc space-y-2 pl-5">
@@ -23,6 +23,7 @@ export default function PrivacyPage() {
       </ul>
 
       <H>Who processes it</H>
+      <p>The <Link href="/practice" className="text-copper underline underline-offset-2">practice room</Link> plays selected audio files locally in your browser without uploading them. If you save a practice note, it stays in this browser&apos;s local storage, separate from your account. It can be read by other people using the same browser profile. Use “Clear note” in the practice room or clear site data in your browser to remove it; deleting your account does not remove a locally saved practice note.</p>
       <ul className="list-disc space-y-2 pl-5">
         <li><span className="text-ink">Vercel</span> hosts the app (United States).</li>
         <li><span className="text-ink">Supabase</span> hosts the database and private file storage (United States).</li>

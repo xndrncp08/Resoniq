@@ -21,7 +21,7 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
   const qs = (o: Record<string, string | undefined>) => `/tones?${params(o)}`;
   return (
     <div>
-      <PageHeader eyebrow="Tone library" title="Tones worth stealing" actions={<><LinkButton href="/gear/m-vave-tank-g" icon="amp">TANK-G presets</LinkButton><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
+      <PageHeader eyebrow="Tone library" title="Find your next sound" actions={<><LinkButton href="/practice" icon="audio">Practice room</LinkButton><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
         Member-declared rigs, starting points inferred from recordings, and clearly labelled Resoniq-generated settings. Save them, remix them, compare them.
       </PageHeader>
       <form action="/tones" className="mb-4 flex gap-2">
@@ -47,7 +47,7 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
         endpoint={`/api/tones/public?${params({ limit: "18" })}`}
         initial={page.items}
         cursor={page.nextCursor}
-        empty={<EmptyState icon="tone" title="No public tones yet" action={<LinkButton href="/tones/new" variant="primary">Share yours</LinkButton>}>Publish a tone from your vault or describe your rig to put it here.</EmptyState>}
+        empty={<EmptyState icon="tone" title={q || instrument || source || genre ? "No tones match these filters" : "No public tones yet"} action={<LinkButton href={q || instrument || source || genre ? "/tones" : "/tones/new"} variant="primary">{q || instrument || source || genre ? "Browse all tones" : "Share yours"}</LinkButton>}>Try a broader search, or share a sound that other musicians can build on.</EmptyState>}
       />
     </div>
   );

@@ -8,7 +8,7 @@ export default function FinalCta() {
         <Image src="/images/studio-guitar-1440.webp" alt="" fill sizes="100vw" className="object-cover opacity-25" />
         <div className="relative max-w-4xl">
           <div>
-            <h2 id="cta-title" className="font-display text-display-lg font-semibold tracking-[-0.035em]">Your sound has a story. <span className="text-copper">Post the rig.</span></h2>
+            <h2 id="cta-title" className="font-display text-display-lg font-semibold tracking-[-0.035em]">Your next breakthrough. <span className="text-copper">Someone to share it with.</span></h2>
             <p className="mt-5 max-w-lg font-body text-lg text-ink-dim">Free to join. Your analyses stay private, tones stay unlisted until you publish them, and photos lose their location data on upload.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/signup" className="focus-ring inline-flex h-14 items-center rounded-full bg-copper px-8 font-body font-semibold text-bg shadow-glow hover:bg-copper-soft">Create your account</Link>
