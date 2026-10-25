@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ actor: vi.fn(), tone: vi.fn() }));
 vi.mock("@/lib/api", () => ({ optionalActor: mocks.actor }));
 vi.mock("@/lib/tones", () => ({ getTone: mocks.tone }));
-import PracticePage from "@/app/(app)/practice/page";
+import PracticePage, { generateMetadata } from "@/app/(app)/practice/page";
 
 beforeEach(() => { vi.clearAllMocks(); mocks.actor.mockResolvedValue({ id: "viewer" }); mocks.tone.mockResolvedValue(null); });
 
@@ -16,4 +16,9 @@ it.each([undefined, ["one", "two"], "x".repeat(101)])("ignores invalid optional 
 it("loads a tone through the existing viewer-aware access check", async () => {
   await PracticePage({ searchParams: Promise.resolve({ tone: "tone-id" }) });
   expect(mocks.tone).toHaveBeenCalledWith("tone-id", "viewer");
+});
+
+it("keeps tone-specific sessions out of search results without blocking the public practice room", async () => {
+  expect(await generateMetadata({ searchParams: Promise.resolve({ tone: "unlisted-tone" }) })).toMatchObject({ robots: { index: false, follow: false } });
+  expect((await generateMetadata({ searchParams: Promise.resolve({}) })).robots).toBeUndefined();
 });

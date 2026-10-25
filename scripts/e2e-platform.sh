@@ -70,6 +70,7 @@ TONE=$(api "$A" POST /api/tones '{"name":"Tweed edge '"$STAMP"'","visibility":"P
 echo "tone $TONE"
 curl -fsS "$BASE_URL/practice?tone=$TONE" > "$WORK/practice-tone.html"
 grep -q 'Your sound for this session' "$WORK/practice-tone.html" || fail "practice tone context missing"
+grep -q 'noindex' "$WORK/practice-tone.html" || fail "tone-specific practice session is indexable"
 
 PRIVATE_TONE=$(api "$A" POST /api/tones '{"name":"Private practice QA '"$STAMP"'","visibility":"PRIVATE","rig":{"chain":[],"notes":"Private practice note"}}' | json 'd["tone"]["id"]')
 curl -fsS -b "$A" "$BASE_URL/practice?tone=$PRIVATE_TONE" > "$WORK/private-practice.html"

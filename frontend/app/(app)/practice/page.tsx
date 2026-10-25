@@ -7,9 +7,19 @@ import { optionalActor } from "@/lib/api";
 import { getTone } from "@/lib/tones";
 import { Provenance } from "@/components/app/ui";
 
-export const metadata: Metadata = { title: "Practice room", description: "A free practice room for any musician. Tap a tempo, loop a recording, slow down a phrase and keep a practice note. No account needed." };
+type Props = { searchParams: Promise<{ tone?: string | string[] }> };
 
-export default async function PracticePage({ searchParams }: { searchParams: Promise<{ tone?: string | string[] }> }) {
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { tone } = await searchParams;
+  return {
+    title: "Practice room",
+    description: "A free practice room for any musician. Tap a tempo, loop a recording, slow down a phrase and keep a practice note. No account needed.",
+    // A tone can be unlisted; keep its practice context out of search results too.
+    ...(tone && { robots: { index: false, follow: false } }),
+  };
+}
+
+export default async function PracticePage({ searchParams }: Props) {
   const { tone: rawId } = await searchParams;
   const id = typeof rawId === "string" && rawId.length <= 100 ? rawId : undefined;
   const viewer = id ? await optionalActor() : null;
