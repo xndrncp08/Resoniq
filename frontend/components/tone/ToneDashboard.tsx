@@ -30,7 +30,7 @@ const panel: Variants = {
   show: { opacity: 1, y: 0, filter: "blur(0px)", transition: spring.enter },
 };
 
-export default function ToneDashboard(props: { songId: string; initialRecipe: ToneRecipe; measurements?: EngineAnalysis["raw_features"] }) {
+export default function ToneDashboard(props: { songId: string; sectionId?: string; initialRecipe: ToneRecipe; measurements?: EngineAnalysis["raw_features"] }) {
   const { amp, cabinet, pickup, pedalboard } = props.initialRecipe;
   return (
     <RigStoreProvider initial={{ amp, cabinet, pickup, pedalboard }}>
@@ -45,10 +45,12 @@ export default function ToneDashboard(props: { songId: string; initialRecipe: To
  */
 function Dashboard({
   songId,
+  sectionId,
   initialRecipe,
   measurements,
 }: {
   songId: string;
+  sectionId?: string;
   initialRecipe: ToneRecipe;
   measurements?: EngineAnalysis["raw_features"];
 }) {
@@ -79,7 +81,7 @@ function Dashboard({
       const res = await fetch("/api/tones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ songId, name: toneName.trim() || initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH), data }),
+        body: JSON.stringify({ songId, ...(sectionId && { sectionId }), name: toneName.trim() || initialRecipe.title.slice(0, MAX_TONE_NAME_LENGTH), data }),
       });
       setSaveState(res.ok ? "saved" : "error");
       if (res.ok) setSavedId(((await res.json()) as { tone: { id: string } }).tone.id);

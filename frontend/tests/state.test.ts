@@ -90,7 +90,7 @@ describe("device preferences", () => {
     usePreferences.getState().setMetronome({ bpm: 1 });
     usePreferences.getState().setScene3d("off");
     const saved = JSON.parse(memory.get("resoniq:preferences")!);
-    expect(saved.state).toEqual({ scene3d: "off", metronome: { bpm: MIN_BPM, beats: 4, volume: 0.5 } });
+    expect(saved.state).toEqual({ scene3d: "off", metronome: { bpm: MIN_BPM, beats: 4, volume: 0.5 }, gear: "amp-3band" });
   });
 });
 

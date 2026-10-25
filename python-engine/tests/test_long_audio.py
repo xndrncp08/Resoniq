@@ -37,11 +37,28 @@ def test_window_search_falls_back_to_the_start_for_unreadable_or_short_input():
     assert main.loudest_window_start(encode(track(5)), 10) == 0
 
 
-def test_long_recordings_are_measured_on_their_loudest_window(monkeypatch):
+def test_long_single_sound_recordings_are_measured_on_their_loudest_window(monkeypatch):
     monkeypatch.setattr(main, "ANALYSIS_WINDOW_S", 8)
-    result = main.analyze_bytes(encode(track(40, loud_at=(20, 28)), "FLAC"))
+    # Shorter than two minimum sections: one sound, so the loudest window is measured.
+    result = main.analyze_bytes(encode(track(20, loud_at=(10, 18)), "FLAC"))
     w = result.analysis_window
-    assert (w.start_s, w.duration_s, w.total_s) == (20, 8, 40)
+    assert (w.start_s, w.duration_s, w.total_s) == (10, 8, 20)
+    assert result.sections is None
+
+
+def test_contrasting_passages_become_sections_each_measured_on_its_own(monkeypatch):
+    # 40 s quiet and clean, then 60 s loud and driven: two sounds.
+    result = main.analyze_bytes(encode(track(100, loud_at=(40, 100)), "FLAC"))
+    assert result.sections and {s.type for s in result.sections} == {"A", "B"}
+    a = next(s for s in result.sections if s.type == "A")
+    b = next(s for s in result.sections if s.type == "B")
+    assert abs(a.start_s - 40) <= 3 and a.end_s == 100
+    assert a.excerpt.start_s >= 38 and a.excerpt.duration_s == main.MAIN_EXCERPT_S
+    assert b.excerpt.duration_s <= main.OTHER_EXCERPT_S
+    assert "loud" in a.traits and "quiet" in b.traits
+    assert a.raw_features.compression > b.raw_features.compression
+    assert result.main_section == a.id and result.raw_features == a.raw_features
+    assert len(result.timeline.rms_db) == 100 and result.timeline.step_s == 1
 
 
 def test_short_recordings_are_measured_whole():

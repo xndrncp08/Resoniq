@@ -4,7 +4,7 @@ import { ApiError, enforceRateLimit, readJson, requireUserId, route } from "@/li
 import { requireActor } from "@/lib/authz";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { createTone, parseToneInput } from "@/lib/tones";
-import { recipeCoreFromAnalysis } from "@/lib/tone-recipe";
+import { recipeCoreFromAnalysis, sectionAnalysis } from "@/lib/tone-recipe";
 import { parseRecipeCore } from "@/lib/tone-validation";
 import type { EngineAnalysis } from "@/types/engine";
 
@@ -45,8 +45,13 @@ export const POST = route("tones.create", async (req) => {
     if (!song) throw new ApiError(404, "Song not found.");
     songId = song.id;
     // Knobs turned before saving mean this is no longer the raw analysis; label it honestly.
-    if (input.data && song.analysisData) {
-      const analyzed = parseRecipeCore(recipeCoreFromAnalysis(song.analysisData as unknown as EngineAnalysis));
+    if (input.data?.recipe && song.analysisData) {
+      // Saved from one section of a long recording: compare against that section's measurements.
+      const whole = song.analysisData as unknown as EngineAnalysis;
+      if (body.sectionId !== undefined && typeof body.sectionId !== "string") throw new ApiError(400, "sectionId must be a string.");
+      const source = typeof body.sectionId === "string" ? sectionAnalysis(whole, body.sectionId) : whole;
+      if (!source) throw new ApiError(400, "That section isn't part of the song's analysis.");
+      const analyzed = parseRecipeCore(recipeCoreFromAnalysis(source));
       recipeEdited = JSON.stringify(analyzed) !== JSON.stringify(input.data.recipe);
     }
   }

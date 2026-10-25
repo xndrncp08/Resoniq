@@ -120,6 +120,13 @@ export function heuristicRecipe(profile: EngineToneProfile): RecipeCore {
   };
 }
 
+/** A section of an analysis, shaped like a whole analysis so every recipe adapter works on it. */
+export function sectionAnalysis(analysis: EngineAnalysis, sectionId: string): EngineAnalysis | null {
+  const s = analysis.sections?.find((x) => x.id === sectionId);
+  if (!s) return null;
+  return { ...analysis, raw_features: s.raw_features, tone_profile: s.tone_profile, recipe: s.recipe, analysis_window: s.excerpt };
+}
+
 export function recipeCoreFromAnalysis(analysis: EngineAnalysis): RecipeCore {
   if (analysis.recipe) {
     const { source, ...core } = analysis.recipe;

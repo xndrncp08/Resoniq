@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { MAX_BPM, MIN_BPM } from "@/lib/practice";
+import { isGearProfile, type GearProfileId } from "@/lib/gear-translate";
 
 /**
  * Per-device preferences: how this browser should render, and where you left
@@ -12,7 +13,10 @@ export type Preferences = {
   /** Interactive 3D views. "auto" renders them when the device supports WebGL. */
   scene3d: "auto" | "off";
   metronome: { bpm: number; beats: number; volume: number };
+  /** The kind of gear analysis suggestions are translated for. */
+  gear: GearProfileId;
   setScene3d: (mode: Preferences["scene3d"]) => void;
+  setGear: (gear: GearProfileId) => void;
   setMetronome: (patch: Partial<Preferences["metronome"]>) => void;
 };
 
@@ -34,17 +38,19 @@ export const usePreferences = create<Preferences>()(
     (set) => ({
       scene3d: "auto",
       metronome: DEFAULT_METRONOME,
+      gear: "amp-3band",
       setScene3d: (scene3d) => set({ scene3d }),
+      setGear: (gear) => set({ gear }),
       setMetronome: (patch) => set((s) => ({ metronome: sanitizeMetronome({ ...s.metronome, ...patch }) })),
     }),
     {
       name: "resoniq:preferences",
       version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ scene3d, metronome }) => ({ scene3d, metronome }),
+      partialize: ({ scene3d, metronome, gear }) => ({ scene3d, metronome, gear }),
       merge: (stored, current) => {
         const s = (stored ?? {}) as Partial<Preferences>;
-        return { ...current, scene3d: s.scene3d === "off" ? "off" : "auto", metronome: sanitizeMetronome(s.metronome) };
+        return { ...current, scene3d: s.scene3d === "off" ? "off" : "auto", metronome: sanitizeMetronome(s.metronome), gear: isGearProfile(s.gear) ? s.gear : "amp-3band" };
       },
       // The server renders defaults; stored values load after hydration so markup always matches.
       skipHydration: true,

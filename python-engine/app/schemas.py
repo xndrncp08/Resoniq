@@ -117,8 +117,45 @@ class AnalysisWindow(BaseModel):
     total_s: Optional[float] = None  # None when the file's header doesn't state a length
 
 
+class SectionCharacter(BaseModel):
+    """Measured over the section (its louder seconds): level and tone colour of the whole mix."""
+    rms_db: float
+    centroid_hz: float
+    low_db: float
+    mid_db: float
+    high_db: float
+    flatness_db: float
+
+
+class AnalysisSection(BaseModel):
+    id: str
+    type: str                      # A–D: sections that sound alike share a type
+    start_s: float
+    end_s: float
+    traits: list[str]              # plain words from the measurements ("loud", "bright", ...)
+    character: SectionCharacter
+    # Each type is measured once, on a representative excerpt; sections of the same type share it.
+    excerpt: AnalysisWindow
+    raw_features: RawFeatures
+    tone_profile: "ToneProfile"
+    recipe: "ToneRecipe"
+
+
+class Timeline(BaseModel):
+    step_s: float
+    rms_db: list[float]
+    centroid_hz: list[float]
+    low_db: list[float]
+    mid_db: list[float]
+    high_db: list[float]
+    flatness_db: list[float]
+
+
 class AnalyzeResponse(BaseModel):
     raw_features: RawFeatures
     analysis_window: Optional[AnalysisWindow] = None
+    sections: Optional[list[AnalysisSection]] = None
+    main_section: Optional[str] = None
+    timeline: Optional[Timeline] = None
     tone_profile: ToneProfile
     recipe: ToneRecipe

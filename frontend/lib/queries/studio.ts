@@ -32,6 +32,7 @@ export type StudioOrigin = {
   deviceRig: RigSpec | null;
   /** Analysis provenance to keep when saving a new tone from an analysed song (see analysis sections). */
   songId?: string | null;
+  sectionId?: string | null;
   recipe?: RecipeCore | null;
 };
 
@@ -64,7 +65,7 @@ export function useSaveStudio(userId: string) {
         await api(`/api/tones/${tone.id}`, { method: "PATCH", body: { ...body, name } });
         return { id: tone.id, name };
       }
-      const { tone } = await api<{ tone: { id: string } }>("/api/tones", { body: { ...body, name, visibility: "PRIVATE", ...(origin.songId && { songId: origin.songId }) } });
+      const { tone } = await api<{ tone: { id: string } }>("/api/tones", { body: { ...body, name, visibility: "PRIVATE", ...(origin.songId && { songId: origin.songId }), ...(origin.sectionId && { sectionId: origin.sectionId }) } });
       return { id: tone.id, name };
     },
     onMutate: async ({ patch, origin, mode, name }) => {

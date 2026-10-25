@@ -5,12 +5,14 @@
  */
 export const ANALYSIS_STAGES = [
   { id: "decoding", label: "Decode", group: "decode" },
+  { id: "scanning", label: "Find sections", group: "decode" },
   { id: "features.spectrum", label: "Spectrum", group: "measure" },
   { id: "features.dynamics", label: "Dynamics", group: "measure" },
   { id: "features.onsets", label: "Pick attack", group: "measure" },
   { id: "features.harmonics", label: "Harmonics", group: "measure" },
   { id: "features.tempo", label: "Tempo", group: "measure" },
   { id: "features.effects", label: "Effects", group: "measure" },
+  { id: "sections", label: "Other sections", group: "measure" },
   { id: "inference", label: "Infer gear", group: "infer" },
   { id: "recipe", label: "Write recipe", group: "recipe" },
 ] as const;

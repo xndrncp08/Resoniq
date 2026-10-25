@@ -17,7 +17,9 @@ import soundfile as sf
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.schemas import AnalysisWindow, AnalyzeRequest, AnalyzeResponse
+from app.schemas import AnalysisSection, AnalysisWindow, AnalyzeRequest, AnalyzeResponse, SectionCharacter, Timeline
+from app.recipe import heuristic_recipe
+from app import sections as sec
 from app.features import FEATURE_STEPS, extract_features
 from app.fetch import BlockedURLError, FetchError, TooLargeError, fetch_audio
 from app.heuristics import build_tone_profile
@@ -96,7 +98,12 @@ def _audio_duration_s(audio_bytes: bytes | bytearray) -> float | None:
 
 
 # Stages of an analysis, in order, as reported by /analyze/file/stream.
-STAGES = ("decoding", *(f"features.{s}" for s in FEATURE_STEPS), "inference", "recipe")
+# "scanning" and "sections" only happen for recordings long enough to have sections.
+STAGES = ("decoding", "scanning", *(f"features.{s}" for s in FEATURE_STEPS), "sections", "inference", "recipe")
+
+# Excerpt lengths: the main sound gets the longest look; other sounds a shorter one.
+MAIN_EXCERPT_S = 45
+OTHER_EXCERPT_S = 25
 
 
 # The instance has room for one analysis at a time; others wait their turn
@@ -144,32 +151,78 @@ def analyze_bytes(audio_bytes: bytes | bytearray, on_stage: Callable[[str], None
             _release_memory()
 
 
+def _decode(audio_bytes: bytes | bytearray, start: float, duration: float):
+    try:
+        # Only the measured stretch is decoded (libsndfile seeks MP3/WAV/FLAC).
+        y, sr = librosa.load(io.BytesIO(audio_bytes), sr=SAMPLE_RATE, mono=True, offset=start, duration=duration)
+    except Exception:
+        logger.exception("Failed to decode audio")
+        raise HTTPException(status_code=422, detail="Could not decode audio file.") from None
+    if y.size < sr * 1:  # less than 1 second of audio
+        raise HTTPException(status_code=422, detail="Audio is too short to analyze.")
+    return y, sr
+
+
 def _analyze(audio_bytes: bytes | bytearray, stage: Callable[[str], None]) -> AnalyzeResponse:
     stage("decoding")
     total = _audio_duration_s(audio_bytes)
     if total is not None and total > MAX_AUDIO_SECONDS:
         raise HTTPException(status_code=413, detail=f"Audio is longer than {int(MAX_AUDIO_SECONDS // 60)} minutes.")
-    start = loudest_window_start(audio_bytes, ANALYSIS_WINDOW_S) if total and total > ANALYSIS_WINDOW_S else 0.0
 
-    try:
-        # Only the measured stretch is decoded (libsndfile seeks MP3/WAV/FLAC).
-        y, sr = librosa.load(io.BytesIO(audio_bytes), sr=SAMPLE_RATE, mono=True, offset=start, duration=ANALYSIS_WINDOW_S)
-    except Exception:
-        logger.exception("Failed to decode audio")
-        raise HTTPException(status_code=422, detail="Could not decode audio file.") from None
+    # Long recordings: find where the sound changes (one streamed pass), then measure each kind of sound.
+    scan = found = None
+    if total and total > ANALYSIS_WINDOW_S:
+        stage("scanning")
+        scan = sec.scan(audio_bytes)
+        found = sec.sections(scan) if scan else None
+    kinds = sorted({s.type for s in found}) if found else []
 
-    if y.size < sr * 1:  # less than 1 second of audio
-        raise HTTPException(status_code=422, detail="Audio is too short to analyze.")
+    if found and len(kinds) > 1:
+        start, dur = sec.representative(found, "A", MAIN_EXCERPT_S, scan)
+    elif total and total > ANALYSIS_WINDOW_S:
+        start, dur = loudest_window_start(audio_bytes, ANALYSIS_WINDOW_S), ANALYSIS_WINDOW_S
+    else:
+        start, dur = 0.0, ANALYSIS_WINDOW_S
+    y, sr = _decode(audio_bytes, start, dur)
     window = AnalysisWindow(start_s=round(start, 2), duration_s=round(y.size / sr, 2), total_s=round(total, 2) if total else None)
-
     raw_features = extract_features(y, sr, on_step=lambda step: stage(f"features.{step}"))
     del y
+    _release_memory()
+
+    measured = {}
+    if found and len(kinds) > 1:
+        stage("sections")
+        for kind in kinds[1:]:
+            k_start, k_dur = sec.representative(found, kind, OTHER_EXCERPT_S, scan)
+            ky, ksr = _decode(audio_bytes, k_start, k_dur)
+            k_features = extract_features(ky, ksr)
+            del ky
+            _release_memory()
+            k_profile = build_tone_profile(k_features)
+            # Secondary sounds get the deterministic recipe: no extra calls to a language model.
+            measured[kind] = (AnalysisWindow(start_s=round(k_start, 2), duration_s=round(k_dur, 2), total_s=window.total_s), k_features, k_profile, heuristic_recipe(k_features, k_profile))
+
     stage("inference")
     tone_profile = build_tone_profile(raw_features)
     stage("recipe")
     recipe = generate_recipe(raw_features, tone_profile)
+    measured["A"] = (window, raw_features, tone_profile, recipe)
 
-    return AnalyzeResponse(raw_features=raw_features, analysis_window=window, tone_profile=tone_profile, recipe=recipe)
+    result = AnalyzeResponse(raw_features=raw_features, analysis_window=window, tone_profile=tone_profile, recipe=recipe)
+    if found and scan is not None:
+        song = sec.reference(found)
+        result.timeline = Timeline(**sec.timeline(scan))
+        if len(kinds) > 1:
+            result.main_section = "s0" if found[0].type == "A" else next(f"s{i}" for i, s in enumerate(found) if s.type == "A")
+            result.sections = [
+                AnalysisSection(
+                    id=f"s{i}", type=s.type, start_s=s.start_s, end_s=s.end_s, traits=sec.describe(s.character, song),
+                    character=SectionCharacter(**s.character), excerpt=measured[s.type][0], raw_features=measured[s.type][1],
+                    tone_profile=measured[s.type][2], recipe=measured[s.type][3],
+                )
+                for i, s in enumerate(found)
+            ]
+    return result
 
 
 @app.get("/health")

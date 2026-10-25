@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnalysisProgress from "@/components/tone/AnalysisProgress";
 import ToneDashboard from "@/components/tone/ToneDashboard";
+import SectionExplorer from "@/components/tone/SectionExplorer";
 import Icon from "@/components/icons/Icon";
 import { Button, LinkButton } from "@/components/app/ui";
 import type { AnalysisNotice, StageEvent } from "@/lib/analysis-stages";
@@ -192,6 +193,10 @@ export default function AnalysisRunner({
 
   if (status === "FAILED") {
     return <AnalysisFailed title={song.title} error={error ?? ANALYSIS_FAILURES.engine} onRetry={run} />;
+  }
+
+  if (status === "ANALYZED" && data && (data.sections?.length ?? 0) > 1) {
+    return <SectionExplorer song={song} data={data} />;
   }
 
   if (status === "ANALYZED" && data && recipe) {
