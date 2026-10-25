@@ -14,6 +14,7 @@ import LiveBoard from "@/components/landing/LiveBoard";
 import FinalCta from "@/components/landing/FinalCta";
 import Footer from "@/components/landing/Footer";
 import PracticeInvite from "@/components/landing/PracticeInvite";
+import Players from "@/components/landing/Players";
 
 export default async function Home() {
   const viewer = await optionalActor();
@@ -38,6 +39,7 @@ export default async function Home() {
       <main id="main" className="relative">
         <HeroStage facts={facts} />
         <PracticeInvite />
+        <Players />
         <Ecosystem communities={communities} gearByKind={gearByKind.map((g) => ({ kind: g.kind, count: g._count }))} gearTotal={gearTotal} />
         <Inspect />
         <LiveBoard tones={tones.items} viewerId={viewer?.id ?? null} />
