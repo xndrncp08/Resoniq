@@ -12,10 +12,12 @@ Either way the result is an inferred "closest match", not a gear ID.
 import json
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-import anthropic
 from pydantic import ValidationError
+
+if TYPE_CHECKING:
+    import anthropic
 
 from app.schemas import (
     AmpSettings,
@@ -185,9 +187,13 @@ def _user_prompt(features: RawFeatures, profile: ToneProfile) -> str:
 def generate_recipe(
     features: RawFeatures,
     profile: ToneProfile,
-    client: Optional[anthropic.Anthropic] = None,
+    client: Optional["anthropic.Anthropic"] = None,
 ) -> ToneRecipe:
     fallback = heuristic_recipe(features, profile)
+    # Imported here: the SDK costs ~50 MB of a 512 MB instance, and most
+    # deployments run without a key.
+    import anthropic
+
     if client is None:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             return fallback
