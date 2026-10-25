@@ -56,9 +56,26 @@ api "$A" PATCH /api/me '{"bio":"Tele into a cranked tweed. #twang","instruments"
 curl -s "$BASE_URL/api/users/$HANDLE_A" | grep -q "resoniq.test" && fail "public profile leaked an email"
 api "$B" PUT "/api/users/$HANDLE_A/follow" | json 'd["followerCount"]' | grep -qx 1 || fail "follow count"
 
+step "practice room and editable conversation prompts"
+curl -fsS "$BASE_URL/practice" > "$WORK/practice.html"
+grep -q 'Find your pocket' "$WORK/practice.html" || fail "practice room missing"
+curl -fsS -b "$A" "$BASE_URL/new?prompt=feedback" > "$WORK/feedback.html"
+grep -q 'Get fresh ears' "$WORK/feedback.html" || fail "feedback prompt heading missing"
+grep -q 'What I have tried:' "$WORK/feedback.html" || fail "feedback template missing"
+curl -fsS -b "$A" "$BASE_URL/new?prompt=collaboration" > "$WORK/collaboration.html"
+grep -q 'Who I am looking for:' "$WORK/collaboration.html" || fail "collaboration template missing"
+
 step "create a public tone with a declared rig"
 TONE=$(api "$A" POST /api/tones '{"name":"Tweed edge '"$STAMP"'","visibility":"PUBLIC","description":"Volume on 7, pick hard","rig":{"instrument":{"kind":"GUITAR","ref":{"model":"Telecaster"},"pickupPosition":"Bridge"},"chain":[{"category":"compressor","params":{"Sustain":4,"Level":6}},{"category":"drive","ref":{"model":"Klon-style"},"params":{"Gain":3}}],"amp":{"ref":{"model":"5E3 Tweed Deluxe"},"settings":{"Volume":7,"Tone":6}}}}' | json 'd["tone"]["id"]')
 echo "tone $TONE"
+curl -fsS "$BASE_URL/practice?tone=$TONE" > "$WORK/practice-tone.html"
+grep -q 'Your sound for this session' "$WORK/practice-tone.html" || fail "practice tone context missing"
+
+PRIVATE_TONE=$(api "$A" POST /api/tones '{"name":"Private practice QA '"$STAMP"'","visibility":"PRIVATE","rig":{"chain":[],"notes":"Private practice note"}}' | json 'd["tone"]["id"]')
+curl -fsS -b "$A" "$BASE_URL/practice?tone=$PRIVATE_TONE" > "$WORK/private-practice.html"
+grep -q "Private practice QA $STAMP" "$WORK/private-practice.html" || fail "owner cannot practice with private tone"
+curl -fsS "$BASE_URL/practice?tone=$PRIVATE_TONE" > "$WORK/guest-practice.html"
+if grep -q "Private practice QA $STAMP" "$WORK/guest-practice.html"; then fail "private tone leaked through practice page"; fi
 
 step "upload a generated video"
 ffmpeg -y -v error -f lavfi -i testsrc=size=640x360:rate=24 -f lavfi -i sine=frequency=196 -t 5 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$WORK/take.mp4"
