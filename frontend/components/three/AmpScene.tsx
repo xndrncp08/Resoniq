@@ -39,7 +39,7 @@ function Stage({ children }: { children: React.ReactNode }) {
 function Framing() {
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const z = 2.85 * Math.max(1, 1.75 / aspect);
-  return <PerspectiveCamera makeDefault position={[0, 0.28 - (z - 2.85) * 0.14, z]} fov={30} />;
+  return <PerspectiveCamera makeDefault position={[0, 0.12, z]} rotation={[-0.035, 0, 0]} fov={30} />;
 }
 
 /**

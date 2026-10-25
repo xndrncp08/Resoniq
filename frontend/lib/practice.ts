@@ -2,6 +2,21 @@ export const PRACTICE_NOTE_KEY = "resoniq.practice.v1";
 export const MIN_BPM = 30;
 export const MAX_BPM = 240;
 
+/** The fastest tempo played cleanly, or null before the first clean take. */
+export function bestClean(takes: { bpm: number; clean: boolean }[]): number | null {
+  return takes.reduce<number | null>((best, t) => (t.clean && (best === null || t.bpm > best) ? t.bpm : best), null);
+}
+
+/**
+ * The tempo to practise next: start around 70% of the target, then climb a
+ * few BPM past the best clean take, never beyond the target.
+ */
+export function nextRung(takes: { bpm: number; clean: boolean }[], target: number, step = 4): number {
+  const best = bestClean(takes);
+  const start = Math.max(MIN_BPM, Math.round(target * 0.7));
+  return best === null ? Math.min(start, target) : Math.min(target, Math.max(best + step, MIN_BPM));
+}
+
 export function tappedTempo(taps: number[]): number | null {
   if (taps.length < 2) return null;
   const gaps = taps.slice(1).map((t, i) => t - taps[i]);
