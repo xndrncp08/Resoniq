@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Avatar, Button, TimeAgo } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
+import MentionTextarea from "@/components/social/MentionTextarea";
 import VoteControl from "@/components/social/VoteControl";
 import { buildTree, type TreeNode } from "@/lib/comment-tree";
 import { api, errorMessage } from "@/lib/client-api";
@@ -38,7 +39,7 @@ function Composer({ postId, parentId, onDone, autoFocus = false, placeholder = "
   return (
     <form onSubmit={submit} className="space-y-2">
       <label className="sr-only" htmlFor={`c-${parentId ?? "root"}`}>{placeholder}</label>
-      <textarea id={`c-${parentId ?? "root"}`} value={body} onChange={(e) => setBody(e.target.value)} autoFocus={autoFocus} rows={parentId ? 2 : 3} maxLength={5000} placeholder={placeholder} className="panel-inset w-full resize-y rounded-2xl px-4 py-3 font-body text-[15px] text-ink outline-none placeholder:text-muted focus:border-copper/60" />
+      <MentionTextarea id={`c-${parentId ?? "root"}`} value={body} onValueChange={setBody} autoFocus={autoFocus} rows={parentId ? 2 : 3} maxLength={5000} placeholder={placeholder} className="panel-inset w-full resize-y rounded-2xl px-4 py-3 font-body text-[15px] text-ink outline-none placeholder:text-muted focus:border-copper/60" />
       {error && <p role="alert" className="font-body text-sm text-danger">{error}</p>}
       <div className="flex justify-end">
         <Button type="submit" size="sm" variant="primary" disabled={busy || !body.trim()}>{busy ? "Posting…" : parentId ? "Reply" : "Comment"}</Button>
@@ -80,7 +81,7 @@ function Node({ node, ctx, depth }: { node: TreeNode<CommentView>; ctx: Ctx; dep
             {node.editedAt && <span className="font-mono text-[11px] text-muted">edited</span>}
             {node.status === "HELD" && <span className="font-mono text-[11px] text-amber">held for review</span>}
           </div>
-          {!gone && <RichText text={node.body} className="mt-1 font-body text-[15px] leading-relaxed text-ink-dim" />}
+          {!gone && <RichText timestamps text={node.body} className="mt-1 font-body text-[15px] leading-relaxed text-ink-dim" />}
           {!gone && (
             <div className="mt-1.5 flex items-center gap-1 font-body text-xs">
               <VoteControl url={`/api/comments/${node.id}/vote`} initialVote={node.viewer.vote} initialScore={node.score} initialUps={0} mode="updown" signedIn={ctx.signedIn} />

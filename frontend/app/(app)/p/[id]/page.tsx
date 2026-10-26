@@ -9,6 +9,7 @@ import { LinkButton } from "@/components/app/ui";
 import CommentThread from "@/components/social/CommentThread";
 import PostCard from "@/components/social/PostCard";
 import ModerationBar from "@/components/social/ModerationBar";
+import { SeekProvider } from "@/components/media/seek";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -34,10 +35,13 @@ export default async function PostPage({ params }: Props) {
     <div className="mx-auto max-w-[760px] space-y-6">
       <LinkButton href="/feed" variant="ghost" size="sm" icon="chevron-left">Feed</LinkButton>
       {staff && <ModerationBar kind="post" id={post.id} status={post.status} />}
-      <PostCard post={post} signedIn={!!viewer} detail voteMode={post.community ? "updown" : "amp"} />
-      <div className="panel p-4 sm:p-6">
-        <CommentThread postId={post.id} initial={comments} signedIn={!!viewer} open={post.status === "PUBLISHED"} />
-      </div>
+      {/* Timestamps in comments play the post's recording from that moment. */}
+      <SeekProvider>
+        <PostCard post={post} signedIn={!!viewer} detail voteMode={post.community ? "updown" : "amp"} />
+        <div className="panel p-4 sm:p-6">
+          <CommentThread postId={post.id} initial={comments} signedIn={!!viewer} open={post.status === "PUBLISHED"} />
+        </div>
+      </SeekProvider>
     </div>
   );
 }
