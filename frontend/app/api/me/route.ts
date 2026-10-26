@@ -7,6 +7,7 @@ import { requireActor } from "@/lib/authz";
 import { deleteAccount } from "@/lib/account";
 import { kickJobs } from "@/lib/jobs/drain";
 import { parseProfilePatch } from "@/lib/profile-validation";
+import { assertOwnPins } from "@/lib/portfolio";
 import { PUBLIC_USER_SELECT, toPublicProfile } from "@/lib/profiles";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { isUniqueViolation } from "@/lib/validation";
@@ -27,6 +28,7 @@ export const PATCH = route("me.update", async (req) => {
   await enforceRateLimit("profile-write", actor.id, RATE_LIMITS.profileWrite);
   const body = await readJson(req);
   const { links, ...rest } = parseProfilePatch(body);
+  await assertOwnPins(actor.id, rest);
   // Avatars and banners are processed image uploads, served through the media route.
   const images: { image?: string | null; bannerUrl?: string | null; uploadedImage?: string | null } = {};
   for (const [field, purpose, target] of [["avatarMediaId", "AVATAR", "image"], ["bannerMediaId", "BANNER", "bannerUrl"]] as const) {

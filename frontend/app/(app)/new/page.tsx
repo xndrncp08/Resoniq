@@ -28,7 +28,7 @@ export default async function NewPostPage({ searchParams }: { searchParams: Prom
   return (
     <div className="mx-auto max-w-[760px]">
       <PageHeader eyebrow="New post" title={prompt?.label ?? "Let people into your music"}>A work in progress, a question, a finished take. You do not need a perfect performance or a particular rig to belong here.</PageHeader>
-      <Composer communities={communities.map((c) => ({ slug: c.slug, name: c.name, joined: mine.has(c.id) }))} tones={tones} uploadKinds={{ images: caps.images, video: caps.video, audio: caps.audio, note: caps.note }} initial={{ category: sp.category ?? prompt?.category, community: sp.community, toneId: tones.some((t) => t.id === sp.tone) ? sp.tone : undefined, title: prompt?.title, body: prompt?.body }} />
+      <Composer userId={actor.id} communities={communities.map((c) => ({ slug: c.slug, name: c.name, joined: mine.has(c.id) }))} tones={tones} uploadKinds={{ images: caps.images, video: caps.video, audio: caps.audio, note: caps.note }} initial={{ category: sp.category ?? prompt?.category, community: sp.community, toneId: tones.some((t) => t.id === sp.tone) ? sp.tone : undefined, title: prompt?.title, body: prompt?.body }} />
     </div>
   );
 }

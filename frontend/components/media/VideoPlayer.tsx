@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Icon from "@/components/icons/Icon";
 import type { MediaView } from "@/lib/media/view";
+import { SeekMarks, useSeekTarget } from "@/components/media/seek";
 
 // The OS reduced-motion setting, read directly instead of through the animation library.
 const reducedQuery = () => window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -58,6 +59,21 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
     const v = ref.current;
     if (v) void (v.paused ? v.play() : v.pause());
   }
+
+  useSeekTarget((t) => {
+    const go = () => {
+      const v = ref.current;
+      if (!v) return;
+      v.currentTime = t;
+      void v.play().catch(() => {});
+    };
+    if (started) go();
+    else {
+      setStarted(true);
+      requestAnimationFrame(go);
+    }
+    wrap.current?.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+  });
 
   function onKey(e: React.KeyboardEvent) {
     if (e.target instanceof HTMLElement && e.target.closest("button, input, textarea, select, a, [contenteditable='true']")) return;
@@ -130,6 +146,8 @@ export default function VideoPlayer({ media, overlay, autoPreview = true, classN
           </button>
         </div>
       )}
+      {/* Where people left time-coded feedback, along the bottom edge. */}
+      <SeekMarks duration={duration || media.durationSec || 0} className="!absolute inset-x-0 bottom-0 h-1" />
       {overlay}
     </div>
   );

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar, Button, Chip, EmptyState, LinkButton } from "@/components/app/ui";
 import Icon from "@/components/icons/Icon";
-import { discoverMusicians } from "@/lib/discovery";
+import { discoverMusicians, playMates } from "@/lib/discovery";
+import { optionalActor } from "@/lib/api";
+import { OPEN_TO, OPEN_TO_LABEL, isOpenTo } from "@/lib/portfolio-options";
 import { INSTRUMENTS, INSTRUMENT_LABEL, type Instrument } from "@/lib/instruments";
 import { musicianDirectoryHref, parseMusicianFilters, type DirectoryParams } from "@/lib/musician-directory";
 
@@ -21,8 +23,9 @@ const field = "panel-inset mt-2 h-12 w-full min-w-0 rounded-xl px-3 font-body te
 
 export default async function MusiciansPage({ searchParams }: Props) {
   const filters = parseMusicianFilters(await searchParams);
-  const { items, nextCursor } = await discoverMusicians(filters);
-  const filtered = !!(filters.q || filters.instrument || filters.genre);
+  const viewer = await optionalActor();
+  const [{ items, nextCursor }, mates] = await Promise.all([discoverMusicians(filters), viewer ? playMates(viewer.id) : null]);
+  const filtered = !!(filters.q || filters.instrument || filters.genre || filters.open);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -37,14 +40,50 @@ export default async function MusiciansPage({ searchParams }: Props) {
       </header>
 
       <form key={musicianDirectoryHref({ ...filters, after: "" })} action="/musicians" role="search" aria-label="Find musicians" className="panel p-5 sm:p-6">
-        <div className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
+        <div className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
           <label className="min-w-0"><span className="label-engraved">Name, handle or bio</span><input type="search" name="q" defaultValue={filters.q} maxLength={100} placeholder="A player or a musical interest" className={field} /></label>
           <label className="min-w-0"><span className="label-engraved">Instrument</span><select name="instrument" defaultValue={filters.instrument ?? ""} className={field}><option value="">Any instrument</option>{INSTRUMENTS.map((i) => <option key={i} value={i}>{INSTRUMENT_LABEL[i]}</option>)}</select></label>
           <label className="min-w-0"><span className="label-engraved">Genre</span><input name="genre" defaultValue={filters.genre} maxLength={24} placeholder="e.g. jazz, OPM, soul" className={field} /></label>
+          <label className="min-w-0"><span className="label-engraved">Open to</span><select name="open" defaultValue={filters.open ?? ""} className={field}><option value="">Anything</option>{OPEN_TO.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
           <Button type="submit" variant="primary" size="lg" icon="search">Find musicians</Button>
         </div>
         <p className="mt-3 font-body text-xs text-muted">Matches the instruments and genres musicians put on their profiles.</p>
       </form>
+
+      {mates && !filtered && !filters.after && (
+        <section aria-labelledby="mates-heading" className="space-y-4">
+          <div>
+            <h2 id="mates-heading" className="font-display text-2xl font-semibold">Players for you</h2>
+            <p className="mt-1 font-body text-sm text-muted">They share a genre with you, play a part you don&apos;t, and are open to playing with others.</p>
+          </div>
+          {mates.items.length ? (
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {mates.items.map((u) => (
+                <li key={u.id} className="min-w-0">
+                  <Link href={`/u/${u.handle}`} className="focus-ring panel group flex h-full items-start gap-3 p-4 transition-colors hover:border-signal/50">
+                    <Avatar user={u} size={48} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-display text-base font-semibold">{u.name ?? u.handle}</h3>
+                      <p className="mt-0.5 font-body text-sm text-ink-dim">
+                        Plays {u.why.plays.map((i) => (INSTRUMENT_LABEL[i as Instrument] ?? i).toLowerCase()).join(", ")}
+                        {u.why.genres.length > 0 && <> · you both play {u.why.genres.slice(0, 3).join(", ")}</>}
+                      </p>
+                      <p className="mt-1.5 flex flex-wrap gap-x-2 font-body text-xs text-signal">
+                        {u.openTo.filter(isOpenTo).slice(0, 3).map((o) => <span key={o}>Open to {OPEN_TO_LABEL[o].toLowerCase()}</span>)}
+                        {u.why.near && <span className="text-copper">Also in {u.location}</span>}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="panel-inset rounded-2xl p-5 font-body text-sm text-muted">
+              {mates.missing ? <>Add your {mates.missing} in <Link href="/settings" className="text-copper hover:underline">settings</Link> and we&apos;ll suggest people who fill the parts you don&apos;t play.</> : "No matches yet. As more musicians share what they're open to, players who complement you will show up here."}
+            </p>
+          )}
+        </section>
+      )}
 
       <section aria-labelledby="musicians-heading" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -60,6 +99,7 @@ export default async function MusiciansPage({ searchParams }: Props) {
                   {u.bio && <p className="mt-4 line-clamp-3 break-words font-body text-sm leading-relaxed text-ink-dim">{u.bio}</p>}
                   {u.instruments.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{u.instruments.map((i) => <Chip key={i} active={i === filters.instrument}>{INSTRUMENT_LABEL[i as Instrument] ?? i}</Chip>)}</div>}
                   {u.genres.length > 0 && <p className="mt-3 line-clamp-2 font-body text-sm text-signal">{u.genres.join(" · ")}</p>}
+                  {(u.openTo.length > 0 || u.location) && <p className="mt-2 font-body text-xs text-muted">{[u.location, ...u.openTo.filter(isOpenTo).slice(0, 2).map((o) => `Open to ${OPEN_TO_LABEL[o].toLowerCase()}`)].filter(Boolean).join(" · ")}</p>}
                   <span className="mt-auto flex items-center gap-2 pt-5 font-body text-sm text-copper">Explore profile <Icon name="chevron-right" size={16} /></span>
                 </Link>
               </li>

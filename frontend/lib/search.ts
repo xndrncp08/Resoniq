@@ -61,11 +61,14 @@ export async function searchCommunities(q: string, offset = 0, limit = SEARCH_PA
 
 export async function searchMusicians(q: string, offset = 0, limit = SEARCH_PAGE) {
   const needle = q.toLowerCase().replace(/^@/, "");
+  // Prefixes of the handle or of any word in the name, so "@rh" finds "Rhea Santos" while typing.
+  const prefix = needle.replace(/[\\%_]/g, "\\$&");
   const ids = (
     await prisma.$queryRaw<{ id: string }[]>`
       SELECT u.id FROM "User" u
       WHERE u.status <> 'BANNED' AND (u.kind = 'PERSON' OR EXISTS (SELECT 1 FROM "ManagedCreator" m WHERE m."userId" = u.id))
-        AND (lower(u."handle") % ${needle} OR lower(coalesce(u."name", '')) % ${needle} OR lower(u."handle") LIKE ${needle} || '%')
+        AND (lower(u."handle") % ${needle} OR lower(coalesce(u."name", '')) % ${needle} OR lower(u."handle") LIKE ${prefix} || '%'
+          OR lower(coalesce(u."name", '')) LIKE ${prefix} || '%' OR lower(coalesce(u."name", '')) LIKE '% ' || ${prefix} || '%')
       ORDER BY greatest(similarity(lower(u."handle"), ${needle}), similarity(lower(coalesce(u."name", '')), ${needle})) DESC, u."followerCount" DESC
       LIMIT ${limit} OFFSET ${offset}`
   ).map((r) => r.id);

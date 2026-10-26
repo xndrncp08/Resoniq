@@ -169,6 +169,9 @@ export async function withViewerState(rows: PostRow[], viewerId: string | null):
  * What a viewer may see: published posts by non-banned authors, plus the
  * viewer's own held or processing posts. Removed and deleted posts never list.
  */
+/** Takes: performances, covers, demos and A/Bs with media attached. */
+export const PERFORMANCE_WHERE = { category: { in: ["PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON"] as PostCategory[] }, media: { some: {} } } satisfies Prisma.PostWhereInput;
+
 export function visiblePostWhere(viewerId: string | null): Prisma.PostWhereInput {
   return {
     author: { status: { not: "BANNED" } },
@@ -339,13 +342,15 @@ const SORTS: Record<FeedSort, SortSpec> = {
   top: { field: "score", parse: Number, key: (r) => String(r.score) },
 };
 
-export type FeedQuery = { sort?: FeedSort; window?: TopWindow; category?: PostCategory; cursor: Cursor | null; limit: number };
+/** `unanswered`: questions nobody has replied to yet. */
+export type FeedQuery = { sort?: FeedSort; window?: TopWindow; category?: PostCategory; unanswered?: boolean; cursor: Cursor | null; limit: number };
 
 /** Keyset-paginated posts matching `where`, visible to the viewer, newest/hottest/top first. */
 export async function listPosts(where: Prisma.PostWhereInput, viewerId: string | null, q: FeedQuery) {
   const spec = SORTS[q.sort ?? "hot"];
   const and: Prisma.PostWhereInput[] = [where, visiblePostWhere(viewerId)];
   if (q.category) and.push({ category: q.category });
+  if (q.unanswered) and.push({ category: "QUESTION", commentCount: 0 });
   if (q.sort === "top" && q.window && q.window !== "all") and.push({ createdAt: { gte: new Date(Date.now() - WINDOW_MS[q.window]) } });
   if (q.cursor) {
     const v = spec.parse(q.cursor.t);
@@ -432,5 +437,6 @@ export function parseFeedQuery(url: URL): Omit<FeedQuery, "cursor" | "limit"> {
     sort: sort && FEED_SORTS.includes(sort) ? sort : undefined,
     window: window && Object.hasOwn(WINDOW_MS, window) ? window : "week",
     category: category && POST_CATEGORIES.includes(category) ? category : undefined,
+    ...(url.searchParams.get("unanswered") === "1" && { unanswered: true }),
   };
 }
