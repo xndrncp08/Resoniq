@@ -2,13 +2,33 @@ import Link from "next/link";
 import Icon from "@/components/icons/Icon";
 import { Avatar, compact } from "@/components/app/ui";
 import { popularGear } from "@/lib/gear";
-import { risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
+import { playMates, risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
+import { INSTRUMENT_LABEL, type Instrument } from "@/lib/instruments";
 
 /** The right-hand discovery column on wide screens. Sections with nothing real to show are left out. */
 export default async function SideRail({ viewerId }: { viewerId: string | null }) {
-  const [tags, communities, gear, musicians] = await Promise.all([trendingTags(), suggestedCommunities(viewerId, 5), popularGear(null, 6), risingMusicians(viewerId, 4)]);
+  const [tags, communities, gear, musicians, mates] = await Promise.all([trendingTags(), suggestedCommunities(viewerId, 5), popularGear(null, 6), risingMusicians(viewerId, 4), viewerId ? playMates(viewerId, 3) : null]);
   return (
     <aside className="hidden w-[320px] shrink-0 space-y-4 xl:block">
+      {mates && mates.items.length > 0 && (
+        <section className="panel p-4">
+          <h2 className="label-engraved mb-3 flex items-center gap-2"><Icon name="users" size={14} /> Players for you</h2>
+          <ul className="space-y-2">
+            {mates.items.map((m) => (
+              <li key={m.id}>
+                <Link href={`/u/${m.handle}`} className="focus-ring flex items-center gap-3 rounded-xl px-1 py-1 hover:bg-white/[0.04]">
+                  <Avatar user={m} size={34} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-body text-sm font-medium">{m.name ?? m.handle}</span>
+                    <span className="block truncate font-body text-xs text-muted">{m.why.plays.map((i) => INSTRUMENT_LABEL[i as Instrument] ?? i).join(", ")}{m.why.genres[0] ? ` · ${m.why.genres[0]}` : ""}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Link href="/musicians" className="mt-2 block px-1 font-body text-sm text-copper hover:underline">Find more musicians</Link>
+        </section>
+      )}
       <section className="panel p-4">
         <h2 className="label-engraved mb-3 flex items-center gap-2"><Icon name="community" size={14} /> Communities to join</h2>
         <ul className="space-y-1">

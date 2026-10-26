@@ -59,13 +59,23 @@ model User {
   media              Media[]
 
   // Profile banner, served from /api/media (avatars reuse `image`).
-  bannerUrl      String?
+  bannerUrl       String?
   // The avatars someone can switch back to: their last processed upload and
   // the photo of the Google account they sign in with. `image` is what shows.
-  uploadedImage  String?
-  providerImage  String?
+  uploadedImage   String?
+  providerImage   String?
+  // Portfolio (lib/portfolio.ts): where they play, what they're open to, who shaped
+  // their sound, and the post and tone they lead with. Pins must be their own.
+  location        String?
+  openTo          String[]   @default([])
+  influences      String[]   @default([])
+  pinnedPostId    String?
+  signatureToneId String?
+  pinnedPost      Post?      @relation("pinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
+  signatureTone   Tone?      @relation("signatureTone", fields: [signatureToneId], references: [id], onDelete: SetNull)
+  rig             UserGear[]
   // Bumped on password reset: every JWT minted before it stops working (lib/authz.ts).
-  sessionVersion Int     @default(0)
+  sessionVersion  Int        @default(0)
 
   // SYSTEM rows are reserved publishing identities (lib/system-identity.ts): no
   // credentials, never signed in, never staff (check constraint User_system_not_staff).
@@ -188,13 +198,14 @@ model Tone {
   // Legacy anonymous attribution; managed creators use their labelled profile.
   anonymous    Boolean        @default(false)
 
-  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  remixOf Tone?      @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
-  remixes Tone[]     @relation("remix")
-  posts   Post[]
-  gear    ToneGear[]
-  saves   ToneSave[]
-  draft   ToneDraft?
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  remixOf     Tone?      @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
+  remixes     Tone[]     @relation("remix")
+  posts       Post[]
+  signatureOf User[]     @relation("signatureTone")
+  gear        ToneGear[]
+  saves       ToneSave[]
+  draft       ToneDraft?
 
   @@index([userId, favorite, createdAt])
   @@index([visibility, publishedAt])
@@ -336,6 +347,7 @@ model GearItem {
 
   createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
   tones     ToneGear[]
+  owners    UserGear[]
 
   @@index([kind, status])
   @@index([status, createdAt])
@@ -349,6 +361,21 @@ model ToneGear {
   gear GearItem @relation(fields: [gearItemId], references: [id], onDelete: Cascade)
 
   @@id([toneId, gearItemId])
+  @@index([gearItemId])
+}
+
+// The gear on a musician's profile, in the order they list it.
+model UserGear {
+  userId     String
+  gearItemId String
+  note       String?
+  position   Int
+  createdAt  DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gear GearItem @relation(fields: [gearItemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gearItemId])
   @@index([gearItemId])
 }
 
@@ -529,6 +556,7 @@ model Post {
   votes     PostVote[]
   bookmarks Bookmark[]
   media     Media[]
+  pinnedBy  User[]     @relation("pinnedPost")
 
   @@index([status, hotRank, id])
   @@index([hotRank(sort: Desc), id(sort: Desc)])

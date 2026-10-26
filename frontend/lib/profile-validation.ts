@@ -3,6 +3,7 @@ import { normalizeHandle } from "@/lib/handles";
 import { fail } from "@/lib/validation";
 import { isReservedDisplayName } from "@/lib/system-identity";
 import { INSTRUMENTS } from "@/lib/instruments";
+import { isOpenTo, MAX_INFLUENCES, MAX_LOCATION, type OpenTo } from "@/lib/portfolio-options";
 
 export { INSTRUMENTS, type Instrument } from "@/lib/instruments";
 
@@ -17,6 +18,11 @@ export type ProfilePatch = Partial<{
   instruments: string[];
   genres: string[];
   links: ProfileLink[];
+  location: string | null;
+  openTo: OpenTo[];
+  influences: string[];
+  pinnedPostId: string | null;
+  signatureToneId: string | null;
 }>;
 
 function list(v: unknown, field: string): unknown[] {
@@ -72,6 +78,30 @@ export function parseProfilePatch(body: Record<string, unknown>): ProfilePatch {
     const items = list(body.links, "Links");
     if (items.length > 5) fail("Add up to 5 links.");
     out.links = items.map(parseLink);
+  }
+  if (body.location !== undefined) out.location = optionalText(body.location, "Location", MAX_LOCATION);
+  if (body.openTo !== undefined) {
+    const items = [...new Set(list(body.openTo, "Open to"))];
+    if (!items.every(isOpenTo)) fail("Unknown collaboration option.");
+    out.openTo = items;
+  }
+  if (body.influences !== undefined) {
+    const seen = new Set<string>();
+    const items = list(body.influences, "Influences").flatMap((v) => {
+      const s = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+      if (!s || s.length > 40 || /[\p{Cc}<>]/u.test(s)) fail("Influences are names of up to 40 characters.");
+      if (seen.has(s.toLowerCase())) return [];
+      seen.add(s.toLowerCase());
+      return [s];
+    });
+    if (items.length > MAX_INFLUENCES) fail(`Add up to ${MAX_INFLUENCES} influences.`);
+    out.influences = items;
+  }
+  for (const key of ["pinnedPostId", "signatureToneId"] as const) {
+    const v = body[key];
+    if (v === undefined) continue;
+    if (v !== null && (typeof v !== "string" || !v || v.length > 40)) fail(`${key} must be an id or null.`);
+    out[key] = v;
   }
   return out;
 }

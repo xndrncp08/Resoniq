@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ProfileLink } from "@/lib/profile-validation";
+import { isOpenTo, type OpenTo } from "@/lib/portfolio-options";
 
 /** What anyone may see about a user. Never includes email, role or account status. */
 export type PublicProfile = {
@@ -13,6 +14,9 @@ export type PublicProfile = {
   instruments: string[];
   genres: string[];
   links: ProfileLink[];
+  location: string | null;
+  openTo: OpenTo[];
+  influences: string[];
   followerCount: number;
   followingCount: number;
   reputation: number;
@@ -32,6 +36,9 @@ export const PUBLIC_USER_SELECT = {
   instruments: true,
   genres: true,
   links: true,
+  location: true,
+  openTo: true,
+  influences: true,
   followerCount: true,
   followingCount: true,
   reputation: true,
@@ -50,6 +57,7 @@ export function toPublicProfile(u: Row, viewerId: string | null, viewerFollows: 
   return {
     ...profile,
     links: Array.isArray(u.links) ? (u.links as ProfileLink[]) : [],
+    openTo: u.openTo.filter(isOpenTo),
     createdAt: u.createdAt.toISOString(),
     viewerFollows,
     isSelf: viewerId === u.id,
