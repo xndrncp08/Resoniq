@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon, { type IconName } from "@/components/icons/Icon";
 import { Avatar } from "@/components/app/ui";
-import { useUnreadCount } from "@/lib/queries/notifications";
+import { usePulse, type Pulse } from "@/lib/queries/notifications";
 
 export type NavUser = { id: string; handle: string; name: string | null; image: string | null; isStaff: boolean } | null;
 type Item = { href: string; label: string; icon: IconName; badge?: number; match?: string[] };
@@ -26,9 +26,10 @@ function primary(): Item[] {
   ];
 }
 
-function personal(user: NonNullable<NavUser>, unread: number): Item[] {
+function personal(user: NonNullable<NavUser>, pulse: Pulse): Item[] {
   return [
-    { href: "/notifications", label: "Notifications", icon: "bell", badge: unread },
+    { href: "/messages", label: "Messages", icon: "comment", badge: pulse.messages },
+    { href: "/notifications", label: "Notifications", icon: "bell", badge: pulse.notifications },
     { href: "/library", label: "Tone vault", icon: "vault" },
     { href: "/bookmarks", label: "Bookmarks", icon: "bookmark" },
     { href: `/u/${user.handle}`, label: "Profile", icon: "user" },
@@ -62,10 +63,10 @@ function NavLink({ item, pathname, compact }: { item: Item; pathname: string; co
 }
 
 /** Desktop sidebar (≥1280: full, 768–1279: icon rail). */
-export function SideNav({ user, unread: initialUnread }: { user: NavUser; unread: number }) {
+export function SideNav({ user, pulse: initialPulse }: { user: NavUser; pulse: Pulse }) {
   const pathname = usePathname();
-  const unread = useUnreadCount(user?.id ?? null, initialUnread);
-  const sections: [string, Item[]][] = [["Play", primary()], ...(user ? ([["You", personal(user, unread)]] as [string, Item[]][]) : [])];
+  const pulse = usePulse(user?.id ?? null, initialPulse);
+  const sections: [string, Item[]][] = [["Play", primary()], ...(user ? ([["You", personal(user, pulse)]] as [string, Item[]][]) : [])];
   return (
     <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col border-r hairline bg-bg-0/60 px-3 py-5 md:flex md:w-[76px] xl:w-[248px]">
       <Link href="/feed" className="focus-ring mb-6 flex items-center gap-2.5 rounded-xl px-2.5 py-1" aria-label="Resoniq feed">
@@ -114,9 +115,9 @@ export function SideNav({ user, unread: initialUnread }: { user: NavUser; unread
 }
 
 /** Phones: a top bar with search and alerts, and a bottom tab bar with a center create button. */
-export function MobileNav({ user, unread: initialUnread }: { user: NavUser; unread: number }) {
+export function MobileNav({ user, pulse: initialPulse }: { user: NavUser; pulse: Pulse }) {
   const pathname = usePathname();
-  const unread = useUnreadCount(user?.id ?? null, initialUnread);
+  const { notifications: unread, messages } = usePulse(user?.id ?? null, initialPulse);
   const tabs: Item[] = [
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag", "/c", "/gear", "/musicians"] },
@@ -136,6 +137,12 @@ export function MobileNav({ user, unread: initialUnread }: { user: NavUser; unre
           <Link href="/search" aria-label="Search" className="focus-ring flex h-10 w-10 items-center justify-center rounded-full text-muted hover:text-ink">
             <Icon name="search" size={22} />
           </Link>
+          {user && (
+            <Link href="/messages" aria-label={messages ? `Messages, ${messages} unread` : "Messages"} className={`focus-ring relative flex h-10 w-10 items-center justify-center rounded-full ${pathname.startsWith("/messages") ? "text-copper" : "text-muted hover:text-ink"}`}>
+              <Icon name="comment" size={22} />
+              {!!messages && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-signal" />}
+            </Link>
+          )}
           {user && (
             <Link href="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="focus-ring relative flex h-10 w-10 items-center justify-center rounded-full text-muted hover:text-ink">
               <Icon name="bell" size={22} />
