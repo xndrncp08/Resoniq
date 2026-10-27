@@ -14,3 +14,7 @@ AGENTS.md
 CLAUDE.md
 .playwright-cli/
 output/
+
+# Playwright end-to-end output
+frontend/test-results/
+frontend/playwright-report/
