@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { deviceStorage } from "@/lib/consent";
 import { MAX_BPM, MIN_BPM } from "@/lib/practice";
 import { isGearProfile, type GearProfileId } from "@/lib/gear-translate";
 
@@ -46,7 +47,8 @@ export const usePreferences = create<Preferences>()(
     {
       name: "resoniq:preferences",
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      // Only kept in this browser if the visitor allowed on-device preferences (lib/consent.ts).
+      storage: createJSONStorage(() => deviceStorage),
       partialize: ({ scene3d, metronome, gear }) => ({ scene3d, metronome, gear }),
       merge: (stored, current) => {
         const s = (stored ?? {}) as Partial<Preferences>;

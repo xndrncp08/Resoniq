@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Button, LinkButton } from "@/components/app/ui";
 import { PRACTICE_NOTE_KEY, readPracticeNote } from "@/lib/practice";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
+import { deviceStorage, hasConsent } from "@/lib/consent";
 
 export default function PracticeNote() {
   const [goal, setGoal] = useState("");
@@ -12,7 +14,7 @@ export default function PracticeNote() {
     // Browser storage is read only after hydration; never overwrite it during mount.
     const frame = requestAnimationFrame(() => {
       try {
-        const saved = readPracticeNote(localStorage.getItem(PRACTICE_NOTE_KEY));
+        const saved = readPracticeNote(deviceStorage.getItem(PRACTICE_NOTE_KEY));
         setGoal(saved.goal); setNotes(saved.notes);
       } catch { setStatus("Browser storage is unavailable. You can still write here for this visit."); }
     });
@@ -20,9 +22,10 @@ export default function PracticeNote() {
   }, []);
 
   function save() {
-    try { localStorage.setItem(PRACTICE_NOTE_KEY, JSON.stringify({ goal, notes })); setStatus("Saved in this browser."); }
-    catch { setStatus("Could not save. Keep a copy of your note before leaving."); }
+    deviceStorage.setItem(PRACTICE_NOTE_KEY, JSON.stringify({ goal, notes }));
+    setStatus(hasConsent("preferences") ? "Saved in this browser." : "Kept for this visit. To keep notes between visits, allow on-device preferences in Cookie settings.");
   }
+  useUnsavedChanges({ dirty: status === "Unsaved changes", label: "your practice note", save: async () => save() });
 
   return (
     <section aria-labelledby="note-h" className="panel p-5 sm:p-7">
@@ -31,7 +34,7 @@ export default function PracticeNote() {
         <label className="block"><span className="label-engraved">One thing to work on</span><input maxLength={160} value={goal} onChange={(e) => { setGoal(e.target.value); setStatus("Unsaved changes"); }} placeholder="Land the chorus changes cleanly at 80 BPM" className="panel-inset mt-2 h-12 w-full rounded-xl px-4 text-sm" /><span className="mt-2 block text-xs text-muted">A small, specific goal beats another hour of noodling.</span></label>
         <label className="block"><span className="label-engraved">What worked? What is next?</span><textarea maxLength={2000} rows={3} value={notes} onChange={(e) => { setNotes(e.target.value); setStatus("Unsaved changes"); }} placeholder="Clean at 70. Rushing the last beat at 80. Next time: two bars, lighter touch." className="panel-inset mt-2 w-full resize-y rounded-xl p-4 text-sm" /></label>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3"><Button onClick={save} icon="bookmark">Save practice note</Button><LinkButton href="/new?prompt=feedback" icon="comment">Ask for feedback</LinkButton><Button variant="ghost" onClick={() => { try { localStorage.removeItem(PRACTICE_NOTE_KEY); setGoal(""); setNotes(""); setStatus("Practice note cleared."); } catch { setStatus("Could not clear browser storage."); } }}>Clear note</Button></div>
+      <div className="mt-4 flex flex-wrap items-center gap-3"><Button onClick={save} icon="bookmark">Save practice note</Button><LinkButton href="/new?prompt=feedback" icon="comment">Ask for feedback</LinkButton><Button variant="ghost" onClick={() => { deviceStorage.removeItem(PRACTICE_NOTE_KEY); setGoal(""); setNotes(""); setStatus("Practice note cleared."); }}>Clear note</Button></div>
       <p role="status" className="mt-3 text-sm text-signal">{status}</p>
       <p className="mt-2 text-xs text-muted">Notes stay in this browser, including on shared devices. They do not sync to your account or get added to a post. Clear them when you are done on a shared device.</p>
     </section>

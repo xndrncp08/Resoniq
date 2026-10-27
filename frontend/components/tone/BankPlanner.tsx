@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Icon from "@/components/icons/Icon";
 import { buttonClass } from "@/components/app/ui";
+import { deviceStorage } from "@/lib/consent";
 
 export type PlannerTone = { id: string; name: string; amp: string | null };
 type Slots = (string | null)[];
@@ -21,7 +22,7 @@ function subscribe(cb: () => void) {
 }
 const notify = () => listeners.forEach((cb) => cb());
 function readStored(key: string) {
-  try { return localStorage.getItem(key); } catch { return null; }
+  return deviceStorage.getItem(key);
 }
 
 /**
@@ -51,7 +52,9 @@ export default function BankPlanner({ userId, tones, defaultOrder }: { userId: s
 
   function update(next: Slots) {
     setLocal(next);
-    try { localStorage.setItem(key, JSON.stringify({ slots: next, seen: tones.map((t) => t.id) })); setLocal(null); notify(); } catch { /* kept in memory only */ }
+    deviceStorage.setItem(key, JSON.stringify({ slots: next, seen: tones.map((t) => t.id) }));
+    setLocal(null);
+    notify();
   }
   function assign(slot: number, id: string | null) {
     const next = [...slots];
@@ -62,7 +65,8 @@ export default function BankPlanner({ userId, tones, defaultOrder }: { userId: s
   }
   function reset() {
     setLocal(null);
-    try { localStorage.removeItem(key); notify(); } catch { /* ignore */ }
+    deviceStorage.removeItem(key);
+    notify();
   }
 
   const placed = new Set(slots.filter(Boolean));

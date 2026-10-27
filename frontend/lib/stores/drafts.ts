@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { deviceStorage } from "@/lib/consent";
 
 /**
  * The unsent post on this device, one per account (keyed by user id so two
@@ -44,7 +45,8 @@ export const useDrafts = create<Drafts>()(
     {
       name: "resoniq:drafts",
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      // Only kept in this browser if the visitor allowed on-device preferences (lib/consent.ts).
+      storage: createJSONStorage(() => deviceStorage),
       partialize: ({ drafts }) => ({ drafts }),
       merge: (stored, current) => ({ ...current, drafts: sanitizeDrafts((stored as { drafts?: unknown } | undefined)?.drafts) }),
       skipHydration: true,

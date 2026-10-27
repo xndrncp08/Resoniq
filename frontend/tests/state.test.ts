@@ -73,6 +73,8 @@ describe("device preferences", () => {
       setItem: (k: string, v: string) => void memory.set(k, v),
       removeItem: (k: string) => void memory.delete(k),
     });
+    // The visitor allowed on-device preferences (lib/consent.ts); the last test checks the opposite.
+    vi.stubGlobal("document", { cookie: "resoniq_consent=1.p1.a0.1790000000" });
   });
 
   it("renders defaults until hydrated, then sanitizes whatever was stored", async () => {
@@ -91,6 +93,17 @@ describe("device preferences", () => {
     usePreferences.getState().setScene3d("off");
     const saved = JSON.parse(memory.get("resoniq:preferences")!);
     expect(saved.state).toEqual({ scene3d: "off", metronome: { bpm: MIN_BPM, beats: 4, volume: 0.5 }, gear: "amp-3band" });
+  });
+
+  it("neither reads nor writes the browser without consent, but still works for the visit", async () => {
+    vi.stubGlobal("document", { cookie: "" });
+    memory.set("resoniq:preferences", JSON.stringify({ state: { scene3d: "off" }, version: 1 }));
+    const { usePreferences } = await import("@/lib/stores/preferences");
+    await usePreferences.persist.rehydrate();
+    expect(usePreferences.getState().scene3d).toBe("auto");
+    usePreferences.getState().setMetronome({ bpm: 120 });
+    expect(usePreferences.getState().metronome.bpm).toBe(120);
+    expect(JSON.parse(memory.get("resoniq:preferences")!).state).toEqual({ scene3d: "off" });
   });
 });
 
