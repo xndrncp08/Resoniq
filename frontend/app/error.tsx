@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import Feedback from "@/components/ui/Feedback";
+import { reportClientError } from "@/components/app/ErrorReporter";
 
 /**
  * Error boundary for every route under the root layout. Server errors
@@ -12,6 +13,7 @@ import Feedback from "@/components/ui/Feedback";
 export default function RouteError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportClientError("boundary", error, error.digest);
   }, [error]);
 
   return (
