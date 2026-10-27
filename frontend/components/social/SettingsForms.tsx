@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button, IconButton } from "@/components/app/ui";
+import { useMutation } from "@tanstack/react-query";
+import { SaveStatus, saveState, useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import { api, errorMessage } from "@/lib/client-api";
 import { uploadFile } from "@/lib/upload-client";
 import { INSTRUMENTS, INSTRUMENT_LABEL } from "@/lib/instruments";
@@ -29,24 +31,29 @@ export function ProfileForm({ initial, avatarSources, imagesEnabled = true }: { 
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [genres, setGenres] = useState(initial.genres.join(", "));
-  const [state, setState] = useState<{ busy: boolean; msg: string | null; error: string | null }>({ busy: false, msg: null, error: null });
   const [imgProgress, setImgProgress] = useState<string | null>(null);
   const [sources, setSources] = useState(avatarSources);
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    setState({ busy: true, msg: null, error: null });
-    try {
-      const { profile } = await api<{ profile: ProfileValues }>("/api/me", {
-        method: "PATCH",
-        body: { name: v.name, handle: v.handle, bio: v.bio, instruments: v.instruments, genres: genres.split(",").map((g) => g.trim()).filter(Boolean), links: v.links.filter((l) => l.url.trim()) },
-      });
+  // What's on the server; the form is dirty when its text fields differ from it.
+  const [saved, setSaved] = useState({ v: initial, genres: initial.genres.join(", ") });
+  const fields = (x: ProfileValues, g: string) => JSON.stringify([x.name ?? "", x.handle, x.bio ?? "", x.instruments, g.split(",").map((s) => s.trim()).filter(Boolean), x.links]);
+  const dirty = fields(v, genres) !== fields(saved.v, saved.genres);
+  const mutation = useMutation({
+    mutationFn: () => api<{ profile: ProfileValues }>("/api/me", {
+      method: "PATCH",
+      body: { name: v.name, handle: v.handle, bio: v.bio, instruments: v.instruments, genres: genres.split(",").map((g) => g.trim()).filter(Boolean), links: v.links.filter((l) => l.url.trim()) },
+    }),
+    onSuccess: ({ profile }) => {
+      const g = profile.genres.join(", ");
       setV(profile);
-      setState({ busy: false, msg: "Saved.", error: null });
+      setGenres(g);
+      setSaved({ v: profile, genres: g });
       router.refresh();
-    } catch (err) {
-      setState({ busy: false, msg: null, error: errorMessage(err) });
-    }
+    },
+  });
+  useUnsavedChanges({ dirty, label: "your profile", save: () => mutation.mutateAsync() });
+  function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mutation.isPending) mutation.mutate();
   }
 
   async function pickImage(purpose: "AVATAR" | "BANNER", file?: File) {
@@ -129,9 +136,11 @@ export function ProfileForm({ initial, avatarSources, imagesEnabled = true }: { 
           {v.links.length < 5 && <Button size="sm" icon="plus" onClick={() => setV({ ...v, links: [...v.links, { label: "", url: "" }] })}>Add link</Button>}
         </fieldset>
       </div>
-      {state.error && <p role="alert" className="font-body text-sm text-danger">{state.error}</p>}
-      {state.msg && <p role="status" className="font-body text-sm text-signal">{state.msg}</p>}
-      <Button type="submit" variant="primary" disabled={state.busy}>{state.busy ? "Saving…" : "Save profile"}</Button>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <SaveStatus state={saveState(mutation, dirty)} error={mutation.error ? errorMessage(mutation.error) : null} className="mr-auto" />
+        {dirty && <Button variant="ghost" disabled={mutation.isPending} onClick={() => { setV((cur) => ({ ...saved.v, image: cur.image, bannerUrl: cur.bannerUrl })); setGenres(saved.genres); mutation.reset(); }}>Cancel</Button>}
+        <Button type="submit" variant="primary" disabled={mutation.isPending || !dirty}>{mutation.isPending ? "Saving…" : "Save profile"}</Button>
+      </div>
     </form>
   );
 }

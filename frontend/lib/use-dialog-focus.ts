@@ -18,6 +18,8 @@ export function useDialogFocus(panel: RefObject<HTMLElement | null>, onClose: ()
     (initial?.current ?? focusables()[0])?.focus();
 
     const onKey = (e: KeyboardEvent) => {
+      // With a dialog stacked on top (an unsaved-changes prompt), only the one holding focus responds.
+      if (panel.current && !panel.current.contains(document.activeElement)) return;
       if (e.key === "Escape") close();
       if (e.key !== "Tab") return;
       const list = focusables();

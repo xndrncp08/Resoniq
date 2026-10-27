@@ -12,6 +12,7 @@ import type { RigSpec } from "@/types/rig";
 import RichText from "@/components/app/RichText";
 import MentionTextarea from "@/components/social/MentionTextarea";
 import { useDrafts, useDraftsReady } from "@/lib/stores/drafts";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 
 type Community = { slug: string; name: string; joined: boolean };
 type Tone = { id: string; name: string; visibility: string };
@@ -49,11 +50,14 @@ export default function Composer({ userId, communities, tones, initial, uploadKi
     setToneId(tones.some((t) => t.id === stored.toneId) ? stored.toneId : "");
     setTouched(true);
   }
+  // Text is kept as a draft; uploads and an unsaved rig aren't, so those are what leaving would lose.
+  useUnsavedChanges({ dirty: !busy && (mediaIds.length > 0 || uploading || (rigOpen && !rigIsEmpty(rig))), label: "your post's attachments" });
   const selectedTone = tones.find((t) => t.id === toneId);
   const canSubmit = !busy && !uploading && (body.trim() || title.trim() || mediaIds.length || toneId || !rigIsEmpty(rig));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {

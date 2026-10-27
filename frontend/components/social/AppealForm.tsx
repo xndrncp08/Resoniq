@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
@@ -10,6 +11,7 @@ export default function AppealForm({ targetType, targetId }: { targetType: strin
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  useUnsavedChanges({ dirty: !busy && !!body.trim(), label: "your appeal" });
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);

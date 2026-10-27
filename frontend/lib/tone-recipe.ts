@@ -1,7 +1,7 @@
 import type { EngineAnalysis, EngineToneProfile } from "@/types/engine";
 import type { PedalSlot, PickupPosition, RecipeCore, ToneRecipe } from "@/types/tone";
 import { chainPosition, classifyEffect } from "@/lib/effectConfig";
-import type { StudioPatch } from "@/lib/studio/patch";
+import { normalizeStudioPatch, type StudioPatch } from "@/lib/studio/patch";
 
 /**
  * Adapters from storage/engine shapes to the ToneRecipe contract.
@@ -183,9 +183,9 @@ export function recipeCoreFromStored(data: unknown): RecipeCore | null {
   return isStored(data) ? data.recipe ?? null : coreFromLegacy(data as LegacyToneData);
 }
 
-/** The Amp Studio patch stored in `Tone.data`, if the tone has one. */
+/** The Amp Studio patch stored in `Tone.data`, if the tone has one, repaired if it's from an older format. */
 export function studioPatchFromStored(data: unknown): StudioPatch | null {
-  return isStored(data) ? data.studio ?? null : null;
+  return isStored(data) && data.studio ? normalizeStudioPatch(data.studio) : null;
 }
 
 /** A saved library tone. Returns null if `data` is in neither known format. */

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, IconButton } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 
 const KINDS = [["GENRE", "Genre"], ["INSTRUMENT", "Instrument"], ["GEAR", "Gear"], ["STYLE", "Playing style"], ["TOPIC", "Topic"]] as const;
 const slugify = (s: string) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
@@ -18,6 +19,7 @@ export default function CommunityForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const effectiveSlug = slug || slugify(name);
+  useUnsavedChanges({ dirty: !busy && !!(name.trim() || description.trim() || slug.trim()), label: "your new community" });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
