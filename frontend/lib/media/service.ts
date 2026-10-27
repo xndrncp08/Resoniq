@@ -11,11 +11,12 @@ import { can } from "@/lib/permissions";
 import { visiblePostWhere } from "@/lib/posts";
 import { getStorage } from "@/lib/storage";
 import { fail } from "@/lib/validation";
+import { canViewMessageMedia } from "@/lib/messaging";
 export { toMediaView, type MediaView } from "@/lib/media/view";
 import { ACCEPTED_MIME, DAILY_UPLOAD_BYTES, MAX_ATTACHMENTS, MEDIA_LIMITS, REMOVED_RETENTION_MS } from "@/lib/media/limits";
 
 export const MEDIA_KINDS: MediaKind[] = ["VIDEO", "AUDIO", "IMAGE"];
-const PURPOSES: MediaPurpose[] = ["POST", "AVATAR", "BANNER"];
+const PURPOSES: MediaPurpose[] = ["POST", "AVATAR", "BANNER", "MESSAGE"];
 
 export type UploadRequest = { kind: MediaKind; size: number; mime: string; purpose: MediaPurpose; alt: string | null };
 
@@ -24,7 +25,7 @@ export function parseUploadRequest(body: Record<string, unknown>): UploadRequest
   if (!MEDIA_KINDS.includes(kind)) fail("kind must be VIDEO, AUDIO or IMAGE.");
   const purpose = (body.purpose ?? "POST") as MediaPurpose;
   if (!PURPOSES.includes(purpose)) fail("Unknown upload purpose.");
-  if (purpose !== "POST" && kind !== "IMAGE") fail("Avatars and banners must be images.");
+  if ((purpose === "AVATAR" || purpose === "BANNER") && kind !== "IMAGE") fail("Avatars and banners must be images.");
   const size = Number(body.size);
   if (!Number.isInteger(size) || size <= 0) fail("size must be the file's byte count.");
   if (size > MEDIA_LIMITS[kind].bytes) throw new ApiError(413, `${MEDIA_LIMITS[kind].label}.`);
@@ -113,6 +114,8 @@ export type MediaVariant = "playback" | "poster" | "preview" | "peaks";
 export async function canViewMedia(media: Media, viewer: Actor | null): Promise<boolean> {
   if (viewer && (viewer.id === media.ownerId || can(viewer.role, "content.moderate"))) return true;
   if (media.status !== "READY") return false;
+  // Message attachments are private to the conversation.
+  if (media.purpose === "MESSAGE") return canViewMessageMedia(media.messageId, viewer?.id ?? null);
   if (media.purpose !== "POST") {
     const owner = await prisma.user.findUnique({ where: { id: media.ownerId }, select: { status: true } });
     return owner?.status !== "BANNED";

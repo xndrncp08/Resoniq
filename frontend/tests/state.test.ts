@@ -110,28 +110,29 @@ describe("device preferences", () => {
 describe("notification cache", () => {
   it("zeroes the unread badge immediately and keeps it when the server agrees", async () => {
     const client = new QueryClient();
-    client.setQueryData(notificationKeys.unread("u1"), 7);
+    client.setQueryData(notificationKeys.pulse("u1"), { notifications: 7, messages: 2 });
     let seenDuringRequest: number | undefined;
     await markAllReadOptimistic(client, "u1", async () => {
-      seenDuringRequest = client.getQueryData(notificationKeys.unread("u1"));
+      seenDuringRequest = client.getQueryData<{ notifications: number }>(notificationKeys.pulse("u1"))?.notifications;
     });
     expect(seenDuringRequest).toBe(0);
-    expect(client.getQueryData(notificationKeys.unread("u1"))).toBe(0);
+    // Unread messages are a separate count and stay as they were.
+    expect(client.getQueryData(notificationKeys.pulse("u1"))).toEqual({ notifications: 0, messages: 2 });
   });
 
   it("restores the badge if marking read fails", async () => {
     const client = new QueryClient();
-    client.setQueryData(notificationKeys.unread("u1"), 3);
+    client.setQueryData(notificationKeys.pulse("u1"), { notifications: 3, messages: 0 });
     await expect(markAllReadOptimistic(client, "u1", () => Promise.reject(new Error("offline")))).rejects.toThrow("offline");
-    expect(client.getQueryData(notificationKeys.unread("u1"))).toBe(3);
+    expect(client.getQueryData(notificationKeys.pulse("u1"))).toEqual({ notifications: 3, messages: 0 });
   });
 
   it("never shares a cached count between accounts", async () => {
     const client = new QueryClient();
-    client.setQueryData(notificationKeys.unread("u1"), 3);
-    client.setQueryData(notificationKeys.unread("u2"), 9);
+    client.setQueryData(notificationKeys.pulse("u1"), { notifications: 3, messages: 0 });
+    client.setQueryData(notificationKeys.pulse("u2"), { notifications: 9, messages: 1 });
     await markAllReadOptimistic(client, "u1", async () => {});
-    expect(client.getQueryData(notificationKeys.unread("u2"))).toBe(9);
+    expect(client.getQueryData(notificationKeys.pulse("u2"))).toEqual({ notifications: 9, messages: 1 });
   });
 });
 

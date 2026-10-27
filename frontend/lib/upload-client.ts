@@ -3,7 +3,7 @@
 import { api } from "@/lib/client-api";
 
 export type UploadKind = "VIDEO" | "AUDIO" | "IMAGE";
-export type UploadPurpose = "POST" | "AVATAR" | "BANNER";
+export type UploadPurpose = "POST" | "AVATAR" | "BANNER" | "MESSAGE";
 
 // Mirrors lib/media/limits.ts for instant feedback; the server enforces the real limits.
 const MAX: Record<UploadKind, number> = { VIDEO: 500 * 1024 ** 2, AUDIO: 50 * 1024 ** 2, IMAGE: 15 * 1024 ** 2 };

@@ -4,31 +4,44 @@ import { api } from "@/lib/client-api";
 // Keys start with the user so nothing cached for one account answers for another.
 export const notificationKeys = {
   all: (userId: string) => ["user", userId, "notifications"] as const,
-  unread: (userId: string) => [...notificationKeys.all(userId), "unread"] as const,
+  pulse: (userId: string) => ["user", userId, "pulse"] as const,
 };
 
-export const unreadQuery = (userId: string, initial: number) =>
+export type Pulse = { notifications: number; messages: number };
+
+/**
+ * Live counts for the nav (unread notifications, conversations with something
+ * new): one small request every 15 s while the tab is visible, and right away
+ * when it regains focus. Hidden tabs don't poll.
+ */
+export const pulseQuery = (userId: string, initial: Pulse) =>
   queryOptions({
-    queryKey: notificationKeys.unread(userId),
-    queryFn: ({ signal }) => api<{ unread: number }>("/api/notifications?count=1", { signal }).then((r) => r.unread),
+    queryKey: notificationKeys.pulse(userId),
+    queryFn: ({ signal }) => api<Pulse>("/api/pulse", { signal }),
     initialData: initial,
-    // The server count is fresh on every render; poll gently while the tab is visible.
+    // The server counts are fresh on every render.
     initialDataUpdatedAt: () => Date.now(),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
-/** Unread count shared by the desktop rail, the phone header and the notifications page. */
-export function useUnreadCount(userId: string | null, initial: number) {
-  const query = useQuery({ ...unreadQuery(userId ?? "", initial), enabled: !!userId });
-  return userId ? query.data : 0;
+export function usePulse(userId: string | null, initial: Pulse) {
+  const query = useQuery({ ...pulseQuery(userId ?? "", initial), enabled: !!userId });
+  return userId ? query.data : { notifications: 0, messages: 0 };
 }
 
-/** Optimistically zero the badge, put it back if the server refuses. */
+/** Unread notifications, shared by the desktop rail, the phone header and the notifications page. */
+export function useUnreadCount(userId: string | null, initial: number) {
+  return usePulse(userId, { notifications: initial, messages: 0 }).notifications;
+}
+
+/** Optimistically zero the notifications badge, put it back if the server refuses. */
 export async function markAllReadOptimistic(client: QueryClient, userId: string, send: () => Promise<unknown>) {
-  const key = notificationKeys.unread(userId);
+  const key = notificationKeys.pulse(userId);
   await client.cancelQueries({ queryKey: key });
-  const previous = client.getQueryData<number>(key);
-  client.setQueryData(key, 0);
+  const previous = client.getQueryData<Pulse>(key);
+  if (previous) client.setQueryData<Pulse>(key, { ...previous, notifications: 0 });
   try {
     await send();
   } catch (err) {

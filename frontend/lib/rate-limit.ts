@@ -30,6 +30,11 @@ export const RATE_LIMITS = {
   vote: { limit: 600, windowMs: 60 * 60_000 },
   report: { limit: 20, windowMs: 60 * 60_000 },
   clientError: { limit: 30, windowMs: 10 * 60_000 },
+  // Messaging: replies flow freely, but opening new conversations and sending invites is slower (spam).
+  messageWrite: { limit: 120, windowMs: 10 * 60_000 },
+  conversationStart: { limit: 25, windowMs: 24 * 60 * 60_000 },
+  invite: { limit: 15, windowMs: 24 * 60 * 60_000 },
+  messageRead: { limit: 600, windowMs: 60_000 },
   communityCreate: { limit: 5, windowMs: 24 * 60 * 60_000 },
   moderation: { limit: 600, windowMs: 60 * 60_000 },
   mediaUpload: { limit: 60, windowMs: 60 * 60_000 },

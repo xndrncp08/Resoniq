@@ -25,7 +25,7 @@ export default async function MusiciansPage({ searchParams }: Props) {
   const filters = parseMusicianFilters(await searchParams);
   const viewer = await optionalActor();
   const [{ items, nextCursor }, mates] = await Promise.all([discoverMusicians(filters), viewer ? playMates(viewer.id) : null]);
-  const filtered = !!(filters.q || filters.instrument || filters.genre || filters.open);
+  const filtered = !!(filters.q || filters.instrument || filters.genre || filters.open || filters.available);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -47,7 +47,10 @@ export default async function MusiciansPage({ searchParams }: Props) {
           <label className="min-w-0"><span className="label-engraved">Open to</span><select name="open" defaultValue={filters.open ?? ""} className={field}><option value="">Anything</option>{OPEN_TO.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
           <Button type="submit" variant="primary" size="lg" icon="search">Find musicians</Button>
         </div>
-        <p className="mt-3 font-body text-xs text-muted">Matches the instruments and genres musicians put on their profiles.</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 font-body text-sm"><input type="checkbox" name="available" value="1" defaultChecked={!!filters.available} className="h-4 w-4 accent-[var(--color-copper)]" /> Available for sessions now</label>
+          <p className="font-body text-xs text-muted">Matches what musicians put on their profiles.</p>
+        </div>
       </form>
 
       {mates && !filtered && !filters.after && (
@@ -99,6 +102,7 @@ export default async function MusiciansPage({ searchParams }: Props) {
                   {u.bio && <p className="mt-4 line-clamp-3 break-words font-body text-sm leading-relaxed text-ink-dim">{u.bio}</p>}
                   {u.instruments.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{u.instruments.map((i) => <Chip key={i} active={i === filters.instrument}>{INSTRUMENT_LABEL[i as Instrument] ?? i}</Chip>)}</div>}
                   {u.genres.length > 0 && <p className="mt-3 line-clamp-2 font-body text-sm text-signal">{u.genres.join(" · ")}</p>}
+                  {u.availableUntil && u.availableUntil >= new Date() && <p className="mt-2 inline-flex items-center gap-1.5 font-body text-xs text-copper"><span className="h-1.5 w-1.5 rounded-full bg-copper" aria-hidden />Available until {u.availableUntil.toLocaleDateString("en", { month: "short", day: "numeric" })}</p>}
                   {(u.openTo.length > 0 || u.location) && <p className="mt-2 font-body text-xs text-muted">{[u.location, ...u.openTo.filter(isOpenTo).slice(0, 2).map((o) => `Open to ${OPEN_TO_LABEL[o].toLowerCase()}`)].filter(Boolean).join(" · ")}</p>}
                   <span className="mt-auto flex items-center gap-2 pt-5 font-body text-sm text-copper">Explore profile <Icon name="chevron-right" size={16} /></span>
                 </Link>

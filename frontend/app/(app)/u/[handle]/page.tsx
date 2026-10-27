@@ -21,14 +21,29 @@ import PostFeed from "@/components/social/PostFeed";
 import ToggleButton from "@/components/social/ToggleButton";
 import ToneGrid from "@/components/tone/ToneGrid";
 import ProfileMenu from "@/components/social/ProfileMenu";
+import CollabActions from "@/components/social/CollabActions";
+import { prisma } from "@/lib/prisma";
+import { ApiError } from "@/lib/api-error";
+import { assertCanReach } from "@/lib/messaging";
 
 type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string }> };
 
 const load = cache(async (handle: string) => {
   const viewer = await optionalActor();
   const profile = await getPublicProfile(handle, viewer?.id ?? null);
-  return { viewer, profile, showcase: profile ? await getShowcase(profile.id, viewer?.id ?? null) : null };
+  return { viewer, profile, showcase: profile ? await getShowcase(profile.id, viewer?.id ?? null) : null, contact: profile && viewer && !profile.isSelf ? await contactState(viewer.id, profile.id) : null };
 });
+
+/** Whether the viewer can message this musician (and why not), an existing conversation, and whether they've blocked them. */
+async function contactState(viewerId: string, profileId: string) {
+  const key = viewerId < profileId ? `${viewerId}:${profileId}` : `${profileId}:${viewerId}`;
+  const [conversation, blocked, reachable] = await Promise.all([
+    prisma.conversation.findUnique({ where: { directKey: key }, select: { id: true } }),
+    prisma.block.count({ where: { blockerId: viewerId, blockedId: profileId } }),
+    assertCanReach(viewerId, profileId).then(() => ({ ok: true as const }), (err) => ({ ok: false as const, reason: err instanceof ApiError ? err.message : "Messaging isn't available." })),
+  ]);
+  return { conversationId: blocked ? null : conversation?.id ?? null, blocked: blocked > 0, reachable };
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { profile } = await load((await params).handle);
@@ -37,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProfilePage({ params, searchParams }: Props) {
   const [{ handle }, sp] = await Promise.all([params, searchParams]);
-  const { viewer, profile, showcase } = await load(handle);
+  const { viewer, profile, showcase, contact } = await load(handle);
   if (!profile || !showcase) notFound();
   const tab = sp.tab === "tones" || sp.tab === "performances" || (sp.tab === "saved" && profile.isSelf) ? sp.tab : "posts";
   const vid = viewer?.id ?? null;
@@ -58,14 +73,23 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               ) : (
                 <ToggleButton url={`/api/users/${profile.handle}/follow`} initial={profile.viewerFollows} on="Following" off="Follow" signedIn={!!viewer} />
               )}
-              {!profile.isSelf && viewer && <ProfileMenu userId={profile.id} />}
+              {contact && !contact.blocked && <CollabActions handle={profile.handle} name={profile.name ?? `@${profile.handle}`} conversationId={contact.conversationId} reachable={contact.reachable} />}
+              {!profile.isSelf && viewer && <ProfileMenu userId={profile.id} handle={profile.handle} blocked={contact?.blocked} />}
             </div>
           </div>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{profile.name ?? `@${profile.handle}`}</h1>
           <p className="flex flex-wrap items-center gap-x-3 font-mono text-sm text-muted">
             <span>@{profile.handle}</span>
             {profile.location && <span className="inline-flex items-center gap-1 font-body"><Icon name="globe" size={14} /> {profile.location}</span>}
+            {profile.playingSince && <span className="font-body">Playing since {profile.playingSince}{new Date().getFullYear() - profile.playingSince > 1 ? ` · ${new Date().getFullYear() - profile.playingSince} years` : ""}</span>}
           </p>
+          {profile.availableUntil && (
+            <p className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-xl border border-copper/40 bg-copper/10 px-3 py-1.5 font-body text-sm">
+              <span className="h-2 w-2 rounded-full bg-copper" aria-hidden />
+              <span className="text-ink">Available for sessions until {new Date(profile.availableUntil).toLocaleDateString("en", { month: "short", day: "numeric" })}</span>
+              {profile.availabilityNote && <span className="text-ink-dim">· {profile.availabilityNote}</span>}
+            </p>
+          )}
           {profile.openTo.length > 0 && (
             <ul aria-label="Open to" className="mt-3 flex flex-wrap gap-1.5">
               {profile.openTo.map((o) => (
@@ -100,6 +124,12 @@ export default async function ProfilePage({ params, searchParams }: Props) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <aside aria-label="Showcase" className="space-y-4 lg:sticky lg:top-6 lg:order-2">
           {showcase.signatureTone && <SignatureRig tone={{ id: showcase.signatureTone.id, name: showcase.signatureTone.name }} {...pick(patchFromTone(showcase.signatureTone))} />}
+          {profile.highlights.length > 0 && (
+            <section aria-labelledby="highlights-h" className="panel p-4 sm:p-5">
+              <h2 id="highlights-h" className="label-engraved mb-3">Highlights</h2>
+              <ul className="space-y-2">{profile.highlights.map((h) => <li key={h} className="flex gap-2.5 font-body text-sm text-ink-dim"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-copper" aria-hidden />{h}</li>)}</ul>
+            </section>
+          )}
           {showcase.rig.length > 0 && <RigList rig={showcase.rig} />}
           {profile.isSelf && <Strength profile={profile} showcase={showcase} />}
         </aside>

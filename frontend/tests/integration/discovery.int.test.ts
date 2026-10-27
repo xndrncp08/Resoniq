@@ -26,7 +26,7 @@ describe("discovery", () => {
     for (const q of ["MIA", "santos", "KUNDIMAN", "@mia_sax"]) {
       const found = await discoverMusicians(parseMusicianFilters({ q, instrument: "woodwinds", genre: "Jazz" }));
       expect(found.items.map((u) => u.handle)).toEqual(["mia_sax"]);
-      expect(Object.keys(found.items[0]).sort()).toEqual(["bio", "genres", "handle", "id", "image", "instruments", "location", "name", "openTo"]);
+      expect(Object.keys(found.items[0]).sort()).toEqual(["availableUntil", "bio", "genres", "handle", "id", "image", "instruments", "location", "name", "openTo"]);
     }
     expect((await discoverMusicians(parseMusicianFilters({ instrument: "bass", genre: "jazz" }))).items).toEqual([]);
     expect((await discoverMusicians(parseMusicianFilters({ instrument: "woodwinds", genre: "jaz" }))).items).toEqual([]);

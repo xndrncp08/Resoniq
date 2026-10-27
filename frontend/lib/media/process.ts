@@ -158,7 +158,8 @@ export async function processMedia(mediaId: string): Promise<void> {
     // The original can carry location metadata; only stripped derivatives are kept.
     await store.remove(media.originalKey);
     await settlePost(ready.postId);
-    await notify({ userId: media.ownerId, type: "MEDIA_READY", postId: ready.postId, data: { mediaId: media.id, kind: media.kind } });
+    // Message attachments show their own progress in the conversation; no notification needed.
+    if (media.purpose !== "MESSAGE") await notify({ userId: media.ownerId, type: "MEDIA_READY", postId: ready.postId, data: { mediaId: media.id, kind: media.kind } });
   } catch (err) {
     if (!(err instanceof MediaRejected)) throw err;
     const { count } = await prisma.media.updateMany({ where: { id: media.id, status: "PROCESSING" }, data: { status: "FAILED", error: err.message } });

@@ -5,24 +5,27 @@ import { isStaff } from "@/lib/permissions";
 import { MobileNav, SideNav, type NavUser } from "@/components/app/AppNav";
 import AnnouncementBar from "@/components/app/AnnouncementBar";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { unreadConversationCount } from "@/lib/messaging";
 
 /** The signed-in (and public-browsing) app frame: navigation, announcements, content. */
 export default async function AppShell({ children }: { children: ReactNode }) {
   const actor = await getActor();
   const viewer = actor && actor.status !== "BANNED" ? actor : null;
-  const [user, unread] = viewer
+  const [user, notifications, messages] = viewer
     ? await Promise.all([
         prisma.user.findUnique({ where: { id: viewer.id }, select: { handle: true, name: true, image: true } }),
         prisma.notification.count({ where: { userId: viewer.id, readAt: null } }),
+        unreadConversationCount(viewer.id),
       ])
-    : [null, 0];
+    : [null, 0, 0];
+  const pulse = { notifications, messages };
   const navUser: NavUser = user && viewer ? { ...user, id: viewer.id, isStaff: isStaff(viewer.role) } : null;
   return (
     <QueryProvider key={viewer?.id ?? "guest"}>
     <div className="flex min-h-dvh">
-      <SideNav user={navUser} unread={unread} />
+      <SideNav user={navUser} pulse={pulse} />
       <div className="min-w-0 flex-1">
-        <MobileNav user={navUser} unread={unread} />
+        <MobileNav user={navUser} pulse={pulse} />
         <AnnouncementBar />
         <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-5 sm:px-6 md:pb-12 lg:px-8 lg:pt-8">
           {children}

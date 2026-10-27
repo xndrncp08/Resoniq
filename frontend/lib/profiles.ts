@@ -17,6 +17,10 @@ export type PublicProfile = {
   location: string | null;
   openTo: OpenTo[];
   influences: string[];
+  availableUntil: string | null;
+  availabilityNote: string | null;
+  playingSince: number | null;
+  highlights: string[];
   followerCount: number;
   followingCount: number;
   reputation: number;
@@ -39,6 +43,10 @@ export const PUBLIC_USER_SELECT = {
   location: true,
   openTo: true,
   influences: true,
+  availableUntil: true,
+  availabilityNote: true,
+  playingSince: true,
+  highlights: true,
   followerCount: true,
   followingCount: true,
   reputation: true,
@@ -58,6 +66,9 @@ export function toPublicProfile(u: Row, viewerId: string | null, viewerFollows: 
     ...profile,
     links: Array.isArray(u.links) ? (u.links as ProfileLink[]) : [],
     openTo: u.openTo.filter(isOpenTo),
+    // An availability window that's over isn't shown.
+    availableUntil: u.availableUntil && u.availableUntil >= new Date() ? u.availableUntil.toISOString() : null,
+    availabilityNote: u.availableUntil && u.availableUntil >= new Date() ? u.availabilityNote : null,
     createdAt: u.createdAt.toISOString(),
     viewerFollows,
     isSelf: viewerId === u.id,

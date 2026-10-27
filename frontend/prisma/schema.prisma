@@ -59,23 +59,35 @@ model User {
   media              Media[]
 
   // Profile banner, served from /api/media (avatars reuse `image`).
-  bannerUrl       String?
+  bannerUrl        String?
   // The avatars someone can switch back to: their last processed upload and
   // the photo of the Google account they sign in with. `image` is what shows.
-  uploadedImage   String?
-  providerImage   String?
+  uploadedImage    String?
+  providerImage    String?
   // Portfolio (lib/portfolio.ts): where they play, what they're open to, who shaped
   // their sound, and the post and tone they lead with. Pins must be their own.
-  location        String?
-  openTo          String[]   @default([])
-  influences      String[]   @default([])
-  pinnedPostId    String?
-  signatureToneId String?
-  pinnedPost      Post?      @relation("pinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
-  signatureTone   Tone?      @relation("signatureTone", fields: [signatureToneId], references: [id], onDelete: SetNull)
-  rig             UserGear[]
+  location         String?
+  openTo           String[]             @default([])
+  influences       String[]             @default([])
+  pinnedPostId     String?
+  signatureToneId  String?
+  pinnedPost       Post?                @relation("pinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
+  signatureTone    Tone?                @relation("signatureTone", fields: [signatureToneId], references: [id], onDelete: SetNull)
+  rig              UserGear[]
+  // Collaboration details (lib/portfolio.ts): until when they're taking on sessions, since when they play, a few highlights.
+  availableUntil   DateTime?
+  availabilityNote String?
+  playingSince     Int?
+  highlights       String[]             @default([])
+  // Who may start a conversation with them (lib/messaging.ts).
+  dmPolicy         DmPolicy             @default(EVERYONE)
+  conversations    ConversationMember[]
+  messages         Message[]
+  reactions        MessageReaction[]
+  blocking         Block[]              @relation("blocker")
+  blockedBy        Block[]              @relation("blocked")
   // Bumped on password reset: every JWT minted before it stops working (lib/authz.ts).
-  sessionVersion  Int        @default(0)
+  sessionVersion   Int                  @default(0)
 
   // SYSTEM rows are reserved publishing identities (lib/system-identity.ts): no
   // credentials, never signed in, never staff (check constraint User_system_not_staff).
@@ -661,6 +673,9 @@ enum NotificationType {
   ANNOUNCEMENT
   MEDIA_READY
   MEDIA_FAILED
+  COLLAB_INVITE
+  COLLAB_ACCEPTED
+  PROJECT_ADDED
 }
 
 model Notification {
@@ -691,6 +706,7 @@ enum ReportTarget {
   MEDIA
   COMMUNITY
   TONE
+  MESSAGE
 }
 
 enum ReportReason {
@@ -804,6 +820,7 @@ enum MediaPurpose {
   POST
   AVATAR
   BANNER
+  MESSAGE
 }
 
 // UPLOADING → PROCESSING (worker) → READY | FAILED. REMOVED by moderation or the owner;
@@ -844,13 +861,17 @@ model Media {
   readyAt       DateTime?
   createdAt     DateTime     @default(now())
 
-  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  post  Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
-  song  Song? @relation(fields: [songId], references: [id], onDelete: SetNull)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+  song      Song?    @relation(fields: [songId], references: [id], onDelete: SetNull)
+  // Attached to a private message instead of a post (purpose MESSAGE); visible to that conversation's members.
+  messageId String?
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
   @@index([ownerId, createdAt])
   @@index([postId, position])
   @@index([status, createdAt])
+  @@index([messageId])
 }
 
 // ── Platform operations (admin console) ──────────────────────────────
@@ -938,4 +959,117 @@ model PracticeTake {
   createdAt DateTime        @default(now())
 
   @@index([passageId, createdAt])
+}
+
+// ── Messaging and collaboration (lib/messaging.ts) ─────────────────────
+
+enum DmPolicy {
+  EVERYONE
+  FOLLOWING
+  NOBODY
+}
+
+// DIRECT: two people (directKey dedupes them). PROJECT: a named shared space for a collaboration.
+enum ConversationKind {
+  DIRECT
+  PROJECT
+}
+
+model Conversation {
+  id                  String           @id @default(cuid())
+  kind                ConversationKind @default(DIRECT)
+  // "<smaller user id>:<larger user id>" for DIRECT, so two people share one thread.
+  directKey           String?          @unique
+  title               String?
+  brief               String?
+  createdById         String?
+  createdAt           DateTime         @default(now())
+  lastMessageAt       DateTime         @default(now())
+  lastMessageAuthorId String?
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationMember {
+  conversationId String
+  userId         String
+  joinedAt       DateTime  @default(now())
+  lastReadAt     DateTime?
+  // Left a project: keeps their history attributed but stops access and updates.
+  leftAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId, leftAt])
+}
+
+enum MessageKind {
+  TEXT
+  // A structured request to collaborate; `invite` holds what, when and where, `inviteStatus` the answer.
+  COLLAB_INVITE
+  // Written by Resoniq: someone joined, a project started.
+  SYSTEM
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  authorId       String
+  kind           MessageKind   @default(TEXT)
+  body           String        @default("")
+  replyToId      String?
+  invite         Json?
+  inviteStatus   InviteStatus?
+  // Set when an accepted invite started a project.
+  projectId      String?
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo      Message?          @relation("replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]         @relation("replies")
+  reactions    MessageReaction[]
+  media        Media[]
+
+  @@index([conversationId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([replyToId])
+}
+
+model MessageReaction {
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+  @@index([userId])
+}
+
+// Blocking hides each person from the other's messages and stops new conversations either way.
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
 }
