@@ -75,7 +75,7 @@ export default function CookiesPage() {
       <ul className="list-disc space-y-2 pl-5">
         <li><span className="text-ink">Google</span>: Google sign-in happens on Google&apos;s own pages, under Google&apos;s cookies and privacy policy. Profile photos from Google accounts load from Google&apos;s image servers, without telling Google which Resoniq page you&apos;re on. Like any server, Google can see your IP address.</li>
         <li><span className="text-ink">Supabase storage</span>: uploaded images, audio and video can load directly from our storage provider. No cookies are set for this.</li>
-        <li><span className="text-ink">Vercel</span> hosts Resoniq and keeps standard server logs, such as IP addresses and requested pages, to operate and secure the service.</li>
+        <li><span className="text-ink">Vercel</span> hosts Resoniq and keeps standard server logs, such as IP addresses and requested pages, to operate and secure the service. Anonymous crash reports from your browser (error, code location and page path only) go to the same logs. They use no cookies or storage.</li>
       </ul>
       <p>Your browser&apos;s own permissions, such as microphone access in the Amp Studio, are separate: you grant them in the browser, and audio from your microphone is processed on your device.</p>
 

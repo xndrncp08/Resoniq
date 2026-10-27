@@ -13,6 +13,7 @@ import RichText from "@/components/app/RichText";
 import MentionTextarea from "@/components/social/MentionTextarea";
 import { useDrafts, useDraftsReady } from "@/lib/stores/drafts";
 import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
+import { CookieSettingsButton, useConsent } from "@/components/consent/Consent";
 
 type Community = { slug: string; name: string; joined: boolean };
 type Tone = { id: string; name: string; visibility: string };
@@ -50,8 +51,10 @@ export default function Composer({ userId, communities, tones, initial, uploadKi
     setToneId(tones.some((t) => t.id === stored.toneId) ? stored.toneId : "");
     setTouched(true);
   }
-  // Text is kept as a draft; uploads and an unsaved rig aren't, so those are what leaving would lose.
-  useUnsavedChanges({ dirty: !busy && (mediaIds.length > 0 || uploading || (rigOpen && !rigIsEmpty(rig))), label: "your post's attachments" });
+  // Text is kept as a draft only if this browser may store it; uploads and an unsaved rig never are.
+  const draftsKept = useConsent().consent?.preferences === true;
+  const textAtRisk = !draftsKept && !!(title.trim() || body.trim());
+  useUnsavedChanges({ dirty: !busy && (textAtRisk || mediaIds.length > 0 || uploading || (rigOpen && !rigIsEmpty(rig))), label: textAtRisk ? "your post" : "your post's attachments" });
   const selectedTone = tones.find((t) => t.id === toneId);
   const canSubmit = !busy && !uploading && (body.trim() || title.trim() || mediaIds.length || toneId || !rigIsEmpty(rig));
 
@@ -119,7 +122,9 @@ export default function Composer({ userId, communities, tones, initial, uploadKi
               <button key={m} type="button" aria-pressed={preview === (m === "Preview")} onClick={() => setPreview(m === "Preview")} className={`focus-ring rounded-full px-3 py-1 font-body text-xs ${preview === (m === "Preview") ? "bg-ink text-bg" : "text-muted hover:text-ink"}`}>{m}</button>
             ))}
           </div>
-          {touched && (title || body) && <span className="font-mono text-[11px] text-muted">Draft saved on this device</span>}
+          {touched && (title || body) && (draftsKept
+            ? <span className="font-mono text-[11px] text-muted">Draft saved on this device</span>
+            : <span className="font-body text-[11px] text-muted">Drafts aren&apos;t kept between visits · <CookieSettingsButton className="text-copper hover:underline">Keep drafts</CookieSettingsButton></span>)}
         </div>
         {preview ? (
           <div className="min-h-[220px] space-y-2" aria-live="polite">

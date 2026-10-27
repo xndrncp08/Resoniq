@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { cookies } from "next/headers";
 import SessionProvider from "@/components/providers/SessionProvider";
 import { ConsentProvider } from "@/components/consent/Consent";
+import ErrorReporter from "@/components/app/ErrorReporter";
 import { CONSENT_COOKIE, parseConsent } from "@/lib/consent";
 
 // Bundled fonts keep builds offline and font-src limited to 'self'.
@@ -49,6 +50,7 @@ export default async function RootLayout({
           <a href="#main" className="focus-ring sr-only z-[100] rounded-full bg-copper px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
             Skip to content
           </a>
+          <ErrorReporter />
           <ConsentProvider initial={consent}>{children}</ConsentProvider>
         </SessionProvider>
       </body>

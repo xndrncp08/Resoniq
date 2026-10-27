@@ -84,6 +84,9 @@ model User {
   toneDraftsReviewed ToneDraft[]
   managedCreator     ManagedCreator?
   practicePassages   PracticePassage[]
+
+  @@index([pinnedPostId])
+  @@index([signatureToneId])
 }
 
 enum Role {
@@ -151,6 +154,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -160,6 +164,8 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -351,6 +357,7 @@ model GearItem {
 
   @@index([kind, status])
   @@index([status, createdAt])
+  @@index([createdById])
 }
 
 model ToneGear {
@@ -389,6 +396,7 @@ model ToneSave {
 
   @@id([userId, toneId])
   @@index([userId, createdAt])
+  @@index([toneId])
 }
 
 // An uploaded track and its analysis job: status moves
@@ -639,6 +647,7 @@ model Bookmark {
 
   @@id([userId, postId])
   @@index([userId, createdAt])
+  @@index([postId])
 }
 
 enum NotificationType {
@@ -672,6 +681,7 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+  @@index([actorId])
 }
 
 enum ReportTarget {
@@ -720,6 +730,7 @@ model Report {
   @@index([status, createdAt])
   @@index([targetType, targetId, status])
   @@index([reporterId, targetType, targetId])
+  @@index([resolvedById])
 }
 
 enum AppealTarget {
@@ -752,6 +763,7 @@ model Appeal {
 
   @@index([status, createdAt])
   @@index([userId, targetType, targetId])
+  @@index([decidedById])
 }
 
 enum ModerationRuleKind {

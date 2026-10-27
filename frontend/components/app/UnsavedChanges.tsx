@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Dialog from "@/components/app/Dialog";
 import { Button } from "@/components/app/ui";
 import { errorMessage } from "@/lib/client-api";
@@ -11,7 +11,7 @@ import { errorMessage } from "@/lib/client-api";
  * dirty (and, if they can, how to save it) with useUnsavedChanges. While
  * anything is dirty:
  *   - closing or reloading the tab gets the browser's own warning;
- *   - following an in-app link asks first: Save changes, Discard changes or Keep editing;
+ *   - following an in-app link, or pressing Back, asks first: Save changes, Discard changes or Keep editing;
  *   - in-page actions that would throw work away (switching presets, closing
  *     a dialog) can ask the same question with `confirmLeave()`.
  * Nothing asks when there's nothing to lose.
@@ -22,6 +22,12 @@ type Ctx = { set: (id: string, g: Guard) => void; remove: (id: string) => void; 
 const UnsavedContext = createContext<Ctx | null>(null);
 
 /** A same-origin link the router would handle, that leads somewhere else. */
+// Back/forward: while work is unsaved, a guard entry for the same URL sits on top of the history
+// stack (keeping Next's router state). Back pops only the guard; we put it back and ask.
+const GUARD = "__resoniqUnsaved";
+const onGuardEntry = () => !!(history.state as Record<string, unknown> | null)?.[GUARD];
+const pushGuard = () => history.pushState({ ...(history.state ?? {}), [GUARD]: true }, "", location.href);
+
 function internalHref(e: MouseEvent): string | null {
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
   const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
@@ -39,6 +45,13 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dirty = () => [...guards.current.values()].filter((g) => g.dirty);
+  // Set while we step back on purpose (after "Discard"), so that one traversal isn't questioned.
+  const leaving = useRef(false);
+  const here = useRef("");
+  const pathname = usePathname();
+  useEffect(() => {
+    here.current = location.href;
+  }, [pathname]);
 
   const confirm = useCallback(() => {
     const pending = dirty();
@@ -58,15 +71,41 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
       if (!href) return;
       e.preventDefault();
       e.stopPropagation();
-      void confirm().then((go) => go && router.push(href));
+      // Replacing the guard entry keeps it from lingering behind the new page.
+      void confirm().then((go) => go && (onGuardEntry() ? router.replace(href) : router.push(href)));
+    };
+    const pop = () => {
+      const same = location.href === here.current;
+      here.current = location.href;
+      if (leaving.current) {
+        leaving.current = false;
+        return;
+      }
+      if (dirty().length) {
+        if (onGuardEntry()) return;
+        // Back took us off the guard entry: stay, put the guard back, and ask.
+        pushGuard();
+        void confirm().then((go) => {
+          if (!go) return;
+          leaving.current = true;
+          history.go(-2);
+        });
+        return;
+      }
+      // Nothing unsaved: step over guard entries left from work that has since been saved.
+      if (onGuardEntry() || same) history.back();
     };
     window.addEventListener("beforeunload", unload);
     document.addEventListener("click", click, true);
+    window.addEventListener("popstate", pop);
     return () => {
       window.removeEventListener("beforeunload", unload);
       document.removeEventListener("click", click, true);
+      window.removeEventListener("popstate", pop);
     };
   }, [confirm, router]);
+
+
 
   const close = (go: boolean) => {
     ask?.resolve(go);
@@ -87,7 +126,18 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const value = useMemo<Ctx>(() => ({ set: (id, g) => guards.current.set(id, g), remove: (id) => guards.current.delete(id), confirm }), [confirm]);
+  const value = useMemo<Ctx>(() => {
+    // The guard entry goes in the moment work becomes unsaved (before it's even painted as unsaved).
+    // Once saved it stays put, and Back steps over it.
+    const sync = () => {
+      if ([...guards.current.values()].some((g) => g.dirty) && !onGuardEntry()) pushGuard();
+    };
+    return {
+      set: (id, g) => { guards.current.set(id, g); sync(); },
+      remove: (id) => { guards.current.delete(id); sync(); },
+      confirm,
+    };
+  }, [confirm]);
   const canSave = !!ask && ask.guards.every((g) => g.save);
   const what = ask ? [...new Set(ask.guards.map((g) => g.label))].join(", ") : "";
 
@@ -121,7 +171,8 @@ export function useUnsavedChanges({ dirty, label, save }: { dirty: boolean; labe
   useEffect(() => {
     latest.current = save;
   });
-  useEffect(() => {
+  // Layout effect: registered before the browser paints, so no navigation can slip in first.
+  useLayoutEffect(() => {
     ctx?.set(id, { dirty, label, save: save ? () => latest.current!() : undefined });
     // `save` identity changes every render; only whether one exists matters here.
     // eslint-disable-next-line react-hooks/exhaustive-deps

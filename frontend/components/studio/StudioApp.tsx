@@ -15,13 +15,14 @@ import { useStudioAudio, type SourceKind } from "@/components/studio/useStudioAu
 import { createStudioStore, isDirty, type StudioState, type StudioStore, type StudioView } from "@/lib/stores/studio-store";
 import { describeEdit } from "@/lib/studio/readout";
 import { useConfirmLeave, useUnsavedChanges } from "@/components/app/UnsavedChanges";
+import { reportClientError } from "@/components/app/ErrorReporter";
 import { AMP_DESIGNS, AMP_MODELS, CAB_DESIGNS, CAB_MODELS, EFFECT_DESIGNS, EFFECT_TYPES, FACTORY_PRESETS, GATE_RANGE, LEVEL_RANGE, MAX_EFFECTS, newEffect, orderEffects, type AmpKnob, type AmpSwitch, type EffectType, type StudioPatch } from "@/lib/studio/patch";
 import type { StudioDevice } from "@/lib/studio/devices";
 import { patchFromTone } from "@/lib/studio/from-tone";
 import { presetsQuery, useSaveStudio, type SaveMode, type StudioOrigin } from "@/lib/queries/studio";
 import { errorMessage } from "@/lib/client-api";
 import { usePreferences, usePreferencesHydration } from "@/lib/stores/preferences";
-import { webglAvailable } from "@/components/three/webgl";
+import { decideScene3d, lowPowerDevice, webglAvailable } from "@/components/three/webgl";
 
 const StudioScene = dynamic(() => import("@/components/studio/three/StudioScene"), { ssr: false, loading: () => <StageMessage>Wiring the rig…</StageMessage> });
 
@@ -49,6 +50,9 @@ class SceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode
   static getDerivedStateFromError() {
     return { failed: true };
   }
+  componentDidCatch(error: unknown) {
+    reportClientError("boundary", error);
+  }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
   }
@@ -74,8 +78,9 @@ function Rack({ audio, origin, signedIn, onSave }: { audio: ReturnType<typeof us
   const { edit, undo, redo, switchSlot, copyToOther, reset } = store.getState();
   const playing = audio.status.state === "playing";
   return (
-    <div className="grid gap-4 border-b border-line bg-[linear-gradient(180deg,#121419,#0b0c10)] px-4 py-4 sm:px-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
-      <div className="flex items-end gap-4">
+    // Phones: input and output share the top row, presets get the full width below. Desktop: one row.
+    <div className="grid grid-cols-[1fr_auto] items-end gap-4 border-b border-line bg-[linear-gradient(180deg,#121419,#0b0c10)] px-4 py-4 sm:px-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+      <div className="col-start-1 row-start-1 flex items-end gap-4">
         <StudioKnob label="Input" value={patch.input} min={LEVEL_RANGE.min} max={LEVEL_RANGE.max} step={0.5} defaultValue={0} format={db} onChange={(v) => edit("input", (p) => ({ ...p, input: v }))} accent="var(--color-signal)" />
         <Meter read={playing ? audio.readInput : null} label="In" />
         <div className="flex items-end gap-2 border-l border-line pl-4">
@@ -84,7 +89,7 @@ function Rack({ audio, origin, signedIn, onSave }: { audio: ReturnType<typeof us
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col items-stretch gap-2 lg:items-center">
+      <div className="col-span-2 row-start-2 flex min-w-0 flex-col items-stretch gap-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:items-center">
         <PresetBar origin={origin} />
         <div className="flex flex-wrap items-center gap-1.5 lg:justify-center">
           <IconBtn icon="arrow-up" label="Undo (⌘Z)" onClick={undo} disabled={!canUndo} rotate={-90} />
@@ -108,7 +113,7 @@ function Rack({ audio, origin, signedIn, onSave }: { audio: ReturnType<typeof us
         </div>
       </div>
 
-      <div className="flex items-end justify-end gap-4">
+      <div className="col-start-2 row-start-1 flex items-end justify-end gap-4 lg:col-start-3">
         <Meter read={playing ? audio.readOutput : null} label="Out" />
         <StudioKnob label="Output" value={patch.output} min={LEVEL_RANGE.min} max={LEVEL_RANGE.max} step={0.5} defaultValue={0} format={db} onChange={(v) => edit("output", (p) => ({ ...p, output: v }))} accent="var(--color-signal)" />
       </div>
@@ -220,7 +225,9 @@ function Stage({ audio, onPower }: { audio: ReturnType<typeof useStudioAudio>; o
   const pref = usePreferences((s) => s.scene3d);
   const setPref = usePreferences((s) => s.setScene3d);
   const supported = useSyncExternalStore(noSubscribe, webglAvailable, () => null);
-  const show3d = supported && pref !== "off";
+  const lowPower = useSyncExternalStore(noSubscribe, lowPowerDevice, () => false);
+  const decision = supported === null ? null : decideScene3d(pref, supported, lowPower);
+  const show3d = decision === "render";
   const { edit } = store.getState();
   const readout = lastEdit ? describeEdit(lastEdit.key, patch) : null;
 
@@ -251,9 +258,10 @@ function Stage({ audio, onPower }: { audio: ReturnType<typeof useStudioAudio>; o
         <div key={lastEdit.at} aria-hidden className="studio-readout pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full border border-line-strong bg-bg/80 px-3 py-1 font-mono text-xs text-ink backdrop-blur">{readout}</div>
       )}
       <div className="absolute bottom-3 right-3 flex gap-2">
+        {decision === "on-request" && <span className="self-center font-body text-[11px] text-muted">3D waits on this device to keep the controls quick.</span>}
         {supported && (
-          <button type="button" onClick={() => setPref(pref === "off" ? "auto" : "off")} className="focus-ring rounded-full border border-line bg-bg/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted backdrop-blur hover:text-ink">
-            {pref === "off" ? "Show 3D" : "Hide 3D"}
+          <button type="button" onClick={() => setPref(show3d ? "off" : "on")} className="focus-ring rounded-full border border-line bg-bg/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted backdrop-blur hover:text-ink">
+            {show3d ? "Hide 3D" : "Show 3D"}
           </button>
         )}
       </div>
@@ -519,6 +527,8 @@ export type StudioAppProps = {
   initial: { studio: StudioPatch | null; declared: import("@/types/rig").RigSpec | null; inferred: import("@/types/tone").RecipeCore | null };
   origin: StudioOrigin;
   context?: ReactNode;
+  /** Arrived here straight after saving this sound for the first time. */
+  justSaved?: boolean;
 };
 
 function Shortcuts({ onSave, toggle }: { onSave: () => void; toggle: () => void }) {
@@ -545,17 +555,17 @@ function Shortcuts({ onSave, toggle }: { onSave: () => void; toggle: () => void 
   return null;
 }
 
-export default function StudioApp({ initial, origin, context }: StudioAppProps) {
+export default function StudioApp({ initial, origin, context, justSaved = false }: StudioAppProps) {
   const opened = useMemo(() => patchFromTone(initial), [initial]);
   const [store] = useState(() => createStudioStore(opened.patch, opened.device as StudioDevice | null));
   return (
     <StoreContext.Provider value={store}>
-      <Studio origin={origin} from={opened.from} context={context} />
+      <Studio origin={origin} from={opened.from} context={context} justSaved={justSaved} />
     </StoreContext.Provider>
   );
 }
 
-function Studio({ origin, from, context }: { origin: StudioOrigin; from: string; context?: ReactNode }) {
+function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; from: string; context?: ReactNode; justSaved: boolean }) {
   const store = useStudioStore();
   const router = useRouter();
   const { data: session } = useSession();
@@ -566,6 +576,14 @@ function Studio({ origin, from, context }: { origin: StudioOrigin; from: string;
   const dirty = useStudio(isDirty);
   const [fxFilter, setFxFilter] = useState<"pre" | "post">(device ? "post" : "pre");
   const [saving, setSaving] = useState<SaveMode | null>(null);
+  const [savedTone, setSavedTone] = useState<{ id: string; name: string; created: boolean } | null>(() => (justSaved && origin.toneId ? { id: origin.toneId, name: origin.name, created: true } : null));
+  // The flag only says what just happened; a reload shouldn't repeat it.
+  useEffect(() => {
+    if (!justSaved) return;
+    const url = new URL(location.href);
+    url.searchParams.delete("saved");
+    history.replaceState(history.state, "", url);
+  }, [justSaved]);
   const save = useSaveStudio(userId ?? "");
 
   // Closing the tab, following a link or opening another sound asks first. A sound you own saves in place from the prompt.
@@ -602,6 +620,16 @@ function Studio({ origin, from, context }: { origin: StudioOrigin; from: string;
         {context}
       </header>
       <Rack audio={audio} origin={origin} signedIn={!!userId} onSave={requestSave} />
+      {savedTone && (
+        // What to do with a sound once it's saved: the rest of Resoniq, one tap away.
+        <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-signal/30 bg-signal/[0.07] px-4 py-2.5 sm:px-6">
+          <p className="mr-auto font-body text-sm"><span className="text-signal">Saved</span> <span className="text-ink">{savedTone.name}</span> <span className="text-muted">{savedTone.created ? "to your tone vault, private until you share it." : "changes saved."}</span></p>
+          <Link href={`/new?tone=${savedTone.id}&category=TONE_COMPARISON`} className="focus-ring rounded-full bg-copper px-3 py-1 font-body text-[13px] font-medium text-bg hover:bg-copper-soft">Post it</Link>
+          <Link href={`/practice?tone=${savedTone.id}`} className="focus-ring font-body text-[13px] text-ink-dim hover:text-ink">Practice with it</Link>
+          <Link href={`/t/${savedTone.id}`} className="focus-ring font-body text-[13px] text-ink-dim hover:text-ink">Tone page</Link>
+          <button type="button" onClick={() => setSavedTone(null)} aria-label="Dismiss" className="focus-ring rounded-full p-1 text-muted hover:text-ink"><Icon name="close" size={14} /></button>
+        </div>
+      )}
       <ChainNav fxFilter={fxFilter} setFxFilter={setFxFilter} />
       <Stage audio={audio} onPower={togglePower} />
       <section aria-label="Controls" className="bg-[#0d0e12] px-4 py-6 sm:px-6">
@@ -627,10 +655,11 @@ function Studio({ origin, from, context }: { origin: StudioOrigin; from: string;
           save.mutate(
             { patch, origin, mode: saving ?? "new", name },
             {
-              onSuccess: ({ id }) => {
+              onSuccess: ({ id, name: saved }) => {
                 store.getState().markSaved(patch);
                 setSaving(null);
-                if (id !== origin.toneId) router.replace(`/studio?tone=${id}`);
+                setSavedTone({ id, name: saved, created: id !== origin.toneId });
+                if (id !== origin.toneId) router.replace(`/studio?tone=${id}&saved=1`);
                 else router.refresh();
               },
             },

@@ -7,7 +7,7 @@ import { recipeCoreFromAnalysis, sectionAnalysis } from "@/lib/tone-recipe";
 import type { EngineAnalysis } from "@/types/engine";
 import StudioApp from "@/components/studio/StudioApp";
 
-type Props = { searchParams: Promise<{ tone?: string | string[]; song?: string | string[]; section?: string | string[] }> };
+type Props = { searchParams: Promise<{ tone?: string | string[]; song?: string | string[]; section?: string | string[]; saved?: string | string[] }> };
 
 const param = (v: string | string[] | undefined) => (typeof v === "string" && v.length <= 100 ? v : undefined);
 
@@ -50,6 +50,7 @@ export default async function StudioPage({ searchParams }: Props) {
   return (
     <StudioApp
       key={tone?.id ?? "new"}
+      justSaved={!!tone?.viewer.isOwner && param(q.saved) === "1"}
       initial={{ studio: tone?.studio ?? null, declared: tone?.declared ?? null, inferred: tone?.inferred ?? null }}
       origin={{ toneId: tone?.id ?? null, name: tone?.name ?? "New sound", isOwner: !!tone?.viewer.isOwner, deviceRig: tone?.declared?.device ? tone.declared : null }}
       context={

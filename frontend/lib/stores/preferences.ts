@@ -11,8 +11,8 @@ import { isGearProfile, type GearProfileId } from "@/lib/gear-translate";
  * localStorage and is the same whoever signs in on this device.
  */
 export type Preferences = {
-  /** Interactive 3D views. "auto" renders them when the device supports WebGL. */
-  scene3d: "auto" | "off";
+  /** Interactive 3D views. "auto": on capable devices, on request on low-power ones; "on": always; "off": never. */
+  scene3d: "auto" | "on" | "off";
   metronome: { bpm: number; beats: number; volume: number };
   /** The kind of gear analysis suggestions are translated for. */
   gear: GearProfileId;
@@ -52,7 +52,7 @@ export const usePreferences = create<Preferences>()(
       partialize: ({ scene3d, metronome, gear }) => ({ scene3d, metronome, gear }),
       merge: (stored, current) => {
         const s = (stored ?? {}) as Partial<Preferences>;
-        return { ...current, scene3d: s.scene3d === "off" ? "off" : "auto", metronome: sanitizeMetronome(s.metronome), gear: isGearProfile(s.gear) ? s.gear : "amp-3band" };
+        return { ...current, scene3d: s.scene3d === "off" || s.scene3d === "on" ? s.scene3d : "auto", metronome: sanitizeMetronome(s.metronome), gear: isGearProfile(s.gear) ? s.gear : "amp-3band" };
       },
       // The server renders defaults; stored values load after hydration so markup always matches.
       skipHydration: true,

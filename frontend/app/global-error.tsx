@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportClientError } from "@/components/app/ErrorReporter";
+
 /**
  * Last-resort boundary for errors in the root layout itself. It replaces
  * the whole document, so global CSS and fonts aren't available: styles are
  * inline and use the brand's raw values.
  */
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  useEffect(() => reportClientError("boundary", error, error.digest), [error]);
   return (
     <html lang="en">
       <body style={{ margin: 0, minHeight: "100vh", display: "grid", placeItems: "center", background: "#0A0D12", color: "#F3EFE8", fontFamily: "system-ui, sans-serif" }}>
