@@ -6,17 +6,12 @@ import Icon from "@/components/icons/Icon";
 import type { AmpSettings } from "@/types/tone";
 import type { AmpKnob } from "@/lib/stores/rig-store";
 import { usePreferences, usePreferencesHydration } from "@/lib/stores/preferences";
-import { decideScene3d, webglAvailable } from "@/components/three/webgl";
+import { decideScene3d, lowPowerDevice, webglAvailable } from "@/components/three/webgl";
 
 // three.js and the scene download only when a 3D view is about to be seen.
 const AmpScene = dynamic(() => import("@/components/three/AmpScene"), { ssr: false, loading: () => <Loading /> });
 
 const noSubscribe = () => () => {};
-
-function lowPowerDevice() {
-  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
-  return !!nav.connection?.saveData || (nav.deviceMemory !== undefined && nav.deviceMemory < 4);
-}
 
 function Loading() {
   return (

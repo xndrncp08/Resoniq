@@ -142,4 +142,11 @@ describe("3D fallback", () => {
     expect(decideScene3d("off", true)).toBe("hidden");
     expect(decideScene3d("auto", true)).toBe("render");
   });
+
+  it("waits to be asked on low-power devices unless the member turned 3D on", () => {
+    expect(decideScene3d("auto", true, true)).toBe("on-request");
+    expect(decideScene3d("on", true, true)).toBe("render");
+    expect(decideScene3d("off", true, true)).toBe("hidden");
+    expect(decideScene3d("on", false, true)).toBe("unsupported");
+  });
 });
