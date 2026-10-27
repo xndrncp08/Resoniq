@@ -18,7 +18,7 @@ const REASONS = [
   ["OTHER", "Something else"],
 ] as const;
 
-export type ReportTarget = "POST" | "COMMENT" | "USER" | "MEDIA" | "COMMUNITY" | "TONE";
+export type ReportTarget = "POST" | "COMMENT" | "USER" | "MEDIA" | "COMMUNITY" | "TONE" | "MESSAGE";
 
 export default function ReportDialog({ open, onClose, targetType, targetId }: { open: boolean; onClose: () => void; targetType: ReportTarget; targetId: string }) {
   const [reason, setReason] = useState<string>("");
@@ -52,6 +52,7 @@ export default function ReportDialog({ open, onClose, targetType, targetId }: { 
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {targetType === "MESSAGE" && <p className="font-body text-sm text-muted">Messages are private. Reporting one lets Resoniq&apos;s moderators read it so they can act on it. Blocking the sender (from their profile) stops further messages.</p>}
           <fieldset className="space-y-1.5">
             <legend className="label-engraved mb-2">What&apos;s wrong?</legend>
             {REASONS.map(([value, label]) => (

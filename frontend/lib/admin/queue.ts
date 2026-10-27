@@ -37,6 +37,11 @@ async function preview(type: ReportTarget, id: string): Promise<QueueItem["previ
     const m = await prisma.media.findUnique({ where: { id }, select: { kind: true, status: true, postId: true, owner: { select: { handle: true } } } });
     return m ? { title: `${m.kind.toLowerCase()} upload`, href: m.postId ? `/p/${m.postId}` : null, status: m.status, author: m.owner.handle } : { title: "(deleted)", href: null, status: null, author: null };
   }
+  if (type === "MESSAGE") {
+    // Shown to moderators only because someone in the conversation reported it.
+    const m = await prisma.message.findUnique({ where: { id }, select: { body: true, deletedAt: true, author: { select: { handle: true } } } });
+    return m ? { title: m.deletedAt ? "(removed)" : m.body.slice(0, 280) || "(attachment only)", href: null, status: m.deletedAt ? "REMOVED" : "PRIVATE", author: m.author.handle } : { title: "(deleted)", href: null, status: null, author: null };
+  }
   if (type === "TONE") {
     const t = await prisma.tone.findUnique({ where: { id }, select: { name: true, visibility: true, user: { select: { handle: true } } } });
     return t ? { title: t.name, href: `/t/${id}`, status: t.visibility, author: t.user.handle } : { title: "(deleted)", href: null, status: null, author: null };

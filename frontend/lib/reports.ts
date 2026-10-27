@@ -5,7 +5,7 @@ import { isSuspended, type Actor } from "@/lib/authz";
 import { reportHoldThreshold } from "@/lib/automod";
 import { fail, isUniqueViolation } from "@/lib/validation";
 
-export const REPORT_TARGETS: ReportTarget[] = ["POST", "COMMENT", "USER", "MEDIA", "COMMUNITY", "TONE"];
+export const REPORT_TARGETS: ReportTarget[] = ["POST", "COMMENT", "USER", "MEDIA", "COMMUNITY", "TONE", "MESSAGE"];
 export const REPORT_REASONS: ReportReason[] = ["SPAM", "HARASSMENT", "HATE", "NSFW", "VIOLENCE", "COPYRIGHT", "IMPERSONATION", "MISINFORMATION", "OTHER"];
 
 export function parseReport(body: Record<string, unknown>) {
@@ -22,7 +22,7 @@ export function parseReport(body: Record<string, unknown>) {
 }
 
 /** Confirms the reported thing exists (and is something the reporter could see). */
-async function targetExists(type: ReportTarget, id: string): Promise<boolean> {
+async function targetExists(type: ReportTarget, id: string, reporterId: string): Promise<boolean> {
   const found = await {
     POST: () => prisma.post.findFirst({ where: { id, status: { in: ["PUBLISHED", "HELD", "PROCESSING"] } }, select: { id: true } }),
     COMMENT: () => prisma.comment.findFirst({ where: { id, status: { in: ["PUBLISHED", "HELD"] } }, select: { id: true } }),
@@ -30,12 +30,14 @@ async function targetExists(type: ReportTarget, id: string): Promise<boolean> {
     COMMUNITY: () => prisma.community.findFirst({ where: { id }, select: { id: true } }),
     TONE: () => prisma.tone.findFirst({ where: { id }, select: { id: true } }),
     MEDIA: () => prisma.media.findFirst({ where: { id, status: "READY" }, select: { id: true } }),
+    // Private: only someone in the conversation can report a message (moderators then see it).
+    MESSAGE: () => prisma.message.findFirst({ where: { id, deletedAt: null, authorId: { not: reporterId }, conversation: { members: { some: { userId: reporterId } } } }, select: { id: true } }),
   }[type]();
   return !!found;
 }
 
 export async function fileReport(actor: Actor, input: ReturnType<typeof parseReport>) {
-  if (!(await targetExists(input.targetType, input.targetId))) throw new ApiError(404, "That content no longer exists.");
+  if (!(await targetExists(input.targetType, input.targetId, actor.id))) throw new ApiError(404, "That content no longer exists.");
   try {
     await prisma.report.create({ data: { reporterId: actor.id, ...input } });
   } catch (err) {

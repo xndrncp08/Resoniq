@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Icon from "@/components/icons/Icon";
 import { Button, IconButton } from "@/components/app/ui";
 import { errorMessage } from "@/lib/client-api";
+import type { UploadPurpose } from "@/lib/upload-client";
 import { kindOf, precheck, uploadFile } from "@/lib/upload-client";
 
 export type UploadItem = { key: string; file: File; progress: number; state: "uploading" | "done" | "error"; mediaId?: string; error?: string; preview?: string };
@@ -14,7 +15,7 @@ export type UploadItem = { key: string; file: File; progress: number; state: "up
  */
 export type UploadKinds = { images: boolean; video: boolean; audio: boolean; note: string | null };
 
-export default function Uploader({ max = 10, onChange, kinds = { images: true, video: true, audio: true, note: null } }: { max?: number; onChange: (ids: string[], busy: boolean) => void; kinds?: UploadKinds }) {
+export default function Uploader({ max = 10, onChange, kinds = { images: true, video: true, audio: true, note: null }, purpose = "POST", compact = false }: { max?: number; onChange: (ids: string[], busy: boolean) => void; kinds?: UploadKinds; purpose?: UploadPurpose; compact?: boolean }) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -31,7 +32,7 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
   function start(item: UploadItem) {
     const ctrl = new AbortController();
     aborts.current.set(item.key, ctrl);
-    uploadFile(item.file, { onProgress: (p) => update(item.key, { progress: p }), signal: ctrl.signal })
+    uploadFile(item.file, { purpose, onProgress: (p) => update(item.key, { progress: p }), signal: ctrl.signal })
       .then((mediaId) => update(item.key, { state: "done", mediaId, progress: 1 }))
       .catch((err) => (err as Error).name !== "AbortError" && update(item.key, { state: "error", error: errorMessage(err) }));
   }
@@ -70,6 +71,12 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
 
   return (
     <div className="space-y-3">
+      {compact ? (
+        <>
+          <Button size="sm" variant="ghost" icon="upload" onClick={() => input.current?.click()} disabled={items.length >= max} aria-label="Attach a recording or photo">Attach</Button>
+          <input ref={input} type="file" multiple hidden accept={[kinds.video && "video/mp4,video/quicktime,video/webm,.mkv", kinds.audio && "audio/*", "image/jpeg,image/png,image/webp"].filter(Boolean).join(",")} onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
+        </>
+      ) : (
       <div
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
@@ -83,6 +90,7 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
         <Button size="sm" icon="upload" onClick={() => input.current?.click()} disabled={items.length >= max}>Choose files</Button>
         <input ref={input} type="file" multiple hidden accept={[kinds.video && "video/mp4,video/quicktime,video/webm,.mkv", kinds.audio && "audio/*", "image/jpeg,image/png,image/webp"].filter(Boolean).join(",")} onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
       </div>
+      )}
       {items.length > 0 && (
         <ul className="space-y-2" aria-live="polite">
           {items.map((i) => (

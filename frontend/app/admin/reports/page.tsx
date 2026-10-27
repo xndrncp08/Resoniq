@@ -16,6 +16,7 @@ function actionFor(type: ReportTarget, id: string) {
   if (type === "COMMENT") return <AdminAction url={`/api/comments/${id}/moderation`} body={{ action: "remove" }} label="Remove comment" variant="danger" reason={{ field: "reason", placeholder: "Reason shown to the author" }} />;
   if (type === "MEDIA") return <AdminAction url={`/api/media/${id}/moderation`} body={{ action: "remove" }} label="Take down media" variant="danger" reason={{ field: "reason", placeholder: "e.g. Copyright: unlicensed studio recording" }} />;
   if (type === "TONE") return <AdminAction url={`/api/admin/tones/${id}`} body={{ action: "unpublish" }} label="Unpublish tone" variant="danger" reason={{ field: "reason", placeholder: "Reason shown to the creator" }} />;
+  if (type === "MESSAGE") return <AdminAction url={`/api/admin/messages/${id}`} body={{ action: "remove" }} label="Remove message" variant="danger" reason={{ field: "reason", placeholder: "Reason shown to the sender" }} />;
   if (type === "USER") return <Link href={`/admin/users/${id}`} className="font-body text-sm text-copper hover:underline">Open member →</Link>;
   return <Link href="/admin/communities" className="font-body text-sm text-copper hover:underline">Manage communities →</Link>;
 }
