@@ -13,6 +13,8 @@ import { Button } from "@/components/app/ui";
 import { Meter, StudioKnob, StudioSwitch } from "@/components/studio/controls";
 import { useStudioAudio, type SourceKind } from "@/components/studio/useStudioAudio";
 import { createStudioStore, isDirty, type StudioState, type StudioStore, type StudioView } from "@/lib/stores/studio-store";
+import { describeEdit } from "@/lib/studio/readout";
+import { useConfirmLeave, useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import { AMP_DESIGNS, AMP_MODELS, CAB_DESIGNS, CAB_MODELS, EFFECT_DESIGNS, EFFECT_TYPES, FACTORY_PRESETS, GATE_RANGE, LEVEL_RANGE, MAX_EFFECTS, newEffect, orderEffects, type AmpKnob, type AmpSwitch, type EffectType, type StudioPatch } from "@/lib/studio/patch";
 import type { StudioDevice } from "@/lib/studio/devices";
 import { patchFromTone } from "@/lib/studio/from-tone";
@@ -137,8 +139,11 @@ function PresetBar({ origin }: { origin: StudioOrigin }) {
   const current = origin.toneId ? `tone:${origin.toneId}` : "";
   const [factory, setFactory] = useState("");
   const value = current || factory;
+  const confirmLeave = useConfirmLeave();
 
-  function choose(v: string) {
+  async function choose(v: string) {
+    // Opening another sound replaces this one: ask if it has unsaved changes.
+    if (!(await confirmLeave())) return;
     if (v.startsWith("factory:")) {
       const f = FACTORY_PRESETS.find((x) => `factory:${x.id}` === v);
       if (f) {
@@ -254,21 +259,6 @@ function Stage({ audio, onPower }: { audio: ReturnType<typeof useStudioAudio>; o
       </div>
     </div>
   );
-}
-
-function describeEdit(key: string, p: StudioPatch): string | null {
-  const [area, a, b] = key.split(".");
-  if (area === "amp" && a in p.amp) {
-    const v = p.amp[a as AmpKnob];
-    return typeof v === "number" ? `${a.toUpperCase()} ${v.toFixed(1)}` : `${a.toUpperCase()} ${v ? "ON" : "OFF"}`;
-  }
-  if (area === "cab") return `MIC ${a === "micPosition" ? "POSITION" : "DISTANCE"} ${p.cab[a as "micPosition"].toFixed(1)}`;
-  if (area === "fx") {
-    const e = p.effects.find((x) => x.id === a);
-    if (!e) return null;
-    return b === "on" ? `${EFFECT_DESIGNS[e.type].name.toUpperCase()} ${e.on ? "ON" : "OFF"}` : `${b.toUpperCase()} ${e.params[b]?.toFixed(1)}`;
-  }
-  return null;
 }
 
 /** Without WebGL (or with 3D hidden), the stage still shows the rig as it's set. */
@@ -578,13 +568,17 @@ function Studio({ origin, from, context }: { origin: StudioOrigin; from: string;
   const [saving, setSaving] = useState<SaveMode | null>(null);
   const save = useSaveStudio(userId ?? "");
 
-  // Don't lose an unsaved sound to a closed tab.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Closing the tab, following a link or opening another sound asks first. A sound you own saves in place from the prompt.
+  const canUpdate = !!userId && origin.isOwner && !!origin.toneId;
+  useUnsavedChanges({
+    dirty,
+    label: "your studio sound",
+    save: canUpdate ? async () => {
+      const patch = store.getState().patch;
+      await save.mutateAsync({ patch, origin, mode: "update", name: origin.name });
+      store.getState().markSaved(patch);
+    } : undefined,
+  });
 
   // The amp's power switch: stop, or start again from the last source (a file needs picking again, so the demo stands in).
   const togglePower = () => (audio.status.state === "playing" ? audio.stop() : void audio.start(audio.status.source && audio.status.source !== "file" ? audio.status.source : "demo"));

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePageActor } from "@/lib/session";
 import { isSuspended } from "@/lib/authz";
@@ -10,6 +11,7 @@ import { getRig } from "@/lib/portfolio";
 import { isOpenTo } from "@/lib/portfolio-options";
 import { ResendVerification } from "@/components/auth/TokenForms";
 import { mailConfigured } from "@/lib/mailer";
+import { CookieSettingsButton } from "@/components/consent/Consent";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -66,6 +68,11 @@ export default async function SettingsPage() {
           <li>Uploaded audio for analysis is private to you; only the recipe is shared when you share a tone.</li>
           <li>Photos are re-encoded on upload, which strips location and camera metadata.</li>
         </ul>
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
+          <CookieSettingsButton className="focus-ring rounded-full border border-line-strong px-4 py-2 font-body text-sm text-ink hover:border-copper/50" />
+          <Link href="/cookies" className="font-body text-sm text-copper hover:underline">Cookie policy</Link>
+          <span className="font-body text-xs text-muted">Choose whether this browser remembers your settings, drafts and practice notes.</span>
+        </div>
       </section>
       <DangerZone handle={u.handle} hasPassword={!!u.passwordHash} />
     </div>

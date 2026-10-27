@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Avatar, Button, TimeAgo } from "@/components/app/ui";
 import RichText from "@/components/app/RichText";
 import MentionTextarea from "@/components/social/MentionTextarea";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import VoteControl from "@/components/social/VoteControl";
 import { buildTree, type TreeNode } from "@/lib/comment-tree";
 import { api, errorMessage } from "@/lib/client-api";
@@ -21,9 +22,11 @@ function Composer({ postId, parentId, onDone, autoFocus = false, placeholder = "
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A half-written comment is worth a question before leaving the page.
+  useUnsavedChanges({ dirty: !!body.trim(), label: parentId ? "your reply" : "your comment" });
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!body.trim()) return;
+    if (!body.trim() || busy) return;
     setBusy(true);
     setError(null);
     try {

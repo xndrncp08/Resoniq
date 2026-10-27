@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { CookieSettingsButton } from "@/components/consent/Consent";
 
 const COLUMNS: [string, [string, string][]][] = [
   ["Play", [["Practice room", "/practice"], ["Feed", "/feed"], ["Explore", "/explore"], ["Musicians", "/musicians"], ["Communities", "/c"], ["Tones", "/tones"], ["Gear", "/gear"]]],
   ["Create", [["Share a post", "/new"], ["Share a rig", "/tones/new"], ["Analyze a song", "/analyze"], ["Tone vault", "/library"]]],
-  ["Trust", [["Privacy", "/privacy"], ["Terms", "/terms"], ["Copyright", "/copyright"], ["Appeals", "/appeals"], ["Credits", "/credits"]]],
+  ["Trust", [["Privacy", "/privacy"], ["Cookies", "/cookies"], ["Terms", "/terms"], ["Copyright", "/copyright"], ["Appeals", "/appeals"], ["Credits", "/credits"]]],
 ];
 
 export default function Footer() {
@@ -20,6 +21,7 @@ export default function Footer() {
             <p className="label-engraved mb-3">{title}</p>
             <ul className="space-y-2 font-body text-sm">
               {links.map(([label, href]) => <li key={href}><Link href={href} className="focus-ring rounded text-ink-dim hover:text-ink">{label}</Link></li>)}
+              {title === "Trust" && <li><CookieSettingsButton className="focus-ring rounded text-ink-dim hover:text-ink" /></li>}
             </ul>
           </nav>
         ))}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Provenance } from "@/components/app/ui";
 import RigEditor, { emptyRig, rigIsEmpty } from "@/components/tone/rig/RigEditor";
 import { api, errorMessage } from "@/lib/client-api";
+import { SaveStatus, useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import type { RigSpec } from "@/types/rig";
 
 export default function ToneEditor({ tone }: { tone: { id: string | null; name: string; description: string | null; visibility: string; rig: RigSpec | null; hasInferred: boolean; generated?: boolean } }) {
@@ -15,9 +16,12 @@ export default function ToneEditor({ tone }: { tone: { id: string | null; name: 
   const [rig, setRig] = useState<RigSpec>(tone.rig ?? emptyRig());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const snapshot = (n: string, d: string, v: string, r: RigSpec) => JSON.stringify([n.trim(), d.trim(), v, rigIsEmpty(r) ? null : r]);
+  const [saved, setSaved] = useState(() => snapshot(tone.name, tone.description ?? "", tone.visibility, tone.rig ?? emptyRig()));
+  const dirty = snapshot(name, description, visibility, rig) !== saved;
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  /** Saves and returns the tone id; throws on failure so nothing is marked saved. */
+  async function persist() {
     setBusy(true);
     setError(null);
     const body = { name, description: description || null, visibility, rig: rigIsEmpty(rig) ? null : rig };
@@ -25,12 +29,24 @@ export default function ToneEditor({ tone }: { tone: { id: string | null; name: 
       const id = tone.id
         ? (await api<{ tone: { id: string } }>(`/api/tones/${tone.id}`, { method: "PATCH", body })).tone.id
         : (await api<{ tone: { id: string } }>("/api/tones", { body })).tone.id;
-      router.push(`/t/${id}`);
-      router.refresh();
+      setSaved(snapshot(name, description, visibility, rig));
+      return id;
     } catch (err) {
       setError(errorMessage(err));
+      throw err;
+    } finally {
       setBusy(false);
     }
+  }
+  const { confirmLeave } = useUnsavedChanges({ dirty, label: "this tone", save: name.trim() ? persist : undefined });
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    const id = await persist().catch(() => null);
+    if (!id) return;
+    router.push(`/t/${id}`);
+    router.refresh();
   }
 
   return (
@@ -52,9 +68,9 @@ export default function ToneEditor({ tone }: { tone: { id: string | null; name: 
         <p className="font-body text-sm text-muted">{tone.generated ? "This starts from generated settings. Your edits preserve that provenance and credit the original tone." : <>Everything is optional. Share as much or as little of your setup as you like{tone.hasInferred ? "; Resoniq's inferred recipe stays separate and labelled" : ""}.</>}</p>
         <RigEditor value={rig} onChange={setRig} />
       </div>
-      {error && <p role="alert" className="font-body text-sm text-danger">{error}</p>}
-      <div className="flex justify-end gap-2">
-        <Button onClick={() => router.back()}>Cancel</Button>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <SaveStatus state={busy ? "saving" : error ? "failed" : dirty ? "unsaved" : "idle"} error={error} className="mr-auto" />
+        <Button onClick={async () => { if (await confirmLeave()) router.back(); }}>Cancel</Button>
         <Button type="submit" variant="primary" disabled={busy}>{busy ? "Saving…" : "Save tone"}</Button>
       </div>
     </form>

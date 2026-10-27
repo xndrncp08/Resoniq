@@ -2,7 +2,7 @@ import type { RecipeCore } from "@/types/tone";
 import type { RigSpec } from "@/types/rig";
 import { isTankG } from "@/lib/devices/tank-g";
 import { cabFromSpeakers, constrainToDevice, patchFromTankG, TANK_G_STUDIO } from "@/lib/studio/devices";
-import { defaultPatch, knob10, newEffect, orderEffects, MAX_EFFECTS, type AmpModelId, type Effect, type EffectType, type StudioPatch } from "@/lib/studio/patch";
+import { defaultPatch, knob10, newEffect, normalizeStudioPatch, orderEffects, MAX_EFFECTS, type AmpModelId, type Effect, type EffectType, type StudioPatch } from "@/lib/studio/patch";
 
 /**
  * Opens anything Resoniq knows about a sound in the studio: a saved studio
@@ -101,9 +101,15 @@ export type StudioSource = { studio: StudioPatch | null; declared: RigSpec | nul
 
 /** Which patch a tone opens as, and whether it's in device mode. */
 export function patchFromTone(t: StudioSource): { patch: StudioPatch; device: typeof TANK_G_STUDIO | null; from: "studio" | "device" | "analysis" | "rig" | "default" } {
-  if (isTankG(t.declared)) return { patch: constrainToDevice(patchFromTankG(t.declared), TANK_G_STUDIO), device: TANK_G_STUDIO, from: "device" };
-  if (t.studio) return { patch: t.studio, device: null, from: "studio" };
-  if (t.inferred) return { patch: patchFromRecipe(t.inferred), device: null, from: "analysis" };
-  if (t.declared) return { patch: patchFromRig(t.declared), device: null, from: "rig" };
-  return { patch: defaultPatch(), device: null, from: "default" };
+  const [patch, device, from] = pickSource(t);
+  // Whatever the source (old saves, legacy recipes, hand-written rigs), the studio only ever sees a valid patch.
+  return { patch: normalizeStudioPatch(patch), device, from };
+}
+
+function pickSource(t: StudioSource): [StudioPatch, typeof TANK_G_STUDIO | null, "studio" | "device" | "analysis" | "rig" | "default"] {
+  if (isTankG(t.declared)) return [constrainToDevice(patchFromTankG(t.declared), TANK_G_STUDIO), TANK_G_STUDIO, "device"];
+  if (t.studio) return [t.studio, null, "studio"];
+  if (t.inferred) return [patchFromRecipe(t.inferred), null, "analysis"];
+  if (t.declared) return [patchFromRig(t.declared), null, "rig"];
+  return [defaultPatch(), null, "default"];
 }

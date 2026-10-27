@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { StudioPatch } from "@/lib/studio/patch";
+import { normalizeStudioPatch, type StudioPatch } from "@/lib/studio/patch";
 import { constrainToDevice, type StudioDevice } from "@/lib/studio/devices";
 
 export type StudioView = "amp" | "cab" | "fx";
@@ -39,8 +39,9 @@ const COALESCE_MS = 700;
 export const isDirty = (s: Pick<StudioState, "patch" | "saved">) => JSON.stringify(s.patch) !== JSON.stringify(s.saved);
 
 export function createStudioStore(initial: StudioPatch, device: StudioDevice | null = null, now = () => Date.now()) {
-  const fit = (p: StudioPatch) => (device ? constrainToDevice(p, device) : p);
-  const start = fit(structuredClone(initial));
+  // Starting points and loaded presets may come from older saves: always hold a valid patch.
+  const fit = (p: StudioPatch) => { const n = normalizeStudioPatch(p); return device ? constrainToDevice(n, device) : n; };
+  const start = fit(initial);
   return createStore<StudioState>()((set, get) => {
     // Every change to the active patch goes through here, so slots and history never disagree.
     const commit = (next: StudioPatch, key: string | null) => {
@@ -68,7 +69,7 @@ export function createStudioStore(initial: StudioPatch, device: StudioDevice | n
       view: "amp",
       lastEdit: null,
       edit: (key, change) => commit(fit(change(structuredClone(get().patch))), key),
-      load: (patch) => commit(fit(structuredClone(patch)), null),
+      load: (patch) => commit(fit(patch), null),
       undo: () => {
         const s = get();
         const prev = s.past.at(-1);

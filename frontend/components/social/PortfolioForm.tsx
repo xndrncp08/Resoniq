@@ -9,6 +9,7 @@ import Icon from "@/components/icons/Icon";
 import { Button, IconButton } from "@/components/app/ui";
 import { KIND_ICON, KIND_LABEL } from "@/components/tone/gear-icons";
 import { api, errorMessage } from "@/lib/client-api";
+import { SaveStatus, saveState, useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import { MAX_INFLUENCES, MAX_LOCATION, MAX_RIG, MAX_RIG_NOTE, OPEN_TO, type OpenTo } from "@/lib/portfolio-options";
 
 export type PortfolioValues = { location: string | null; openTo: OpenTo[]; influences: string[]; pinnedPostId: string | null; signatureToneId: string | null };
@@ -18,23 +19,20 @@ type Option = { id: string; label: string };
 
 const field = "panel-inset mt-2 w-full rounded-xl px-3 font-body text-[15px] outline-none focus:border-copper/60";
 
-function Status({ m }: { m: { isPending: boolean; isSuccess: boolean; error: Error | null } }) {
-  return (
-    <p role="status" aria-live="polite" className="font-body text-sm">
-      {m.isPending ? <span className="text-muted">Saving…</span> : m.error ? <span className="text-danger">{errorMessage(m.error)}</span> : m.isSuccess ? <span className="text-signal">Saved.</span> : null}
-    </p>
-  );
-}
-
 /** Where they play, what they're open to, who shaped them, and what they lead with. */
 export function MusicianshipForm({ initial, tones, posts }: { initial: PortfolioValues; tones: Option[]; posts: Option[] }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [influences, setInfluences] = useState(initial.influences.join(", "));
+  const list = (t: string) => t.split(",").map((s) => s.trim()).filter(Boolean);
+  const [saved, setSaved] = useState(() => JSON.stringify({ ...initial, influences: initial.influences }));
+  const current = JSON.stringify({ ...v, location: v.location?.trim() || null, influences: list(influences) });
+  const dirty = current !== saved;
   const save = useMutation({
-    mutationFn: () => api("/api/me", { method: "PATCH", body: { ...v, influences: influences.split(",").map((s) => s.trim()).filter(Boolean) } }),
-    onSuccess: () => router.refresh(),
+    mutationFn: () => api("/api/me", { method: "PATCH", body: { ...v, influences: list(influences) } }),
+    onSuccess: () => { setSaved(current); router.refresh(); },
   });
+  useUnsavedChanges({ dirty, label: "your musicianship", save: () => save.mutateAsync() });
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="panel space-y-5 p-5">
@@ -66,7 +64,11 @@ export function MusicianshipForm({ initial, tones, posts }: { initial: Portfolio
           <span className="mt-1 block font-body text-xs text-muted">The take or post people see first.</span>
         </label>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-3"><Status m={save} /><Button type="submit" variant="primary" disabled={save.isPending}>Save musicianship</Button></div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <SaveStatus state={saveState(save, dirty)} error={save.error ? errorMessage(save.error) : null} className="mr-auto" />
+        {dirty && <Button variant="ghost" disabled={save.isPending} onClick={() => { const s = JSON.parse(saved) as PortfolioValues; setV(s); setInfluences(s.influences.join(", ")); save.reset(); }}>Cancel</Button>}
+        <Button type="submit" variant="primary" disabled={save.isPending || !dirty}>{save.isPending ? "Saving…" : "Save musicianship"}</Button>
+      </div>
     </form>
   );
 }
@@ -99,6 +101,7 @@ export function RigBuilder({ initial }: { initial: RigRow[] }) {
     onSuccess: ({ items }) => { setRig(items); setSaved(items); router.refresh(); },
   });
   const dirty = JSON.stringify(rig) !== JSON.stringify(saved);
+  useUnsavedChanges({ dirty, label: "your rig", save: () => save.mutateAsync() });
   const listed = new Set(rig.map((r) => r.gear.id));
   const move = (i: number, d: -1 | 1) => setRig((r) => { const n = [...r]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
 
@@ -143,8 +146,9 @@ export function RigBuilder({ initial }: { initial: RigRow[] }) {
         <p className="font-body text-sm text-muted">Nothing listed yet. Add the instruments, amps and pedals you actually play.</p>
       )}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Status m={save} />
-        <Button variant="primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>Save rig</Button>
+        <SaveStatus state={saveState(save, dirty)} error={save.error ? errorMessage(save.error) : null} className="mr-auto" />
+        {dirty && <Button variant="ghost" disabled={save.isPending} onClick={() => { setRig(saved); save.reset(); }}>Cancel</Button>}
+        <Button variant="primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save rig"}</Button>
       </div>
     </div>
   );

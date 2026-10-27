@@ -2,7 +2,10 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { auth } from "@/auth";
+import { cookies } from "next/headers";
 import SessionProvider from "@/components/providers/SessionProvider";
+import { ConsentProvider } from "@/components/consent/Consent";
+import { CONSENT_COOKIE, parseConsent } from "@/lib/consent";
 
 // Bundled fonts keep builds offline and font-src limited to 'self'.
 const display = localFont({ src: "../public/fonts/space-grotesk-latin.woff2", weight: "500 700", variable: "--font-space-grotesk", display: "swap" });
@@ -35,7 +38,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const [session, jar] = await Promise.all([auth(), cookies()]);
+  // Read on the server so a returning visitor never sees the banner flash.
+  const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value);
 
   return (
     <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable} ${mono.variable}`}>
@@ -44,7 +49,7 @@ export default async function RootLayout({
           <a href="#main" className="focus-ring sr-only z-[100] rounded-full bg-copper px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
             Skip to content
           </a>
-          {children}
+          <ConsentProvider initial={consent}>{children}</ConsentProvider>
         </SessionProvider>
       </body>
     </html>

@@ -4,6 +4,7 @@ import { Avatar, compact } from "@/components/app/ui";
 import { popularGear } from "@/lib/gear";
 import { playMates, risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
 import { INSTRUMENT_LABEL, type Instrument } from "@/lib/instruments";
+import { CookieSettingsButton } from "@/components/consent/Consent";
 
 /** The right-hand discovery column on wide screens. Sections with nothing real to show are left out. */
 export default async function SideRail({ viewerId }: { viewerId: string | null }) {
@@ -92,7 +93,7 @@ export default async function SideRail({ viewerId }: { viewerId: string | null }
         </section>
       )}
       <p className="px-2 font-body text-xs leading-relaxed text-muted">
-        <Link href="/privacy" className="hover:text-ink">Privacy</Link> · <Link href="/terms" className="hover:text-ink">Terms</Link> · <Link href="/copyright" className="hover:text-ink">Copyright</Link> · <Link href="/appeals" className="hover:text-ink">Appeals</Link> · <Link href="/" className="hover:text-ink">About Resoniq</Link>
+        <Link href="/privacy" className="hover:text-ink">Privacy</Link> · <Link href="/cookies" className="hover:text-ink">Cookies</Link> · <CookieSettingsButton className="hover:text-ink" /> · <Link href="/terms" className="hover:text-ink">Terms</Link> · <Link href="/copyright" className="hover:text-ink">Copyright</Link> · <Link href="/appeals" className="hover:text-ink">Appeals</Link> · <Link href="/" className="hover:text-ink">About Resoniq</Link>
       </p>
     </aside>
   );

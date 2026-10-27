@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import Dialog from "@/components/app/Dialog";
 import { Button } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
@@ -24,6 +25,9 @@ export default function ReportDialog({ open, onClose, targetType, targetId }: { 
   const [details, setDetails] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+  // Closing with a written report asks first; an empty or sent one just closes.
+  const { confirmLeave } = useUnsavedChanges({ dirty: open && state === "idle" && !!details.trim(), label: "your report" });
+  const close = async () => { if (await confirmLeave()) onClose(); };
   const needsDetails = reason === "COPYRIGHT" || reason === "OTHER";
 
   async function submit(e: React.FormEvent) {
@@ -40,7 +44,7 @@ export default function ReportDialog({ open, onClose, targetType, targetId }: { 
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title="Report">
+    <Dialog open={open} onClose={close} title="Report">
       {state === "done" ? (
         <div className="space-y-4 font-body text-sm text-ink-dim">
           <p>Thanks. A moderator will review it. Repeat reports from different people put content on hold automatically until someone looks.</p>

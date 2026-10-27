@@ -241,6 +241,73 @@ export function parseStudioPatch(v: unknown): StudioPatch {
   };
 }
 
+// ── Reading (lenient: stored and legacy patches never crash the studio) ─
+
+const record = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+/** A number from a number or numeric string ("3", "3.5"); otherwise the fallback. */
+function toNum(v: unknown, fallback: number, lo: number, hi: number): number {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) ? round1(clamp(n, lo, hi)) : fallback;
+}
+function toBool(v: unknown, fallback: boolean): boolean {
+  if (typeof v === "boolean") return v;
+  if (v === "true" || v === 1 || v === "1") return true;
+  if (v === "false" || v === 0 || v === "0") return false;
+  return fallback;
+}
+const pick = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
+
+/**
+ * Any stored or legacy patch as a valid StudioPatch: numeric strings become
+ * numbers, out-of-range values are clamped, unknown models and missing values
+ * fall back to the defaults, and unknown effects are dropped. Never throws.
+ * (parseStudioPatch stays strict for writes.)
+ */
+export function normalizeStudioPatch(v: unknown): StudioPatch {
+  const p = record(v);
+  const amp = record(p.amp);
+  const cab = record(p.cab);
+  const gate = record(p.gate);
+  const base = defaultPatch(pick(amp.model, AMP_MODELS, "halcyon"));
+  const ids = new Set<string>();
+  const effects = (Array.isArray(p.effects) ? p.effects : []).flatMap((raw): Effect[] => {
+    const e = record(raw);
+    if (!EFFECT_TYPES.includes(e.type as EffectType)) return [];
+    const type = e.type as EffectType;
+    const d = EFFECT_DESIGNS[type];
+    const id = typeof e.id === "string" && /^[\w-]{1,64}$/.test(e.id) && !ids.has(e.id) ? e.id : effectId(type);
+    ids.add(id);
+    const params = record(e.params);
+    return [{
+      id,
+      type,
+      on: toBool(e.on, true),
+      ...(d.voices && { voice: pick(e.voice, d.voices, d.voices[0]) }),
+      params: Object.fromEntries(d.params.map((s) => [s.key, toNum(params[s.key], s.default, 0, 10)])),
+    }];
+  }).slice(0, MAX_EFFECTS);
+  const device = record(p.device);
+  return {
+    v: 1,
+    input: toNum(p.input, base.input, LEVEL_RANGE.min, LEVEL_RANGE.max),
+    output: toNum(p.output, base.output, LEVEL_RANGE.min, LEVEL_RANGE.max),
+    gate: { on: toBool(gate.on, base.gate.on), threshold: toNum(gate.threshold, base.gate.threshold, GATE_RANGE.min, GATE_RANGE.max) },
+    amp: {
+      model: base.amp.model,
+      ...(Object.fromEntries(AMP_KNOBS.map((k) => [k, toNum(amp[k], base.amp[k], 0, 10)])) as Record<AmpKnob, number>),
+      ...(Object.fromEntries(AMP_SWITCHES.map((k) => [k, toBool(amp[k], base.amp[k])])) as Record<AmpSwitch, boolean>),
+    },
+    cab: {
+      model: pick(cab.model, CAB_MODELS, base.cab.model),
+      on: toBool(cab.on, base.cab.on),
+      micPosition: toNum(cab.micPosition, base.cab.micPosition, 0, 10),
+      micDistance: toNum(cab.micDistance, base.cab.micDistance, 0, 10),
+    },
+    effects: orderEffects(effects),
+    ...(typeof device.slug === "string" && /^[a-z0-9-]{1,40}$/.test(device.slug) && { device: { slug: device.slug, ampSlot: toNum(device.ampSlot, 1, 1, 99) } }),
+  };
+}
+
 // ── Factory starting points (not stored until someone saves one) ───────
 
 const fx = (type: EffectType, params: Record<string, number> = {}, voice?: string): Effect => {

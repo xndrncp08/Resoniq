@@ -35,7 +35,7 @@ export default function TermsPage() {
       <p>Resoniq is provided as is, without warranties. To the extent the law allows, the operator isn&apos;t liable for indirect losses, lost data or damage from using the service or any setting found on it.</p>
 
       <H>Changes</H>
-      <p>These terms may change; the current version is always on this page. Your data is handled as described in the <Link href="/privacy" className="text-copper underline underline-offset-2 hover:text-copper-soft">Privacy</Link> page. You can stop using Resoniq and delete your account at any time.</p>
+      <p>These terms may change; the current version is always on this page. Your data is handled as described in the <Link href="/privacy" className="text-copper underline underline-offset-2 hover:text-copper-soft">Privacy</Link> page, and cookies and browser storage as described in the <Link href="/cookies" className="text-copper underline underline-offset-2 hover:text-copper-soft">Cookie policy</Link>. You can stop using Resoniq and delete your account at any time.</p>
     </article>
   );
 }
