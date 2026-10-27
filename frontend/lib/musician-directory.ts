@@ -12,6 +12,7 @@ export function parseMusicianFilters(params: DirectoryParams) {
   const open = OPEN_TO.find((o) => o.id === params.open)?.id;
   return {
     open,
+    available: params.available === "1" ? ("1" as const) : undefined,
     q: text(params.q).replace(/^@/, "").slice(0, 100),
     instrument,
     genre,
@@ -23,7 +24,7 @@ export type MusicianFilters = ReturnType<typeof parseMusicianFilters>;
 
 export function musicianDirectoryHref(filters: Partial<MusicianFilters> = {}) {
   const params = new URLSearchParams();
-  for (const key of ["q", "instrument", "genre", "open", "after"] as const) {
+  for (const key of ["q", "instrument", "genre", "open", "available", "after"] as const) {
     if (filters[key]) params.set(key, filters[key]);
   }
   return `/musicians${params.size ? `?${params}` : ""}`;

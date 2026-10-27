@@ -10,9 +10,10 @@ import { Button, IconButton } from "@/components/app/ui";
 import { KIND_ICON, KIND_LABEL } from "@/components/tone/gear-icons";
 import { api, errorMessage } from "@/lib/client-api";
 import { SaveStatus, saveState, useUnsavedChanges } from "@/components/app/UnsavedChanges";
-import { MAX_INFLUENCES, MAX_LOCATION, MAX_RIG, MAX_RIG_NOTE, OPEN_TO, type OpenTo } from "@/lib/portfolio-options";
+import { MAX_AVAILABILITY_NOTE, MAX_HIGHLIGHTS, MAX_INFLUENCES, MAX_LOCATION, MAX_RIG, MAX_RIG_NOTE, OPEN_TO, type OpenTo } from "@/lib/portfolio-options";
 
-export type PortfolioValues = { location: string | null; openTo: OpenTo[]; influences: string[]; pinnedPostId: string | null; signatureToneId: string | null };
+/** availableUntil is a yyyy-mm-dd date (or null); highlights are one per line in the form. */
+export type PortfolioValues = { location: string | null; openTo: OpenTo[]; influences: string[]; pinnedPostId: string | null; signatureToneId: string | null; availableUntil: string | null; availabilityNote: string | null; playingSince: number | null; highlights: string[] };
 type Gear = { id: string; slug: string; kind: GearKind; brand: string; model: string };
 type RigRow = { gear: Gear; note: string | null };
 type Option = { id: string; label: string };
@@ -24,12 +25,15 @@ export function MusicianshipForm({ initial, tones, posts }: { initial: Portfolio
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [influences, setInfluences] = useState(initial.influences.join(", "));
+  const [highlights, setHighlights] = useState(initial.highlights.join("\n"));
   const list = (t: string) => t.split(",").map((s) => s.trim()).filter(Boolean);
-  const [saved, setSaved] = useState(() => JSON.stringify({ ...initial, influences: initial.influences }));
-  const current = JSON.stringify({ ...v, location: v.location?.trim() || null, influences: list(influences) });
+  const lines = (t: string) => t.split("\n").map((s) => s.trim()).filter(Boolean);
+  const [saved, setSaved] = useState(() => JSON.stringify(initial));
+  const values = { ...v, location: v.location?.trim() || null, availabilityNote: v.availabilityNote?.trim() || null, influences: list(influences), highlights: lines(highlights) };
+  const current = JSON.stringify(values);
   const dirty = current !== saved;
   const save = useMutation({
-    mutationFn: () => api("/api/me", { method: "PATCH", body: { ...v, influences: list(influences) } }),
+    mutationFn: () => api("/api/me", { method: "PATCH", body: values }),
     onSuccess: () => { setSaved(current); router.refresh(); },
   });
   useUnsavedChanges({ dirty, label: "your musicianship", save: () => save.mutateAsync() });
@@ -56,6 +60,13 @@ export function MusicianshipForm({ initial, tones, posts }: { initial: Portfolio
           </select>
           <span className="mt-1 block font-body text-xs text-muted">{tones.length ? "One of your public tones, shown on its amp at the top of your profile." : "Make one of your tones public to feature it here."}</span>
         </label>
+        <label className="block"><span className="label-engraved">Available for sessions until</span>
+          <input type="date" value={v.availableUntil ?? ""} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setV({ ...v, availableUntil: e.target.value || null })} className={`${field} h-11`} />
+          <span className="mt-1 block font-body text-xs text-muted">Shown as available until then; it switches off by itself.</span>
+        </label>
+        <label className="block"><span className="label-engraved">Availability note</span><input value={v.availabilityNote ?? ""} onChange={(e) => setV({ ...v, availabilityNote: e.target.value })} maxLength={MAX_AVAILABILITY_NOTE} placeholder="Weekends, remote tracking" className={`${field} h-11`} /></label>
+        <label className="block"><span className="label-engraved">Playing since</span><input type="number" inputMode="numeric" min={1930} max={new Date().getFullYear()} value={v.playingSince ?? ""} onChange={(e) => setV({ ...v, playingSince: e.target.value ? Number(e.target.value) : null })} placeholder="e.g. 2012" className={`${field} h-11`} /></label>
+        <label className="block sm:col-span-2"><span className="label-engraved">Highlights, one per line</span><textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} rows={3} placeholder={"Toured with a 6-piece funk band\nGrade 8 classical guitar\nTracked bass on an indie EP"} className={`${field} py-2`} /><span className="mt-1 block font-body text-xs text-muted">Things you&apos;re proud of, up to {MAX_HIGHLIGHTS}. Shown on your profile.</span></label>
         <label className="block"><span className="label-engraved">Pinned post</span>
           <select value={v.pinnedPostId ?? ""} onChange={(e) => setV({ ...v, pinnedPostId: e.target.value || null })} className={`${field} h-11`}>
             <option value="">None</option>
@@ -66,7 +77,7 @@ export function MusicianshipForm({ initial, tones, posts }: { initial: Portfolio
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <SaveStatus state={saveState(save, dirty)} error={save.error ? errorMessage(save.error) : null} className="mr-auto" />
-        {dirty && <Button variant="ghost" disabled={save.isPending} onClick={() => { const s = JSON.parse(saved) as PortfolioValues; setV(s); setInfluences(s.influences.join(", ")); save.reset(); }}>Cancel</Button>}
+        {dirty && <Button variant="ghost" disabled={save.isPending} onClick={() => { const s = JSON.parse(saved) as PortfolioValues; setV(s); setInfluences(s.influences.join(", ")); setHighlights(s.highlights.join("\n")); save.reset(); }}>Cancel</Button>}
         <Button type="submit" variant="primary" disabled={save.isPending || !dirty}>{save.isPending ? "Saving…" : "Save musicianship"}</Button>
       </div>
     </form>

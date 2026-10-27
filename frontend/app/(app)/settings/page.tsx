@@ -12,6 +12,8 @@ import { isOpenTo } from "@/lib/portfolio-options";
 import { ResendVerification } from "@/components/auth/TokenForms";
 import { mailConfigured } from "@/lib/mailer";
 import { CookieSettingsButton } from "@/components/consent/Consent";
+import MessagingSettings from "@/components/social/MessagingSettings";
+import { AUTHOR_SELECT } from "@/lib/profiles";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -19,13 +21,14 @@ export default async function SettingsPage() {
   const actor = await requirePageActor("/settings");
   const u = await prisma.user.findUniqueOrThrow({
     where: { id: actor.id },
-    select: { handle: true, name: true, image: true, bannerUrl: true, bio: true, instruments: true, genres: true, links: true, email: true, emailVerified: true, passwordHash: true, createdAt: true, uploadedImage: true, providerImage: true, location: true, openTo: true, influences: true, pinnedPostId: true, signatureToneId: true },
+    select: { handle: true, name: true, image: true, bannerUrl: true, bio: true, instruments: true, genres: true, links: true, email: true, emailVerified: true, passwordHash: true, createdAt: true, uploadedImage: true, providerImage: true, location: true, openTo: true, influences: true, pinnedPostId: true, signatureToneId: true, availableUntil: true, availabilityNote: true, playingSince: true, highlights: true, dmPolicy: true },
   });
   // What can be pinned: their own public, credited tones and their recent published posts.
-  const [tones, posts, rig] = await Promise.all([
+  const [tones, posts, rig, blocks] = await Promise.all([
     prisma.tone.findMany({ where: { userId: actor.id, visibility: "PUBLIC", anonymous: false }, orderBy: { updatedAt: "desc" }, take: 50, select: { id: true, name: true } }),
     prisma.post.findMany({ where: { authorId: actor.id, status: "PUBLISHED" }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, title: true, body: true, createdAt: true } }),
     getRig(actor.id),
+    prisma.block.findMany({ where: { blockerId: actor.id }, orderBy: { createdAt: "desc" }, take: 100, select: { blocked: { select: AUTHOR_SELECT } } }),
   ]);
   const links = Array.isArray(u.links) ? (u.links as { label: string; url: string }[]) : [];
   return (
@@ -45,7 +48,7 @@ export default async function SettingsPage() {
       <section className="space-y-3">
         <div><h2 className="font-display text-xl font-semibold">Musicianship</h2><p className="mt-1 font-body text-sm text-muted">Help the right people find you: what you&apos;re up for, and the work you lead with.</p></div>
         <MusicianshipForm
-          initial={{ location: u.location, openTo: u.openTo.filter(isOpenTo), influences: u.influences, pinnedPostId: u.pinnedPostId, signatureToneId: u.signatureToneId }}
+          initial={{ location: u.location, openTo: u.openTo.filter(isOpenTo), influences: u.influences, pinnedPostId: u.pinnedPostId, signatureToneId: u.signatureToneId, availableUntil: u.availableUntil && u.availableUntil >= new Date() ? u.availableUntil.toISOString().slice(0, 10) : null, availabilityNote: u.availabilityNote, playingSince: u.playingSince, highlights: u.highlights }}
           tones={tones.map((t) => ({ id: t.id, label: t.name }))}
           posts={posts.map((p) => ({ id: p.id, label: `${(p.title || p.body || "Media post").replace(/\s+/g, " ").slice(0, 60)} · ${p.createdAt.toLocaleDateString("en", { month: "short", day: "numeric" })}` }))}
         />
@@ -60,6 +63,10 @@ export default async function SettingsPage() {
         {u.email && !u.emailVerified && u.passwordHash && mailConfigured() && <ResendVerification />}
         {u.passwordHash && <p className="font-body text-sm text-muted">Forgot your password? <a href="/forgot" className="text-copper hover:underline">Reset it by email</a>. Resetting signs you out everywhere.</p>}
         <p className="font-body text-sm text-muted">Member since {u.createdAt.toLocaleDateString("en", { month: "long", year: "numeric" })}. Your email is never shown on your profile.</p>
+      </section>
+      <section className="panel space-y-3 p-5">
+        <h2 className="font-display text-lg font-semibold">Messages</h2>
+        <MessagingSettings initial={u.dmPolicy} blocked={blocks.map((b) => ({ id: b.blocked.id, handle: b.blocked.handle, name: b.blocked.name, image: b.blocked.image }))} />
       </section>
       <section className="panel space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Privacy</h2>

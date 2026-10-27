@@ -3,7 +3,7 @@ import { normalizeHandle } from "@/lib/handles";
 import { fail } from "@/lib/validation";
 import { isReservedDisplayName } from "@/lib/system-identity";
 import { INSTRUMENTS } from "@/lib/instruments";
-import { isOpenTo, MAX_INFLUENCES, MAX_LOCATION, type OpenTo } from "@/lib/portfolio-options";
+import { DM_POLICIES, isOpenTo, MAX_AVAILABILITY_NOTE, MAX_HIGHLIGHT, MAX_HIGHLIGHTS, MAX_INFLUENCES, MAX_LOCATION, type DmPolicyId, type OpenTo } from "@/lib/portfolio-options";
 
 export { INSTRUMENTS, type Instrument } from "@/lib/instruments";
 
@@ -23,6 +23,11 @@ export type ProfilePatch = Partial<{
   influences: string[];
   pinnedPostId: string | null;
   signatureToneId: string | null;
+  availableUntil: Date | null;
+  availabilityNote: string | null;
+  playingSince: number | null;
+  highlights: string[];
+  dmPolicy: DmPolicyId;
 }>;
 
 function list(v: unknown, field: string): unknown[] {
@@ -96,6 +101,33 @@ export function parseProfilePatch(body: Record<string, unknown>): ProfilePatch {
     });
     if (items.length > MAX_INFLUENCES) fail(`Add up to ${MAX_INFLUENCES} influences.`);
     out.influences = items;
+  }
+  if (body.availableUntil !== undefined) {
+    if (body.availableUntil === null || body.availableUntil === "") out.availableUntil = null;
+    else {
+      const raw = typeof body.availableUntil === "string" ? body.availableUntil : "";
+      // A plain date means "through the end of that day".
+      const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T23:59:59.999Z` : raw || NaN);
+      const now = Date.now();
+      if (Number.isNaN(d.getTime()) || d.getTime() < now - 86_400_000 || d.getTime() > now + 366 * 86_400_000) fail("Availability runs from today for up to a year.");
+      out.availableUntil = d;
+    }
+  }
+  if (body.availabilityNote !== undefined) out.availabilityNote = optionalText(body.availabilityNote, "Availability note", MAX_AVAILABILITY_NOTE);
+  if (body.playingSince !== undefined) {
+    const y = body.playingSince === null || body.playingSince === "" ? null : Number(body.playingSince);
+    if (y !== null && (!Number.isInteger(y) || y < 1930 || y > new Date().getFullYear())) fail("Playing since needs a year between 1930 and this year.");
+    out.playingSince = y;
+  }
+  if (body.highlights !== undefined) {
+    const items = list(body.highlights, "Highlights").map((v) => (typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "")).filter(Boolean);
+    if (items.length > MAX_HIGHLIGHTS) fail(`Add up to ${MAX_HIGHLIGHTS} highlights.`);
+    if (items.some((h) => h.length > MAX_HIGHLIGHT || /[\p{Cc}<>]/u.test(h))) fail(`Highlights are up to ${MAX_HIGHLIGHT} characters of plain text.`);
+    out.highlights = items;
+  }
+  if (body.dmPolicy !== undefined) {
+    if (!DM_POLICIES.some((p) => p.id === body.dmPolicy)) fail("Unknown messaging setting.");
+    out.dmPolicy = body.dmPolicy as DmPolicyId;
   }
   for (const key of ["pinnedPostId", "signatureToneId"] as const) {
     const v = body[key];

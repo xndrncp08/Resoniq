@@ -4,7 +4,7 @@ import { AUTHOR_SELECT } from "@/lib/profiles";
 import { COMMUNITY_SELECT } from "@/lib/communities";
 import type { MusicianFilters } from "@/lib/musician-directory";
 
-export const MUSICIAN_CARD_SELECT = { id: true, handle: true, name: true, image: true, bio: true, instruments: true, genres: true, openTo: true, location: true } as const;
+export const MUSICIAN_CARD_SELECT = { id: true, handle: true, name: true, image: true, bio: true, instruments: true, genres: true, openTo: true, location: true, availableUntil: true } as const;
 
 // Guitars of any kind cover the same part of a band; every other instrument is its own role.
 const GUITARS = ["electric-guitar", "acoustic-guitar", "extended-range"];
@@ -24,7 +24,8 @@ export async function playMates(viewerId: string, limit = 6) {
       SELECT u.id, u.handle, u."followerCount",
         (SELECT count(*) FROM unnest(u.genres) g WHERE g = ANY(${me.genres}::text[])) AS shared,
         (SELECT count(*) FROM unnest(u."openTo") o WHERE o = ANY(${me.openTo}::text[])) AS open_shared,
-        (${place} <> '' AND lower(trim(coalesce(u.location, ''))) = ${place}) AS near
+        (${place} <> '' AND lower(trim(coalesce(u.location, ''))) = ${place}) AS near,
+        (u."availableUntil" IS NOT NULL AND u."availableUntil" >= now()) AS available
       FROM "User" u
       WHERE u.id <> ${viewerId} AND u.kind = 'PERSON' AND u.status = 'ACTIVE'
         AND NOT EXISTS (SELECT 1 FROM "ManagedCreator" m WHERE m."userId" = u.id)
@@ -33,7 +34,7 @@ export async function playMates(viewerId: string, limit = 6) {
         AND EXISTS (SELECT 1 FROM unnest(u.instruments) i WHERE NOT (i = ANY(${covered}::text[])))
         AND NOT EXISTS (SELECT 1 FROM "Follow" f WHERE f."followerId" = ${viewerId} AND f."followingId" = u.id)
     ) c
-    ORDER BY 2 * shared + open_shared + CASE WHEN near THEN 3 ELSE 0 END DESC, "followerCount" DESC, handle
+    ORDER BY 2 * shared + open_shared + CASE WHEN near THEN 3 ELSE 0 END + CASE WHEN available THEN 2 ELSE 0 END DESC, "followerCount" DESC, handle
     LIMIT ${limit}`;
   const users = await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: MUSICIAN_CARD_SELECT });
   const byId = new Map(users.map((u) => [u.id, u]));
@@ -51,7 +52,7 @@ export async function playMates(viewerId: string, limit = 6) {
 }
 
 /** Public member profiles only. A unique handle gives stable, inexpensive paging. */
-export async function discoverMusicians({ q, instrument, genre, open, after }: MusicianFilters) {
+export async function discoverMusicians({ q, instrument, genre, open, available, after }: MusicianFilters) {
   const limit = 24;
   const needle = q.replace(/[\\%_]/g, "\\$&");
   const rows = await prisma.user.findMany({
@@ -60,6 +61,7 @@ export async function discoverMusicians({ q, instrument, genre, open, after }: M
       ...(instrument && { instruments: { has: instrument } }),
       ...(genre && { genres: { has: genre } }),
       ...(open && { openTo: { has: open } }),
+      ...(available && { availableUntil: { gte: new Date() } }),
       ...(after && { handle: { gt: after } }),
       ...(q && { OR: [
         { handle: { contains: needle, mode: "insensitive" } },
