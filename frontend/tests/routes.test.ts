@@ -11,6 +11,7 @@ const db = {
   user: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   follow: { findUnique: vi.fn() },
   toneGear: { deleteMany: vi.fn(), createMany: vi.fn() },
+  toneVersion: { count: vi.fn(async () => 0), create: vi.fn(), findMany: vi.fn(async () => []), deleteMany: vi.fn() },
   gearItem: { count: vi.fn() },
   $transaction: vi.fn(),
   song: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },

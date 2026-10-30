@@ -13,6 +13,7 @@ import { AmpPanel, Pedalboard } from "@/components/tone/InferredPanels";
 import RigBoard from "@/components/tone/rig/RigBoard";
 import ToneActions from "@/components/tone/ToneActions";
 import ToneDnaPanel from "@/components/tone/ToneDnaPanel";
+import ToneHistory from "@/components/tone/ToneHistory";
 import { dnaFromPatch, measuredCharacter } from "@/lib/tone-dna";
 import { patchFromTone } from "@/lib/studio/from-tone";
 import type { EngineAnalysis } from "@/types/engine";
@@ -138,6 +139,16 @@ export default async function TonePage({ params }: Props) {
         </div>
         <div className="panel p-5"><ToneDnaPanel toneId={tone.id} initialDna={dna} measured={measured} /></div>
       </section>
+
+      {tone.viewer.isOwner && viewer && (
+        <section aria-labelledby="history-h" className="space-y-4">
+          <div>
+            <h2 id="history-h" className="font-display text-2xl font-semibold">History</h2>
+            <p className="mt-1 font-body text-sm text-muted">Every saved change, compared and restorable. Only you can see this.</p>
+          </div>
+          <div className="panel p-5"><ToneHistory userId={viewer.id} toneId={tone.id} /></div>
+        </section>
+      )}
 
       {heardIn.items.length > 0 && (
         <section aria-labelledby="heard-h" className="space-y-4">
