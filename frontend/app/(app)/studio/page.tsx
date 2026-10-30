@@ -25,7 +25,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const { tone, song } = await searchParams;
   return {
     title: "Amp Studio",
-    description: "Dial in amps, cabinets and effects on tactile 3D equipment, hear it live in your browser, and save the sound.",
+    description: "A guitar amp and effects workstation in your browser: ten amps, fourteen pedals, cabinets with speaker, mic and IR options, all processed live. Save, compare and share the sound.",
     // A tone can be unlisted; don't index a studio view of it.
     ...((tone || song) && { robots: { index: false, follow: false } }),
   };
@@ -52,7 +52,7 @@ export default async function StudioPage({ searchParams }: Props) {
       key={tone?.id ?? "new"}
       justSaved={!!tone?.viewer.isOwner && param(q.saved) === "1"}
       initial={{ studio: tone?.studio ?? null, declared: tone?.declared ?? null, inferred: tone?.inferred ?? null }}
-      origin={{ toneId: tone?.id ?? null, name: tone?.name ?? "New sound", isOwner: !!tone?.viewer.isOwner, deviceRig: tone?.declared?.device ? tone.declared : null }}
+      origin={{ toneId: tone?.id ?? null, name: tone?.name ?? "New sound", isOwner: !!tone?.viewer.isOwner, visibility: tone?.visibility, deviceRig: tone?.declared?.device ? tone.declared : null }}
       context={
         id && !tone ? (
           <span className="font-body text-xs text-amber">That tone isn&apos;t available, so this is a fresh start.</span>

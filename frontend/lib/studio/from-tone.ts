@@ -12,9 +12,14 @@ import { defaultPatch, knob10, newEffect, normalizeStudioPatch, orderEffects, MA
  */
 
 export function modelFor(text: string, gain0to10: number): AmpModelId {
-  if (/5150|rectifier|metal|modern|high.?gain|djent|powerball/i.test(text)) return "basalt";
-  if (/boutique|dumble|two-rock|bogner|overdrive special/i.test(text)) return "gilded";
-  if (/fender|blackface|twin|jazz|clean|jc-?120/i.test(text) && gain0to10 < 5) return "lumen";
+  if (/tweed|bassman|5e3|champ/i.test(text)) return "juniper";
+  if (/vox|ac-?(15|30)|top.?boost|class.?a/i.test(text)) return "bellwether";
+  if (/mesa|mark ?(ii|iv|v)\b|djent|uberschall|fortin/i.test(text)) return "foundry";
+  if (/dumble|overdrive special|ods\b/i.test(text)) return "monarch";
+  if (/jc-?120|roland|solid.?state|hiwatt/i.test(text) && gain0to10 < 5) return "atlas";
+  if (/5150|rectifier|metal|modern|high.?gain|powerball/i.test(text)) return "basalt";
+  if (/boutique|two-rock|bogner/i.test(text)) return "gilded";
+  if (/fender|blackface|twin|jazz|clean/i.test(text) && gain0to10 < 5) return "lumen";
   if (/plexi|marshall|jcm|jtm|crunch|vox|ac-?30|tweed|british/i.test(text)) return "halcyon";
   return gain0to10 > 6.5 ? "basalt" : gain0to10 < 3 ? "lumen" : "halcyon";
 }
@@ -25,9 +30,16 @@ export function effectFromName(name: string, kind: string): EffectType | null {
   if (/delay|echo|tape/.test(n)) return "delay";
   if (/phase|phaser/.test(n)) return "phaser";
   if (/trem/.test(n)) return "tremolo";
-  if (/chorus|flang|vibrato|modulation|uni-?vibe/.test(n)) return "chorus";
+  if (/flang|jet/.test(n)) return "flanger";
+  if (/chorus|vibrato|modulation|uni-?vibe/.test(n)) return "chorus";
+  if (/wah|cry ?baby|envelope filter/.test(n)) return "wah";
+  if (/gate|noise ?(sup|red)/.test(n)) return "gate";
+  if (/\beq\b|equali[sz]er|graphic/.test(n)) return "eq";
   if (/comp|dynamics|sustain/.test(n)) return "compressor";
-  if (/drive|dist|fuzz|boost|screamer|od\b/.test(n)) return "overdrive";
+  if (/fuzz|muff|tone ?bender/.test(n)) return "fuzz";
+  if (/dist|\brat\b|ds-?1|metal zone/.test(n)) return "distortion";
+  if (/boost/.test(n)) return "boost";
+  if (/drive|screamer|od\b/.test(n)) return "overdrive";
   return null;
 }
 
@@ -61,8 +73,8 @@ export function patchFromRecipe(recipe: RecipeCore): StudioPatch {
 }
 
 const CATEGORY: Record<string, EffectType> = {
-  boost: "overdrive", drive: "overdrive", distortion: "overdrive", fuzz: "overdrive", compressor: "compressor",
-  chorus: "chorus", flanger: "chorus", vibrato: "chorus", modulation: "chorus", phaser: "phaser", tremolo: "tremolo", delay: "delay", reverb: "reverb",
+  boost: "boost", drive: "overdrive", distortion: "distortion", fuzz: "fuzz", compressor: "compressor", wah: "wah", gate: "gate", eq: "eq",
+  chorus: "chorus", flanger: "flanger", vibrato: "chorus", modulation: "chorus", phaser: "phaser", tremolo: "tremolo", delay: "delay", reverb: "reverb",
 };
 const pick = (s: Record<string, number | string>, ...keys: string[]) => {
   for (const k of keys) for (const [name, v] of Object.entries(s)) if (name.toLowerCase() === k && typeof v === "number") return v;

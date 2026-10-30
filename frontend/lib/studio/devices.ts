@@ -88,7 +88,7 @@ export function patchFromTankG(rig: RigSpec): StudioPatch {
       : type === "reverb" ? { decay: num("Decay", 4), mix: num("Mix", 3) }
       : type === "chorus" ? { rate: num("Speed", 3), depth: 5, mix: num("Mix", 5) }
       : { rate: num("Speed", 3), depth: num(type === "phaser" ? "Depth" : "Mix", 5) };
-    effects.push({ id: /^[\w-]{1,64}$/.test(b.id) ? b.id : `${type}-${effects.length}`, type, on: true, ...((type === "delay" || type === "reverb") && { voice: String(p.Type) }), params });
+    effects.push({ id: /^[\w-]{1,64}$/.test(b.id) ? b.id : `${type}-${effects.length}`, type, on: true, placement: "post", ...((type === "delay" || type === "reverb") && { voice: String(p.Type) }), params });
   }
   return {
     ...base,
@@ -107,12 +107,13 @@ export function constrainToDevice(patch: StudioPatch, device: StudioDevice): Stu
     const e = patch.effects.find((x) => s.types.includes(x.type));
     if (!e) continue;
     const voices = device.voices[e.type];
-    kept.push({ ...e, on: true, ...(voices && { voice: voices.includes(e.voice ?? "") ? e.voice : voices[0] }) });
+    kept.push({ ...e, on: true, placement: "post", ...(voices && { voice: voices.includes(e.voice ?? "") ? e.voice : voices[0] }) });
   }
   return {
     ...patch,
     amp: { ...patch.amp, model: slot.model, presence: 5, depth: 5, bright: false, tight: false },
-    cab: { ...patch.cab, on: device.canBypassCab ? patch.cab.on : true },
+    // The hardware's cab is an IR slot: no speaker or mic choices to carry.
+    cab: { ...patch.cab, on: device.canBypassCab ? patch.cab.on : true, speaker: "stock", mic: "dynamic" },
     effects: kept,
     device: { slug: device.slug, ampSlot: slot.slot },
   };

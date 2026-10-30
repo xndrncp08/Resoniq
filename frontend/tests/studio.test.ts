@@ -28,9 +28,9 @@ describe("studio patch validation", () => {
 
   it("rejects unknown models, effects, duplicate ids and oversized chains", () => {
     expect(() => parseStudioPatch({ ...defaultPatch(), amp: { ...defaultPatch().amp, model: "plexi" } })).toThrow(/amp.model/);
-    expect(() => parseStudioPatch({ ...defaultPatch(), effects: [{ ...newEffect("delay", "a"), type: "wah" }] })).toThrow(/type/);
+    expect(() => parseStudioPatch({ ...defaultPatch(), effects: [{ ...newEffect("delay", "a"), type: "theremin" }] })).toThrow(/type/);
     expect(() => parseStudioPatch({ ...defaultPatch(), effects: [newEffect("delay", "a"), newEffect("reverb", "a")] })).toThrow(/unique/);
-    expect(() => parseStudioPatch({ ...defaultPatch(), effects: Array.from({ length: 9 }, (_, i) => newEffect("chorus", `c${i}`)) })).toThrow(/at most/);
+    expect(() => parseStudioPatch({ ...defaultPatch(), effects: Array.from({ length: 13 }, (_, i) => newEffect("chorus", `c${i}`)) })).toThrow(/at most/);
   });
 
   it("puts drive and compression before the amp whatever order arrives", () => {
