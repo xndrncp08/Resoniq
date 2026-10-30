@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ProjectShelf from "@/components/messages/ProjectShelf";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -164,6 +165,7 @@ function ProjectBar({ c, userId }: { c: ConversationSummary; userId: string }) {
         </form>
       )}
       {c.members.every((m) => m.id === userId) && <p className="font-body text-xs text-muted">Everyone else has left this project.</p>}
+      <ProjectShelf userId={userId} projectId={c.id} />
     </div>
   );
 }
