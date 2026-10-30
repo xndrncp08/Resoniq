@@ -82,3 +82,12 @@ export function measuredCharacter(analysis: EngineAnalysis | null | undefined): 
   if (!c || ![c.centroid_hz, c.low_db, c.mid_db, c.high_db, c.rms_db].every(Number.isFinite)) return null;
   return { centroidHz: Math.round(c.centroid_hz), lowDb: c.low_db, midDb: c.mid_db, highDb: c.high_db, rmsDb: c.rms_db };
 }
+
+/** Bump when dnaFromPatch changes: stored fingerprints with an older version are recomputed on read. */
+export const DNA_VERSION = 1;
+const COLUMN: Record<DnaKey, "dnaDrive" | "dnaLow" | "dnaMid" | "dnaBright" | "dnaSpace" | "dnaMotion" | "dnaSqueeze"> = { drive: "dnaDrive", low: "dnaLow", mid: "dnaMid", bright: "dnaBright", space: "dnaSpace", motion: "dnaMotion", squeeze: "dnaSqueeze" };
+
+/** A fingerprint as the Tone table's columns. */
+export function dnaColumns(dna: ToneDna) {
+  return { dnaVersion: DNA_VERSION, ...Object.fromEntries(DNA_AXES.map(({ key }) => [COLUMN[key], dna[key]])) } as { dnaVersion: number } & Record<(typeof COLUMN)[DnaKey], number>;
+}
