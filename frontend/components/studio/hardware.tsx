@@ -154,10 +154,11 @@ export function SpeakerMic({ position, distance, onPosition, disabled = false }:
     onPosition(Math.round(Math.max(0, Math.min(10, ((x - c) / (R * 0.86)) * 10)) * 10) / 10);
   };
   const onKey = (e: KeyboardEvent) => {
-    const step = { ArrowRight: 0.5, ArrowUp: 0.5, ArrowLeft: -0.5, ArrowDown: -0.5 }[e.key];
-    if (step === undefined) return;
+    const step = ({ ArrowRight: 0.5, ArrowUp: 0.5, ArrowLeft: -0.5, ArrowDown: -0.5, PageUp: 2, PageDown: -2 } as Record<string, number>)[e.key];
+    const next = e.key === "Home" ? 0 : e.key === "End" ? 10 : step === undefined ? null : position + step;
+    if (next === null) return;
     e.preventDefault();
-    onPosition(Math.max(0, Math.min(10, Math.round((position + step) * 10) / 10)));
+    onPosition(Math.max(0, Math.min(10, Math.round(next * 10) / 10)));
   };
   const mx = c + (position / 10) * R * 0.86;
   const mr = 22 - distance * 1.2;

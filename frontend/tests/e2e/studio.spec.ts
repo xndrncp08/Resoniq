@@ -81,7 +81,8 @@ test("the controls change what you hear: master down lowers the measured output"
   await master.focus();
   await master.press("Home");
   await expect(master).toHaveAttribute("aria-valuenow", "0");
-  await page.waitForTimeout(400);
+  // Let the meter's peak hold (~0.9 s) let go of the louder level first.
+  await page.waitForTimeout(1500);
   const quiet = await outputPeak(page);
   expect(quiet).toBeLessThan(loud - 6);
   await page.getByRole("button", { name: "Stop" }).click();
@@ -165,6 +166,8 @@ test("preset files: export, import, and a readable refusal for junk", async ({ p
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("menuitem", { name: "Import preset file…" }).click();
   await (await chooser).setFiles(file);
+  // Importing replaces unsaved work, so it asks first.
+  await page.getByRole("dialog", { name: "Unsaved changes" }).getByRole("button", { name: "Discard changes" }).click();
   await expect(page.getByText(/^Loaded “New sound”/)).toBeVisible();
   await expect(page.getByRole("radio", { name: /Bastion 2×12/ })).toHaveAttribute("aria-checked", "true");
 
