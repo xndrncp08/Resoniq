@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { IconButton } from "@/components/app/ui";
 import type { RiffTakeView } from "@/lib/riffs/service";
+import { canPlay } from "@/lib/riffs/peaks";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -43,6 +44,7 @@ export default function TakePlayer({ take, title }: { take: RiffTakeView; title:
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(take.durationSec ?? 0);
+  const [unplayable, setUnplayable] = useState(false);
   useEffect(() => {
     const a = audio.current;
     if (!a) return;
@@ -50,11 +52,21 @@ export default function TakePlayer({ take, title }: { take: RiffTakeView; title:
     const stop = () => setPlaying(false);
     const play = () => setPlaying(true);
     const meta = () => Number.isFinite(a.duration) && setDuration(a.duration);
-    const events: [string, () => void][] = [["timeupdate", tick], ["ended", stop], ["pause", stop], ["play", play], ["loadedmetadata", meta]];
+    const failed = () => a.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED && setUnplayable(true);
+    if (!canPlay(take.mime, (t) => a.canPlayType(t))) setUnplayable(true);
+    const events: [string, () => void][] = [["timeupdate", tick], ["ended", stop], ["pause", stop], ["play", play], ["loadedmetadata", meta], ["error", failed]];
     for (const [e, f] of events) a.addEventListener(e, f);
     return () => { for (const [e, f] of events) a.removeEventListener(e, f); };
-  }, []);
+  }, [take.mime]);
   const toggle = () => (playing ? audio.current?.pause() : void audio.current?.play().catch(() => setPlaying(false)));
+  if (unplayable) {
+    return (
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <audio ref={audio} src={take.src} preload="none" />
+        <p className="min-w-0 flex-1 font-body text-xs text-amber">This browser can&apos;t play {take.mime.replace("audio/", "").toUpperCase()} recordings. <a href={take.src} download className="underline">Download the take</a> or open it on another device.</p>
+      </div>
+    );
+  }
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <audio ref={audio} src={take.src} preload="none" />

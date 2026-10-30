@@ -13,7 +13,14 @@ export function computePeaks(samples: Float32Array, n = 120): number[] {
   return raw.map((v) => (top > 0 ? Math.round((v / top) * 1000) / 1000 : 0));
 }
 
-/** The recording format this browser can make, best first (Chrome/Firefox: WebM Opus; Safari: MP4 AAC). */
+/**
+ * The recording format this browser can make, most compatible first. MP4/AAC
+ * plays everywhere, iPhones included (Safari and current Chrome record it);
+ * WebM/Opus (Firefox) and Ogg are the fallbacks.
+ */
 export function recorderMime(isSupported: (t: string) => boolean): string | null {
-  return ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"].find(isSupported) ?? null;
+  return ["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm"].find(isSupported) ?? null;
 }
+
+/** Whether this browser can play a take's format; when it can't, the player offers the download instead of failing silently. */
+export const canPlay = (mime: string, probe: (t: string) => string) => probe(mime) !== "";
