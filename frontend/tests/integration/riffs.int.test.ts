@@ -87,3 +87,17 @@ describe("Riff Vault", () => {
     expect(await getStorage().stat(key)).toBeNull();
   });
 });
+
+describe("account deletion", () => {
+  it("queues every riff recording for deletion with the account", async () => {
+    const { deleteAccount } = await import("@/lib/account");
+    const me = await makeActor();
+    const r = await createRiff(me.id, { title: "Bye" });
+    const take = await recordTake(me.id, r.id);
+    const key = (await prisma.riffTake.findUniqueOrThrow({ where: { id: take } })).storageKey;
+    await deleteAccount(me.id);
+    expect(await prisma.riff.count()).toBe(0);
+    const jobs = await prisma.job.findMany({ where: { type: "storage.delete" }, select: { payload: true } });
+    expect(jobs.map((j) => (j.payload as { key: string }).key)).toContain(key);
+  });
+});
