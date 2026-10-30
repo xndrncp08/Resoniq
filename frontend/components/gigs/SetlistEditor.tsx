@@ -13,7 +13,7 @@ import { setlistQuery, useSaveSetlist } from "@/lib/queries/setlists";
 import { MAX_SONGS, SONG_KEYS, type SetlistSong, type SetlistView } from "@/lib/setlists";
 
 type Draft = { name: string; venue: string; date: string; notes: string; items: SetlistSong[] };
-const draftOf = (s: SetlistView): Draft => ({ name: s.name, venue: s.venue ?? "", date: s.date ?? "", notes: s.notes ?? "", items: s.items.map(({ tone: _t, ...song }) => song) });
+const draftOf = (s: SetlistView): Draft => ({ name: s.name, venue: s.venue ?? "", date: s.date ?? "", notes: s.notes ?? "", items: s.items.map(({ tone: _t, chart: _c, ...song }) => song) });
 const songId = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const num = (v: string) => (v === "" ? undefined : Number(v));
 const input = "panel-inset h-10 w-full rounded-lg px-2.5 font-body text-sm outline-none";

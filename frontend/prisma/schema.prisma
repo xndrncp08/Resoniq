@@ -98,6 +98,7 @@ model User {
   practicePassages   PracticePassage[]
   setlists           Setlist[]
   riffs              Riff[]
+  songCanvases       SongCanvas[]
 
   @@index([pinnedPostId])
   @@index([signatureToneId])
@@ -1004,6 +1005,7 @@ model Conversation {
   members  ConversationMember[]
   messages Message[]
   riffs    Riff[]
+  canvases SongCanvas[]
 
   @@index([lastMessageAt])
 }
@@ -1187,4 +1189,47 @@ model ToneVersion {
   tone Tone @relation(fields: [toneId], references: [id], onDelete: Cascade)
 
   @@index([toneId, createdAt])
+}
+
+/// Songwriting Canvas: lyrics with inline chords, sections and an arrangement. Editable by the owner and, when in a project, its current members.
+model SongCanvas {
+  id          String   @id @default(cuid())
+  ownerId     String
+  projectId   String?
+  title       String
+  key         String?
+  bpm         Int?
+  // [{ id, kind, name, lyrics, notes?, bars?, riffId? }] and the play order of section ids.
+  sections    Json     @default("[]")
+  arrangement Json     @default("[]")
+  // Optimistic concurrency: a save names the version it started from.
+  version     Int      @default(1)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner     User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  project   Conversation?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  revisions SongCanvasRevision[]
+
+  @@index([ownerId, updatedAt])
+  @@index([projectId])
+}
+
+model SongCanvasRevision {
+  id          String   @id @default(cuid())
+  canvasId    String
+  version     Int
+  authorId    String?
+  title       String
+  key         String?
+  bpm         Int?
+  sections    Json
+  arrangement Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  canvas SongCanvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+
+  @@index([canvasId, createdAt])
 }

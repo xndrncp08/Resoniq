@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/icons/Icon";
+import ChordChart from "@/components/canvas/ChordChart";
 import { Button } from "@/components/app/ui";
 import { startClickTrack } from "@/lib/practice";
 import { describeSignature, midiSignature, programChange } from "@/lib/midi";
@@ -134,6 +135,7 @@ export default function StageView({ setlist }: { setlist: SetlistView }) {
           {song.midiProgram && <div><dt className="label-engraved">MIDI</dt><dd className="font-display text-[clamp(2rem,6vw,4.5rem)] font-semibold">P{song.midiProgram}</dd></div>}
         </dl>
         {song.notes && <p className="max-w-4xl whitespace-pre-wrap font-body text-[clamp(1.25rem,3vw,2.25rem)] leading-snug text-ink">{song.notes}</p>}
+        {song.chart && <div className="max-w-5xl border-t border-line pt-5"><ChordChart content={song.chart} size="stage" /></div>}
         {song.toneId && (
           song.tone
             ? <Link href={`/studio?tone=${song.toneId}`} target="_blank" className="focus-ring inline-flex w-fit items-center gap-2 rounded-full border border-copper/40 px-4 py-2 font-body text-copper"><Icon name="amp" size={18} /> {song.tone.name}</Link>
