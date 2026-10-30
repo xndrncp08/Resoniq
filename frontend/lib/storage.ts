@@ -50,8 +50,11 @@ export interface RemoteStorage extends SongStorage {
 // never address a path outside the root.
 //   songs: `${userId}/${uuid}.${ext}`
 //   media: `media/${userId}/${mediaId}/${variant}.${ext}`
+//   riffs: `riffs/${userId}/${takeId}.${ext}`
 const KEY_PATTERN = /^[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\.(mp3|wav|flac)$/;
 const MEDIA_KEY_PATTERN = /^media\/[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\/[a-z0-9_-]{1,32}\.(mp4|mov|webm|mkv|jpg|png|webp|m4a|mp3|wav|flac|json)$/;
+
+const RIFF_KEY_PATTERN = /^riffs\/[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\.(webm|ogg|m4a|mp3|wav|flac)$/;
 
 export const CONTENT_TYPES = {
   mp3: "audio/mpeg",
@@ -70,10 +73,11 @@ const MEDIA_TYPES: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
   m4a: "audio/mp4",
+  ogg: "audio/ogg",
   json: "application/json",
 };
 
-export const isValidKey = (key: string) => KEY_PATTERN.test(key) || MEDIA_KEY_PATTERN.test(key);
+export const isValidKey = (key: string) => KEY_PATTERN.test(key) || MEDIA_KEY_PATTERN.test(key) || RIFF_KEY_PATTERN.test(key);
 
 function assertKey(key: string) {
   if (!isValidKey(key)) throw new Error(`Invalid storage key: ${key}`);

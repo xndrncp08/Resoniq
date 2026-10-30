@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api-error";
 
 /**
  * Deletes a user and everything they own. Database rows go in one
- * transaction (cascades remove tones, songs, media, posts, follows, sessions); stored files
+ * transaction (cascades remove tones, songs, media, riffs, posts, follows, sessions); stored files
  * are removed afterwards by storage.delete jobs queued in that same
  * transaction, so files are only deleted if the rows really are.
  */
@@ -18,9 +18,11 @@ export async function deleteAccount(userId: string): Promise<{ queuedDeletes: nu
     }
     const songs = await tx.song.findMany({ where: { userId, storageKey: { not: null } }, select: { storageKey: true } });
     const media = await tx.media.findMany({ where: { ownerId: userId }, select: { originalKey: true, playbackKey: true, posterKey: true, previewKey: true, peaksKey: true } });
+    const takes = await tx.riffTake.findMany({ where: { ownerId: userId }, select: { storageKey: true } });
     const keys = [
       ...songs.map((s) => s.storageKey!),
       ...media.flatMap((m) => [m.originalKey, m.playbackKey, m.posterKey, m.previewKey, m.peaksKey]),
+      ...takes.map((t) => t.storageKey),
     ].filter((k): k is string => !!k && isValidKey(k));
     for (const key of keys) await enqueue("storage.delete", { key }, { db: tx });
 

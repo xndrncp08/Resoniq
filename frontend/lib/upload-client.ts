@@ -38,10 +38,17 @@ export async function uploadFile(file: File, opts: { purpose?: UploadPurpose; al
   const kind = kindOf(file);
   if (!kind) throw new Error(precheck(file) ?? "Unsupported file.");
   const created = await api<Created>("/api/media", { body: { kind, size: file.size, mime: file.type, purpose: opts.purpose ?? "POST", alt: opts.alt } });
-  await new Promise<void>((resolve, reject) => {
+  await putWithProgress(created.upload, file, opts);
+  await api(`/api/media/${created.id}/complete`, { method: "POST" });
+  return created.id;
+}
+
+/** PUTs bytes to an upload target, reporting progress (XHR, which fetch can't do) and honouring an abort signal. */
+export function putWithProgress(target: { method: string; url: string; headers: Record<string, string> }, body: Blob, opts: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {}): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open(created.upload.method, created.upload.url);
-    for (const [k, v] of Object.entries(created.upload.headers)) xhr.setRequestHeader(k, v);
+    xhr.open(target.method, target.url);
+    for (const [k, v] of Object.entries(target.headers)) xhr.setRequestHeader(k, v);
     xhr.upload.onprogress = (e) => e.lengthComputable && opts.onProgress?.(e.loaded / e.total);
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) return resolve();
@@ -56,8 +63,6 @@ export async function uploadFile(file: File, opts: { purpose?: UploadPurpose; al
     xhr.onerror = () => reject(new Error("The connection dropped during upload. Try again."));
     xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
     opts.signal?.addEventListener("abort", () => xhr.abort());
-    xhr.send(file);
+    xhr.send(body);
   });
-  await api(`/api/media/${created.id}/complete`, { method: "POST" });
-  return created.id;
 }
