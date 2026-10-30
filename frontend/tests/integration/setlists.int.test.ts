@@ -20,7 +20,7 @@ describe("setlists", () => {
     await expect(updateSetlist(other.id, s.id, { name: "Hijacked" })).rejects.toMatchObject({ status: 404 });
     await expect(deleteSetlist(other.id, s.id)).rejects.toMatchObject({ status: 404 });
 
-    const reordered = await updateSetlist(me.id, s.id, { items: [s.items[1], s.items[0]].map(({ tone: _t, ...song }) => song) });
+    const reordered = await updateSetlist(me.id, s.id, { items: [s.items[1], s.items[0]].map(({ tone: _t, chart: _c, ...song }) => song) });
     expect(reordered.items.map((i) => i.title)).toEqual(["Ballad", "Opener"]);
     await deleteSetlist(me.id, s.id);
     expect(await prisma.setlist.count()).toBe(0);

@@ -140,6 +140,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
         </label>
         <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
           {riff.tone && <Link href={`/studio?tone=${riff.tone.id}`} className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 font-body text-sm hover:border-copper/50"><Icon name="amp" size={16} /> Play it in the Amp Studio</Link>}
+          <Button icon="edit" onClick={async () => { try { const { canvas } = await api<{ canvas: { id: string } }>("/api/canvases", { body: { fromRiffId: riff.id } }); router.push(`/write/${canvas.id}`); } catch (err) { setProjectError(errorMessage(err)); } }}>Write a song from it</Button>
           {riff.bpm && <Link href="/practice" className="focus-ring inline-flex h-10 items-center rounded-full border border-line-strong px-4 font-body text-sm hover:border-copper/50">Practice at {riff.bpm} BPM</Link>}
         </div>
       </section>

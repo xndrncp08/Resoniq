@@ -4,7 +4,7 @@ import { ApiError } from "@/lib/api-error";
 import { fail } from "@/lib/validation";
 import { getStorage } from "@/lib/storage";
 import { viewableToneWhere } from "@/lib/tones";
-import { SONG_KEYS } from "@/lib/setlists";
+import { SONG_KEYS } from "@/lib/song-keys";
 import { extForMime, sniffRiffAudio } from "@/lib/riffs/sniff";
 
 /**
