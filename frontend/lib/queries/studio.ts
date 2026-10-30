@@ -5,6 +5,7 @@ import type { RecipeCore } from "@/types/tone";
 import type { RigSpec } from "@/types/rig";
 import type { StudioPatch } from "@/lib/studio/patch";
 import { tankGRigFromPatch } from "@/lib/studio/devices";
+import { versionKeys } from "@/lib/queries/tones";
 
 export type StudioPreset = { id: string; name: string; studio: StudioPatch | null; declared: RigSpec | null; inferred: RecipeCore | null; updatedAt: string };
 
@@ -85,7 +86,7 @@ export function useSaveStudio(userId: string) {
     onSettled: (_r, _e, { origin }) => {
       void client.invalidateQueries({ queryKey: key });
       // A save adds a version to the tone's history.
-      if (origin.toneId) void client.invalidateQueries({ queryKey: ["user", userId, "tones", origin.toneId, "versions"] });
+      if (origin.toneId) void client.invalidateQueries({ queryKey: versionKeys.tone(userId, origin.toneId) });
     },
   });
 }

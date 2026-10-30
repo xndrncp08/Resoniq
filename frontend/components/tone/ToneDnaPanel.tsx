@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, errorMessage } from "@/lib/client-api";
+import { toneKeys } from "@/lib/queries/tones";
 import { Button, Spinner } from "@/components/app/ui";
 import { DNA_AXES, type MeasuredCharacter, type ToneDna } from "@/lib/tone-dna";
 import type { SimilarTone } from "@/lib/similar-tones";
@@ -34,7 +35,7 @@ export function DnaStrand({ dna, compare, size = "md" }: { dna: ToneDna; compare
  */
 export default function ToneDnaPanel({ toneId, patch, measured, initialDna }: { toneId?: string; patch?: StudioPatch; measured?: MeasuredCharacter | null; initialDna?: ToneDna }) {
   const q = useQuery({
-    queryKey: toneId ? ["tones", toneId, "similar"] : ["studio", "similar", JSON.stringify(patch)],
+    queryKey: toneId ? toneKeys.similar(toneId) : ["studio", "similar", JSON.stringify(patch)],
     queryFn: ({ signal }) => (toneId ? api<Result>(`/api/tones/${toneId}/similar`, { signal }) : api<Result>("/api/tones/similar", { body: { studio: patch }, signal })),
     staleTime: 5 * 60_000,
   });

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { conversationKeys } from "@/lib/queries/conversations";
 import type { RiffStage } from "@prisma/client";
 import Icon from "@/components/icons/Icon";
 import { Button, IconButton } from "@/components/app/ui";
@@ -23,6 +24,7 @@ const input = "panel-inset h-10 w-full rounded-lg px-3 font-body text-sm outline
 
 export default function RiffEditor({ userId, initial }: { userId: string; initial: RiffView }) {
   const router = useRouter();
+  const client = useQueryClient();
   const record = useSearchParams().get("record") === "1";
   const riff = useQuery({ ...riffQuery(userId, initial.id), initialData: initial }).data;
   const tones = useQuery({ ...presetsQuery(userId), enabled: riff.canEdit });
@@ -49,6 +51,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
     setProjectError(null);
     try {
       const { projectId } = await api<{ projectId: string }>(`/api/riffs/${riff.id}/project`, { method: "POST" });
+      void client.invalidateQueries({ queryKey: conversationKeys.all(userId) });
       router.push(`/messages/${projectId}`);
     } catch (err) {
       setProjectError(errorMessage(err));
