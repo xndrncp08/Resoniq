@@ -5,12 +5,12 @@ import { requireActor } from "@/lib/authz";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { createRiff, listRiffs, parseRiffPatch, RIFF_STAGES } from "@/lib/riffs/service";
 
-/** ?q=&tag=&stage= : your riffs and riffs shared with you through projects. */
+/** ?q=&tag=&stage=&project= : your riffs and riffs shared with you through projects. */
 export const GET = route("riffs.list", async (req) => {
   const actor = await requireActor();
   const p = new URL(req.url).searchParams;
   const stage = p.get("stage") as RiffStage | null;
-  return NextResponse.json({ riffs: await listRiffs(actor.id, { q: p.get("q")?.slice(0, 80) || undefined, tag: p.get("tag")?.slice(0, 24) || undefined, stage: stage && RIFF_STAGES.includes(stage) ? stage : undefined }) });
+  return NextResponse.json({ riffs: await listRiffs(actor.id, { q: p.get("q")?.slice(0, 80) || undefined, tag: p.get("tag")?.slice(0, 24) || undefined, stage: stage && RIFF_STAGES.includes(stage) ? stage : undefined, projectId: /^[a-z0-9]{10,40}$/.test(p.get("project") ?? "") ? p.get("project")! : undefined }) });
 });
 
 export const POST = route("riffs.create", async (req) => {

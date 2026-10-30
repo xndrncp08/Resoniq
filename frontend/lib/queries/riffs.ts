@@ -4,7 +4,7 @@ import { api } from "@/lib/client-api";
 import { putWithProgress } from "@/lib/upload-client";
 import type { RiffInput, RiffSummary, RiffView } from "@/lib/riffs/service";
 
-export type RiffFilters = { q?: string; tag?: string; stage?: RiffStage };
+export type RiffFilters = { q?: string; tag?: string; stage?: RiffStage; project?: string };
 
 export const riffKeys = {
   all: (userId: string) => ["user", userId, "riffs"] as const,

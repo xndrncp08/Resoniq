@@ -26,6 +26,9 @@ export const RATE_LIMITS = {
   riffWrite: { limit: 120, windowMs: 60_000 },
   // Autosave fires every couple of seconds while someone types.
   canvasWrite: { limit: 240, windowMs: 60_000 },
+  // Listening rooms poll every couple of seconds per listener.
+  roomSync: { limit: 120, windowMs: 60_000 },
+  roomWrite: { limit: 120, windowMs: 60_000 },
   profileWrite: { limit: 20, windowMs: 60 * 60_000 },
   follow: { limit: 120, windowMs: 60 * 60_000 },
   socialRead: { limit: 240, windowMs: 60_000 },

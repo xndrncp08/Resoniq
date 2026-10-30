@@ -129,13 +129,14 @@ const DETAIL_SELECT = {
   project: { select: { id: true, title: true } },
 } satisfies Prisma.RiffSelect;
 
-export async function listRiffs(viewerId: string, opts: { q?: string; tag?: string; stage?: RiffStage } = {}): Promise<RiffSummary[]> {
+export async function listRiffs(viewerId: string, opts: { q?: string; tag?: string; stage?: RiffStage; projectId?: string } = {}): Promise<RiffSummary[]> {
   const rows = await prisma.riff.findMany({
     where: {
       AND: [
         viewableRiffWhere(viewerId),
         ...(opts.q ? [{ OR: [{ title: { contains: opts.q, mode: "insensitive" as const } }, { notes: { contains: opts.q, mode: "insensitive" as const } }] }] : []),
         ...(opts.tag ? [{ tags: { has: opts.tag } }] : []),
+        ...(opts.projectId ? [{ projectId: opts.projectId }] : []),
         opts.stage ? { stage: opts.stage } : { stage: { not: "ARCHIVED" as const } },
       ],
     },

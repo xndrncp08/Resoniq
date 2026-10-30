@@ -1006,6 +1006,7 @@ model Conversation {
   messages Message[]
   riffs    Riff[]
   canvases SongCanvas[]
+  rooms    ListeningRoom[]
 
   @@index([lastMessageAt])
 }
@@ -1232,4 +1233,53 @@ model SongCanvasRevision {
   canvas SongCanvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
 
   @@index([canvasId, createdAt])
+}
+
+/// Live Listening Room: a project's members hearing one of its takes together. The server holds the clock; clients follow it.
+model ListeningRoom {
+  id             String    @id @default(cuid())
+  projectId      String
+  hostId         String
+  title          String
+  takeId         String?
+  playing        Boolean   @default(false)
+  // Position in seconds as of `stateAt` (server time); while playing it advances in real time.
+  positionSec    Float     @default(0)
+  stateAt        DateTime  @default(now())
+  anyoneControls Boolean   @default(true)
+  lastActiveAt   DateTime  @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime  @default(now())
+
+  project      Conversation      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participants RoomParticipant[]
+  comments     RoomComment[]
+
+  @@index([projectId, endedAt])
+}
+
+model RoomParticipant {
+  roomId     String
+  userId     String
+  lastSeenAt DateTime @default(now())
+
+  room ListeningRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+}
+
+/// Timestamped feedback in a room: a comment or a reaction at a moment of a take.
+model RoomComment {
+  id        String   @id @default(cuid())
+  roomId    String
+  authorId  String
+  takeId    String?
+  atSec     Float
+  body      String?
+  emoji     String?
+  createdAt DateTime @default(now())
+
+  room ListeningRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
 }
