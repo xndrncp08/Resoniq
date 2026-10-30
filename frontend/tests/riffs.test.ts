@@ -35,9 +35,10 @@ describe("waveform peaks and recorder format", () => {
     expect(computePeaks(new Float32Array(0))).toEqual([]);
   });
 
-  it("prefers WebM Opus, falls back to MP4 (Safari), and admits when it can't record", () => {
-    expect(recorderMime(() => true)).toBe("audio/webm;codecs=opus");
+  it("prefers MP4/AAC (plays on every device), falls back to WebM Opus (Firefox), and admits when it can't record", () => {
+    expect(recorderMime(() => true)).toBe("audio/mp4;codecs=mp4a.40.2");
     expect(recorderMime((t) => t === "audio/mp4")).toBe("audio/mp4");
+    expect(recorderMime((t) => t.startsWith("audio/webm"))).toBe("audio/webm;codecs=opus");
     expect(recorderMime(() => false)).toBeNull();
   });
 });

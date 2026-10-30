@@ -16,7 +16,7 @@ test("records a take from the microphone and keeps it", async ({ page }) => {
     await page.getByRole("button", { name: "Keep take" }).click();
     await expect(page.getByRole("button", { name: "Play First idea" })).toBeVisible();
     const src = await page.locator("audio").first().getAttribute("src");
-    expect((await page.request.get(src!)).headers()["content-type"]).toMatch(/^audio\/(webm|mp4|ogg)$/);
+    expect((await page.request.get(src!)).headers()["content-type"]).toBe("audio/mp4");
   } finally {
     await deleteAccount(page);
   }
