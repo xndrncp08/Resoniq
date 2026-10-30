@@ -15,7 +15,7 @@ import { riffsQuery } from "@/lib/queries/riffs";
 import { setlistsQuery } from "@/lib/queries/setlists";
 import { SONG_KEYS } from "@/lib/setlists";
 import type { CanvasView } from "@/lib/canvas/service";
-import type { ConversationSummary } from "@/lib/messaging";
+import { conversationsQuery } from "@/lib/queries/conversations";
 import ChordChart from "@/components/canvas/ChordChart";
 import TakePlayer from "@/components/riffs/TakePlayer";
 import { useCanvasDraft } from "@/components/canvas/useCanvasDraft";
@@ -228,7 +228,7 @@ function AddToSetlist({ userId, canvas, onDone }: { userId: string; canvas: Canv
 }
 
 function ShareCanvas({ userId, canvas, onDeleted }: { userId: string; canvas: CanvasView; onDeleted: () => void }) {
-  const projects = useQuery({ queryKey: ["user", userId, "projects"], queryFn: ({ signal }) => api<{ items: ConversationSummary[] }>("/api/conversations?kind=PROJECT", { signal }).then((r) => r.items) });
+  const projects = useQuery(conversationsQuery(userId, "PROJECT"));
   const move = useCanvasProject(userId, canvas.id);
   const remove = useDeleteCanvas(userId);
   const [confirming, setConfirming] = useState(false);

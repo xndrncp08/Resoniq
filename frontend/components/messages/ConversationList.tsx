@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, TimeAgo } from "@/components/app/ui";
 import Icon from "@/components/icons/Icon";
-import { api } from "@/lib/client-api";
+import { conversationsQuery } from "@/lib/queries/conversations";
 import type { ConversationSummary } from "@/lib/messaging-shared";
 
 /** The inbox: direct conversations and projects, newest activity first, refreshed while visible. */
 export default function ConversationList({ userId, kind, initial }: { userId: string; kind: "DIRECT" | "PROJECT" | null; initial: ConversationSummary[] }) {
   const { data = initial } = useQuery({
-    queryKey: ["user", userId, "conversations", kind ?? "all"],
-    queryFn: ({ signal }) => api<{ items: ConversationSummary[] }>(`/api/conversations${kind ? `?kind=${kind}` : ""}`, { signal }).then((r) => r.items),
+    ...conversationsQuery(userId, kind),
     initialData: initial,
     initialDataUpdatedAt: () => Date.now(),
     refetchInterval: 15_000,

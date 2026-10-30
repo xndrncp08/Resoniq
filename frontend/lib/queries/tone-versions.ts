@@ -3,8 +3,9 @@ import { api } from "@/lib/client-api";
 import type { ToneVersionView } from "@/lib/tone-versions";
 import type { ToneView } from "@/lib/tones";
 import { studioKeys } from "@/lib/queries/studio";
+import { toneKeys, versionKeys } from "@/lib/queries/tones";
 
-export const versionKeys = { tone: (userId: string, toneId: string) => ["user", userId, "tones", toneId, "versions"] as const };
+export { versionKeys };
 
 export const versionsQuery = (userId: string, toneId: string) =>
   queryOptions({ queryKey: versionKeys.tone(userId, toneId), queryFn: ({ signal }) => api<{ versions: ToneVersionView[] }>(`/api/tones/${toneId}/versions`, { signal }).then((r) => r.versions), staleTime: 15_000 });
@@ -18,7 +19,7 @@ export function useRestoreVersion(userId: string, toneId: string) {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: versionKeys.tone(userId, toneId) });
       void client.invalidateQueries({ queryKey: studioKeys.presets(userId) });
-      void client.invalidateQueries({ queryKey: ["tones", toneId, "similar"] });
+      void client.invalidateQueries({ queryKey: toneKeys.similar(toneId) });
     },
   });
 }
