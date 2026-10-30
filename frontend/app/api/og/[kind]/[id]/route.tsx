@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
 import { getPost } from "@/lib/posts";
 import { getTone } from "@/lib/tones";
+import { CARD_FORMATS, ToneCard, type CardFormat } from "@/lib/tone-card";
+import { patchFromTone } from "@/lib/studio/from-tone";
+import { dnaFromPatch } from "@/lib/tone-dna";
 
 type Ctx = { params: Promise<{ kind: string; id: string }> };
 
@@ -30,9 +33,23 @@ function Frame({ eyebrow, title, by, chips }: { eyebrow: string; title: string; 
 }
 
 /** Social preview images for shared tones and posts. Only content anyone may already see is rendered. */
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   const { kind, id } = await params;
   const headers = { "Cache-Control": "public, max-age=600, s-maxage=600" };
+  if (kind === "card") {
+    // A shareable settings card. Same rule as previews: only what anyone with the link may see (no private tones).
+    const t = await getTone(id, null);
+    if (!t) return new Response("Not found", { status: 404 });
+    const url = new URL(req.url);
+    const format = (url.searchParams.get("format") ?? "square") as CardFormat;
+    if (!(format in CARD_FORMATS)) return new Response("Unknown format", { status: 400 });
+    const opened = patchFromTone(t);
+    const download = url.searchParams.get("download") === "1";
+    return new ImageResponse(
+      <ToneCard format={format} name={t.name} by={t.anonymous ? t.author.name ?? "Resoniq" : `@${t.author.handle}`} patch={opened.patch} from={opened.from} dna={dnaFromPatch(opened.patch)} url={`${url.origin}/t/${t.id}`} device={opened.device?.name ?? null} />,
+      { ...CARD_FORMATS[format], headers: { ...headers, ...(download && { "Content-Disposition": `attachment; filename="${t.name.replace(/[^\w-]+/g, "-").toLowerCase()}-${format}.png"` }) } },
+    );
+  }
   if (kind === "tone") {
     const t = await getTone(id, null);
     if (!t) return new Response("Not found", { status: 404 });

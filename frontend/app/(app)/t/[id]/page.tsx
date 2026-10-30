@@ -83,7 +83,7 @@ export default async function TonePage({ params }: Props) {
           {tone.description && <p className="mt-4 max-w-3xl whitespace-pre-wrap font-body text-[15px] leading-relaxed text-ink-dim">{tone.description}</p>}
           {generated && !tone.description?.includes(GENERATED_DISCLOSURE) && <p className="mt-3 max-w-3xl font-body text-sm text-amber">{GENERATED_DISCLOSURE}</p>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <ToneActions id={tone.id} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
+            <ToneActions id={tone.id} name={tone.name} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
             {generated && tone.visibility === "PUBLIC" && viewer && (
               <Link href={`/new?tone=${tone.id}&category=TONE_COMPARISON`} className="focus-ring inline-flex h-10 items-center gap-2 rounded-full border border-line px-4 font-body text-sm text-ink hover:border-copper/50"><Icon name="comment" size={16} /> Discuss this tone</Link>
             )}
