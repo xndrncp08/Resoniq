@@ -1,26 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { deleteAccount, signUp } from "./account";
 
 /** Gig Mode end to end: build a setlist, save it, step through it on stage, delete it. Needs sign-ups enabled. */
-const email = `e2e-gig-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@resoniq.test`;
-const password = "E2e-Riff-Pass-2026!";
-
-async function signUp(page: Page) {
-  const res = await page.request.post("/api/register", { data: { email, password, name: "E2E Gigger" } });
-  test.skip(!res.ok(), `Sign-ups unavailable here (${res.status()})`);
-  // Sign in through the auth endpoints (the browser context shares the cookie).
-  const { csrfToken } = await (await page.request.get("/api/auth/csrf")).json();
-  await page.request.post("/api/auth/callback/credentials", { form: { csrfToken, email, password, callbackUrl: "/gigs" } });
-  const session = await (await page.request.get("/api/auth/session")).json();
-  expect(session?.user?.email).toBe(email);
-  // Optional storage refused, as a fresh visitor who said no (the banner isn't what this tests).
-  const url = new URL(page.url() === "about:blank" ? (test.info().project.use.baseURL ?? "http://localhost:3100") : page.url());
-  await page.context().addCookies([{ name: "resoniq_consent", value: `1.p0.a0.${Math.floor(Date.now() / 1000)}`, domain: url.hostname, path: "/" }]);
-}
-
 test("a setlist from empty to the stage and back", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await signUp(page);
+  await signUp(page, "gig");
   try {
     await page.goto("/gigs");
     await page.getByPlaceholder("Friday at The Lantern").fill("E2E show");
@@ -57,10 +42,6 @@ test("a setlist from empty to the stage and back", async ({ page }) => {
     await expect(page.getByText("No setlists yet")).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
-    const me = await page.request.get("/api/me");
-    if (me.ok()) {
-      const { profile } = await me.json();
-      await page.request.delete("/api/me", { data: { confirmHandle: profile.handle, password } });
-    }
+    await deleteAccount(page);
   }
 });

@@ -97,6 +97,7 @@ model User {
   managedCreator     ManagedCreator?
   practicePassages   PracticePassage[]
   setlists           Setlist[]
+  riffs              Riff[]
 
   @@index([pinnedPostId])
   @@index([signatureToneId])
@@ -225,6 +226,7 @@ model Tone {
   gear        ToneGear[]
   saves       ToneSave[]
   draft       ToneDraft?
+  riffs       Riff[]
 
   @@index([userId, favorite, createdAt])
   @@index([visibility, publishedAt])
@@ -990,6 +992,7 @@ model Conversation {
 
   members  ConversationMember[]
   messages Message[]
+  riffs    Riff[]
 
   @@index([lastMessageAt])
 }
@@ -1090,4 +1093,64 @@ model Setlist {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, updatedAt])
+}
+
+enum RiffStage {
+  IDEA
+  DEVELOPING
+  READY
+  ARCHIVED
+}
+
+/// Riff Vault: a musical idea and its recorded takes. Private to the owner unless shared into a project.
+model Riff {
+  id        String    @id @default(cuid())
+  ownerId   String
+  title     String
+  notes     String?
+  tags      String[]  @default([])
+  key       String?
+  bpm       Int?
+  stage     RiffStage @default(IDEA)
+  pinned    Boolean   @default(false)
+  toneId    String?
+  // A collaboration project (a PROJECT conversation) whose members may listen.
+  projectId String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  owner   User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tone    Tone?         @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  project Conversation? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  takes   RiffTake[]
+
+  @@index([ownerId, pinned, updatedAt])
+  @@index([projectId])
+  @@index([toneId])
+}
+
+enum RiffTakeStatus {
+  UPLOADING
+  READY
+}
+
+/// One recording of a riff, stored as uploaded (browser recordings play natively; no transcoding worker needed).
+model RiffTake {
+  id          String         @id @default(cuid())
+  riffId      String
+  ownerId     String
+  label       String?
+  storageKey  String
+  mime        String
+  sizeBytes   Int
+  durationSec Float?
+  // ~120 normalised peak values for the waveform preview, computed in the browser.
+  peaks       Json?
+  status      RiffTakeStatus @default(UPLOADING)
+  createdAt   DateTime       @default(now())
+
+  riff Riff @relation(fields: [riffId], references: [id], onDelete: Cascade)
+
+  @@index([riffId, createdAt])
+  @@index([ownerId, createdAt])
 }
