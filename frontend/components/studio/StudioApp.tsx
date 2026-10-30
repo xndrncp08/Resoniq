@@ -24,6 +24,7 @@ import type { StudioDevice } from "@/lib/studio/devices";
 import { patchFromTone } from "@/lib/studio/from-tone";
 import { presetsQuery, studioKeys, useSaveStudio, type SaveMode, type StudioOrigin } from "@/lib/queries/studio";
 import { api, errorMessage } from "@/lib/client-api";
+import ToneDnaPanel from "@/components/tone/ToneDnaPanel";
 
 // ── Store wiring ───────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ function PresetBar({ origin }: { origin: StudioOrigin }) {
 }
 
 /** Preset actions that don't need a big button: rename, duplicate, import, export, share. */
-function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, notify }: { origin: StudioOrigin; signedIn: boolean; onRename: () => void; onDuplicate: () => void; onShare: () => void; notify: Notify }) {
+function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimilar, notify }: { origin: StudioOrigin; signedIn: boolean; onRename: () => void; onDuplicate: () => void; onShare: () => void; onSimilar: () => void; notify: Notify }) {
   const store = useStudioStore();
   const confirmLeave = useConfirmLeave();
   const [open, setOpen] = useState(false);
@@ -161,6 +162,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, notify }
     { id: "import", text: "Import preset file…", icon: "upload" },
     { id: "export", text: "Export preset file", icon: "download" },
     { id: "share", text: "Share…", icon: "share" },
+    { id: "similar", text: "Find similar sounds", icon: "compare" },
   ] as const;
   const run = (id: (typeof items)[number]["id"]) => {
     setOpen(false);
@@ -168,6 +170,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, notify }
     else if (id === "duplicate") onDuplicate();
     else if (id === "import") file.current?.click();
     else if (id === "export") exportFile();
+    else if (id === "similar") onSimilar();
     else onShare();
   };
   return (
@@ -189,7 +192,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, notify }
   );
 }
 
-function Toolbar({ origin, signedIn, onSave, onRename, onShare, notify }: { origin: StudioOrigin; signedIn: boolean; onSave: (mode: SaveMode, name?: string) => void; onRename: () => void; onShare: () => void; notify: Notify }) {
+function Toolbar({ origin, signedIn, onSave, onRename, onShare, onSimilar, notify }: { origin: StudioOrigin; signedIn: boolean; onSave: (mode: SaveMode, name?: string) => void; onRename: () => void; onShare: () => void; onSimilar: () => void; notify: Notify }) {
   const store = useStudioStore();
   const active = useStudio((s) => s.active);
   const canUndo = useStudio((s) => s.past.length > 0);
@@ -218,7 +221,7 @@ function Toolbar({ origin, signedIn, onSave, onRename, onShare, notify }: { orig
         ) : (
           <Link href="/login?callbackUrl=/studio" className="focus-ring inline-flex h-8 items-center rounded-full bg-copper px-3 font-body text-[13px] font-medium text-bg">Sign in to save</Link>
         )}
-        <PresetMenu origin={origin} signedIn={signedIn} onRename={onRename} onDuplicate={() => onSave("new", `${origin.name} (copy)`)} onShare={onShare} notify={notify} />
+        <PresetMenu origin={origin} signedIn={signedIn} onRename={onRename} onDuplicate={() => onSave("new", `${origin.name} (copy)`)} onShare={onShare} onSimilar={onSimilar} notify={notify} />
         <span className={`font-mono text-[10px] uppercase tracking-[0.14em] ${dirty ? "text-amber" : "text-muted"}`} aria-live="polite">{dirty ? "Unsaved" : owner ? "Saved" : ""}</span>
       </div>
     </div>
@@ -903,7 +906,7 @@ export default function StudioApp({ initial, origin, context, justSaved = false 
   );
 }
 
-type Dialogs = { kind: "save"; mode: SaveMode; name: string } | { kind: "rename" } | { kind: "share" } | { kind: "add" } | null;
+type Dialogs = { kind: "save"; mode: SaveMode; name: string } | { kind: "rename" } | { kind: "share" } | { kind: "add" } | { kind: "similar"; patch: StudioPatch } | null;
 
 function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; from: string; context?: ReactNode; justSaved: boolean }) {
   const store = useStudioStore();
@@ -985,7 +988,7 @@ function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; fr
         </p>
         {context}
       </header>
-      <Toolbar origin={origin} signedIn={!!userId} onSave={requestSave} onRename={() => { setRenaming({ pending: false, error: null }); setDialog({ kind: "rename" }); }} onShare={() => setDialog({ kind: "share" })} notify={notify} />
+      <Toolbar origin={origin} signedIn={!!userId} onSave={requestSave} onRename={() => { setRenaming({ pending: false, error: null }); setDialog({ kind: "rename" }); }} onShare={() => setDialog({ kind: "share" })} onSimilar={() => setDialog({ kind: "similar", patch: store.getState().patch })} notify={notify} />
       <Rack audio={audio} />
       {savedTone && (
         // What to do with a sound once it's saved: the rest of Resoniq, one tap away.
@@ -1028,6 +1031,9 @@ function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; fr
         </div>
       </details>
       <p className="sr-only">Keyboard: 1 amp, 2 cabinet, 3 pedals, C compare A and B, Space play or stop, Command or Control Z undo, Shift Command Z redo, Command S save.</p>
+      <Dialog open={dialog?.kind === "similar"} title="Tone DNA · similar sounds" onClose={() => setDialog(null)} wide>
+        {dialog?.kind === "similar" && <ToneDnaPanel patch={dialog.patch} />}
+      </Dialog>
       <AddPedalDialog open={dialog?.kind === "add"} onClose={() => setDialog(null)} />
       <ShareDialog key={`share-${dialog?.kind === "share"}`} open={dialog?.kind === "share"} origin={origin} onClose={() => setDialog(null)} notify={notify} />
       <NameDialog

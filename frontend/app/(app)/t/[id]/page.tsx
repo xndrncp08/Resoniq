@@ -12,6 +12,10 @@ import RecipeSummary from "@/components/tone/RecipeSummary";
 import { AmpPanel, Pedalboard } from "@/components/tone/InferredPanels";
 import RigBoard from "@/components/tone/rig/RigBoard";
 import ToneActions from "@/components/tone/ToneActions";
+import ToneDnaPanel from "@/components/tone/ToneDnaPanel";
+import { dnaFromPatch, measuredCharacter } from "@/lib/tone-dna";
+import { patchFromTone } from "@/lib/studio/from-tone";
+import type { EngineAnalysis } from "@/types/engine";
 import TankGPanel from "@/components/tone/TankGPanel";
 import PostCard from "@/components/social/PostCard";
 import Amp3D from "@/components/three/Amp3D";
@@ -40,7 +44,11 @@ export default async function TonePage({ params }: Props) {
   const { viewer, tone } = await load(id);
   if (!tone) notFound();
   const heardIn = await listPosts({ toneId: tone.id }, viewer?.id ?? null, { sort: "top", window: "all", cursor: null, limit: 3 });
-  const songTitle = tone.songId ? (await prisma.song.findUnique({ where: { id: tone.songId }, select: { title: true } }))?.title : null;
+  // songId is only set for the owner (the audio and its analysis stay private to them).
+  const song = tone.songId ? await prisma.song.findUnique({ where: { id: tone.songId }, select: { title: true, analysisData: true } }) : null;
+  const songTitle = song?.title;
+  const measured = measuredCharacter(song?.analysisData as EngineAnalysis | null);
+  const dna = dnaFromPatch(patchFromTone(tone).patch);
   const inferred = tone.inferred;
   const generated = tone.origin === "generated";
 
@@ -75,7 +83,7 @@ export default async function TonePage({ params }: Props) {
           {tone.description && <p className="mt-4 max-w-3xl whitespace-pre-wrap font-body text-[15px] leading-relaxed text-ink-dim">{tone.description}</p>}
           {generated && !tone.description?.includes(GENERATED_DISCLOSURE) && <p className="mt-3 max-w-3xl font-body text-sm text-amber">{GENERATED_DISCLOSURE}</p>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <ToneActions id={tone.id} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
+            <ToneActions id={tone.id} name={tone.name} isOwner={tone.viewer.isOwner} saved={tone.viewer.saved} visibility={tone.visibility} signedIn={!!viewer} />
             {generated && tone.visibility === "PUBLIC" && viewer && (
               <Link href={`/new?tone=${tone.id}&category=TONE_COMPARISON`} className="focus-ring inline-flex h-10 items-center gap-2 rounded-full border border-line px-4 font-body text-sm text-ink hover:border-copper/50"><Icon name="comment" size={16} /> Discuss this tone</Link>
             )}
@@ -122,6 +130,14 @@ export default async function TonePage({ params }: Props) {
           )}
         </section>
       )}
+
+      <section aria-labelledby="dna-h" className="space-y-4">
+        <div>
+          <h2 id="dna-h" className="font-display text-2xl font-semibold">Tone DNA</h2>
+          <p className="mt-1 font-body text-sm text-muted">A fingerprint of this sound, and the community tones closest to it.</p>
+        </div>
+        <div className="panel p-5"><ToneDnaPanel toneId={tone.id} initialDna={dna} measured={measured} /></div>
+      </section>
 
       {heardIn.items.length > 0 && (
         <section aria-labelledby="heard-h" className="space-y-4">

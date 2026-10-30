@@ -36,7 +36,7 @@ export default async function PracticePage({ searchParams }: Props) {
       <div className="grid items-start gap-5 lg:grid-cols-2"><Metronome /><LoopPlayer /></div>
       <TempoLadder />
       <PracticeNote />
-      <aside className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line p-5"><div><h2 className="font-display text-xl font-semibold">Music gets better with other ears.</h2><p className="mt-1 text-sm text-muted">Share a work in progress, trade ideas, or find someone to play with.</p></div><div className="flex flex-wrap gap-2"><LinkButton href="/new?prompt=collaboration" icon="community">Find a collaborator</LinkButton><LinkButton href="/c">Find your people</LinkButton></div></aside>
+      <aside className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line p-5"><div><h2 className="font-display text-xl font-semibold">Music gets better with other ears.</h2><p className="mt-1 text-sm text-muted">Share a work in progress, trade ideas, or find someone to play with.</p></div><div className="flex flex-wrap gap-2"><LinkButton href="/gigs" icon="signal-chain">Plan a gig</LinkButton><LinkButton href="/new?prompt=collaboration" icon="community">Find a collaborator</LinkButton><LinkButton href="/c">Find your people</LinkButton></div></aside>
     </div>
   );
 }

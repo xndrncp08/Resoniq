@@ -13,7 +13,8 @@ const VIS = [["PRIVATE", "Private: only you"], ["UNLISTED", "Unlisted: anyone wi
 
 // Loaded on first use: the dialog (and its animation runtime) isn't needed until someone reports.
 const ReportDialog = dynamic(() => import("@/components/social/ReportDialog"), { ssr: false });
-export default function ToneActions({ id, isOwner, saved, visibility, signedIn }: { id: string; isOwner: boolean; saved: boolean; visibility: string; signedIn: boolean }) {
+const ToneCardDialog = dynamic(() => import("@/components/tone/ToneCardDialog"), { ssr: false });
+export default function ToneActions({ id, name, isOwner, saved, visibility, signedIn }: { id: string; name: string; isOwner: boolean; saved: boolean; visibility: string; signedIn: boolean }) {
   const router = useRouter();
   const { on: isSaved, toggle: flipSaved } = useServerToggle({ scope: `tone-save:${id}`, initial: saved, send: (next) => api(`/api/tones/${id}/save`, { method: next ? "PUT" : "DELETE" }) });
   const [vis, setVis] = useState(visibility);
@@ -21,6 +22,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
   const [msg, setMsg] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
   const [reportLoaded, setReportLoaded] = useState(false);
+  const [card, setCard] = useState<boolean | null>(null);
   const gate = () => {
     if (signedIn) return true;
     router.push(`/login?callbackUrl=/t/${id}`);
@@ -64,6 +66,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
         <LinkButton href={`/studio?tone=${id}`} icon="amp">Open in Studio</LinkButton>
         <LinkButton href={`/practice?tone=${id}`} icon="audio">Practice with it</LinkButton>
         <a href={`/api/tones/${id}/export`} className={buttonClass("secondary", "md")}><Icon name="download" size={18} /> Export JSON</a>
+        <Button icon="image" onClick={() => setCard(true)}>Tone card</Button>
         <IconButton icon="link" label="Copy link" onClick={copyLink} />
         {isOwner && <LinkButton href={`/t/${id}/edit`} icon="edit">Edit</LinkButton>}
         {isOwner && <LinkButton href={`/new?tone=${id}`} icon="share" variant="primary">Post it</LinkButton>}
@@ -78,6 +81,7 @@ export default function ToneActions({ id, isOwner, saved, visibility, signedIn }
         </label>
       )}
       {msg && <p role="status" className="font-body text-sm text-muted">{msg}</p>}
+      {card !== null && <ToneCardDialog id={id} name={name} visibility={vis} open={card} onClose={() => setCard(false)} />}
       {reportLoaded && <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="TONE" targetId={id} />}
     </div>
   );
