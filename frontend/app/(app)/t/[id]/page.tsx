@@ -12,6 +12,10 @@ import RecipeSummary from "@/components/tone/RecipeSummary";
 import { AmpPanel, Pedalboard } from "@/components/tone/InferredPanels";
 import RigBoard from "@/components/tone/rig/RigBoard";
 import ToneActions from "@/components/tone/ToneActions";
+import ToneDnaPanel from "@/components/tone/ToneDnaPanel";
+import { dnaFromPatch, measuredCharacter } from "@/lib/tone-dna";
+import { patchFromTone } from "@/lib/studio/from-tone";
+import type { EngineAnalysis } from "@/types/engine";
 import TankGPanel from "@/components/tone/TankGPanel";
 import PostCard from "@/components/social/PostCard";
 import Amp3D from "@/components/three/Amp3D";
@@ -40,7 +44,11 @@ export default async function TonePage({ params }: Props) {
   const { viewer, tone } = await load(id);
   if (!tone) notFound();
   const heardIn = await listPosts({ toneId: tone.id }, viewer?.id ?? null, { sort: "top", window: "all", cursor: null, limit: 3 });
-  const songTitle = tone.songId ? (await prisma.song.findUnique({ where: { id: tone.songId }, select: { title: true } }))?.title : null;
+  // songId is only set for the owner (the audio and its analysis stay private to them).
+  const song = tone.songId ? await prisma.song.findUnique({ where: { id: tone.songId }, select: { title: true, analysisData: true } }) : null;
+  const songTitle = song?.title;
+  const measured = measuredCharacter(song?.analysisData as EngineAnalysis | null);
+  const dna = dnaFromPatch(patchFromTone(tone).patch);
   const inferred = tone.inferred;
   const generated = tone.origin === "generated";
 
@@ -122,6 +130,14 @@ export default async function TonePage({ params }: Props) {
           )}
         </section>
       )}
+
+      <section aria-labelledby="dna-h" className="space-y-4">
+        <div>
+          <h2 id="dna-h" className="font-display text-2xl font-semibold">Tone DNA</h2>
+          <p className="mt-1 font-body text-sm text-muted">A fingerprint of this sound, and the community tones closest to it.</p>
+        </div>
+        <div className="panel p-5"><ToneDnaPanel toneId={tone.id} initialDna={dna} measured={measured} /></div>
+      </section>
 
       {heardIn.items.length > 0 && (
         <section aria-labelledby="heard-h" className="space-y-4">
