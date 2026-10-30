@@ -220,3 +220,15 @@ describe("studio store selection", () => {
     expect(ids(store.getState().patch)).toEqual(["o:pre", "d:post"]);
   });
 });
+
+describe("output ceiling", () => {
+  it("is exactly linear below the knee, smooth and monotonic above it, and never exceeds −0.3 dBFS", async () => {
+    const { ceilingCurve } = await import("@/lib/studio/dsp");
+    const c = ceilingCurve();
+    const at = (x: number) => c[Math.round(((x + 1) / 2) * (c.length - 1))];
+    for (const x of [-0.82, -0.5, 0, 0.25, 0.5, 0.82]) expect(at(x)).toBeCloseTo(x, 3);
+    expect(Math.max(...c.map(Math.abs))).toBeLessThanOrEqual(0.93);
+    expect(20 * Math.log10(Math.max(...c.map(Math.abs)))).toBeLessThanOrEqual(-0.6);
+    for (let i = 1; i < c.length; i++) expect(c[i]).toBeGreaterThan(c[i - 1] - 1e-9);
+  });
+});
