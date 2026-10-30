@@ -1001,6 +1001,9 @@ model Conversation {
   createdAt           DateTime         @default(now())
   lastMessageAt       DateTime         @default(now())
   lastMessageAuthorId String?
+  // Projects only: where the music is (lib/projects.ts), and when the members called it finished.
+  stage               ProjectStage?
+  completedAt         DateTime?
 
   members  ConversationMember[]
   messages Message[]
@@ -1282,4 +1285,12 @@ model RoomComment {
   room ListeningRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
+}
+
+enum ProjectStage {
+  IDEA
+  WRITING
+  RECORDING
+  REVIEWING
+  RELEASED
 }
