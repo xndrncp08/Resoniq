@@ -75,6 +75,25 @@ export function shaperCurve(curve: Curve, drive: number, rectify = 0, points = 2
   return out;
 }
 
+/**
+ * The output's hard ceiling. A DynamicsCompressor isn't a brickwall (fast
+ * transients slip past it), so the last stage is this transfer curve:
+ * exactly linear below `knee`, then a smooth tanh shoulder that can never
+ * exceed `ceiling`. A WaveShaper clamps inputs beyond ±1 to the curve's ends,
+ * so even overs far above 0 dBFS come out at most at the ceiling (−0.63 dBFS,
+ * leaving room for the oversampling filters' small overshoot).
+ */
+export function ceilingCurve(knee = 0.82, ceiling = 0.93, points = 4097): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(points);
+  const room = ceiling - knee;
+  for (let i = 0; i < points; i++) {
+    const x = (i / (points - 1)) * 2 - 1;
+    const a = Math.abs(x);
+    out[i] = a <= knee ? x : Math.sign(x) * (knee + room * Math.tanh((a - knee) / room));
+  }
+  return out;
+}
+
 /** Tone-stack knob (0–10, 5 = flat) → dB. */
 export const stackDb = (knob: number, range = 12) => ((Math.max(0, Math.min(10, knob)) - 5) / 5) * range;
 /** Level-style knob (master): 5 is unity, ±15 dB at the ends. */

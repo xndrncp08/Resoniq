@@ -2,8 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * End-to-end checks for the workflows that matter most (and the ones that have
- * broken before). Runs against a running app: `npm run dev -- -p 3100`, then
- * `npm run test:e2e`, or E2E_BASE_URL=https://… for a deployment (the signed-in
+ * broken before). Runs against a running app: `npm run e2e:serve` (a production
+ * build; it sets AUTH_TRUST_HOST, without which Auth.js refuses sign-ins on
+ * localhost) or `npm run dev -- -p 3100`, then `npm run test:e2e`, or E2E_BASE_URL=https://… for a deployment (the signed-in
  * spec creates and then deletes its own account).
  * Uses the installed Google Chrome, so there is no browser download.
  */

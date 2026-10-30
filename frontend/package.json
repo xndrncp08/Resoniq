@@ -16,7 +16,8 @@
     "admin:grant": "tsx scripts/grant-role.ts",
     "tones:initial-import": "tsx scripts/publish-initial-tones.ts",
     "db:seed": "tsx prisma/seed.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "e2e:serve": "next build && AUTH_TRUST_HOST=true next start -p 3100"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

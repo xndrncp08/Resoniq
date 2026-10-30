@@ -1,5 +1,5 @@
 import type { Effect, StudioPatch } from "@/lib/studio/patch";
-import { CAB_VOICINGS, SPEAKER_VOICINGS, VOICINGS, dbToGain, expMap, gatePedalDb, levelDb, masterDb, micFilters, reverbImpulse, shaperCurve, stackDb, stageDrives } from "@/lib/studio/dsp";
+import { CAB_VOICINGS, SPEAKER_VOICINGS, VOICINGS, ceilingCurve, dbToGain, expMap, gatePedalDb, levelDb, masterDb, micFilters, reverbImpulse, shaperCurve, stackDb, stageDrives } from "@/lib/studio/dsp";
 
 /**
  * The studio's signal chain in Web Audio. Every control in the studio that
@@ -8,7 +8,7 @@ import { CAB_VOICINGS, SPEAKER_VOICINGS, VOICINGS, dbToGain, expMap, gatePedalDb
  *   source → input → gate → [pre-amp pedals, in order] → amp (two
  *   waveshaper stages with filters) → cabinet (speaker and mic filters, or
  *   a loaded impulse response) → [post pedals, in order] → output →
- *   limiter → speakers
+ *   limiter → ceiling (never above −0.3 dBFS) → speakers
  *
  * Parameter changes glide (setTargetAtTime) so dragging a knob never clicks.
  */
@@ -433,7 +433,11 @@ export class StudioAudio {
     // Two cabinets in parallel, one silent: the filter model, and the convolver for a loaded impulse response.
     chain(a.master, c.hp, c.thump, c.mid, c.speakerPeak, c.speakerLow, c.lp, c.proximity, c.presence, c.filterOut, this.postHead);
     chain(a.master, c.ir, c.irOut, this.postHead);
-    chain(this.output, limiter, this.outputTap, ctx.destination);
+    // The limiter shapes loud passages; the ceiling keeps everything below −0.3 dBFS.
+    const ceiling = ctx.createWaveShaper();
+    ceiling.curve = ceilingCurve();
+    ceiling.oversample = "4x";
+    chain(this.output, limiter, ceiling, this.outputTap, ctx.destination);
     this.preHead.connect(this.ampIn);
     this.postHead.connect(this.output);
 
