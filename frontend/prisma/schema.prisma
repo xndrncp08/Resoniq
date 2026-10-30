@@ -96,6 +96,7 @@ model User {
   toneDraftsReviewed ToneDraft[]
   managedCreator     ManagedCreator?
   practicePassages   PracticePassage[]
+  setlists           Setlist[]
 
   @@index([pinnedPostId])
   @@index([signatureToneId])
@@ -1072,4 +1073,21 @@ model Block {
 
   @@id([blockerId, blockedId])
   @@index([blockedId])
+}
+
+/// A gig's setlist. Songs live in `items` (validated JSON: title, BPM, key, tone, MIDI program, notes) so reordering is one write.
+model Setlist {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  venue     String?
+  date      DateTime?
+  notes     String?
+  items     Json      @default("[]")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }
