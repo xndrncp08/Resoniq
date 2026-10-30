@@ -28,6 +28,8 @@ export type StudioOrigin = {
   toneId: string | null;
   name: string;
   isOwner: boolean;
+  /** Who can open the saved sound (for sharing). */
+  visibility?: "PRIVATE" | "UNLISTED" | "PUBLIC";
   /** The preset's rig when it's a device preset: saving writes the edited rig back. */
   deviceRig: RigSpec | null;
   /** Analysis provenance to keep when saving a new tone from an analysed song (see analysis sections). */

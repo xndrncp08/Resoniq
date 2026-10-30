@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { StudioStore } from "@/lib/stores/studio-store";
 import type { StudioAudio } from "@/lib/studio/audio";
 
+const MAX_IR_BYTES = 5 * 1024 * 1024;
+const MAX_IR_SECONDS = 2;
+
 export type SourceKind = "demo" | "file" | "live";
 export type AudioStatus = { state: "off" | "starting" | "playing" | "error"; source: SourceKind | null; message: string | null; latencyMs: number | null };
 
@@ -16,6 +19,7 @@ export function useStudioAudio(store: StudioStore) {
   const engine = useRef<StudioAudio | null>(null);
   const demo = useRef<AudioBuffer | null>(null);
   const [status, setStatus] = useState<AudioStatus>({ state: "off", source: null, message: null, latencyMs: null });
+  const [impulse, setImpulse] = useState<{ name: string; seconds: number } | null>(null);
 
   useEffect(() => {
     const unsub = store.subscribe((s, prev) => {
@@ -77,8 +81,30 @@ export function useStudioAudio(store: StudioStore) {
     setStatus((s) => ({ ...s, state: "off", message: null }));
   }, []);
 
+  /** A cabinet IR from a WAV on this device. Kept for this session only; nothing is uploaded. */
+  const loadImpulse = useCallback(
+    async (file: File) => {
+      if (file.size > MAX_IR_BYTES) throw new Error("That impulse response is over 5 MB; cabinet IRs are usually under 1 MB.");
+      const e = await ensure();
+      let buffer: AudioBuffer;
+      try {
+        buffer = await e.ctx.decodeAudioData(await file.arrayBuffer());
+      } catch {
+        throw new Error("That file couldn't be decoded. Cabinet IRs are usually WAV files.");
+      }
+      if (buffer.duration > MAX_IR_SECONDS) throw new Error("That's longer than a cabinet IR (over 2 seconds); try a reverb pedal for rooms.");
+      e.setImpulse(buffer);
+      setImpulse({ name: file.name, seconds: buffer.duration });
+    },
+    [ensure],
+  );
+  const clearImpulse = useCallback(() => {
+    engine.current?.setImpulse(null);
+    setImpulse(null);
+  }, []);
+
   const readInput = useCallback(() => engine.current?.levels().input ?? { rms: -100, peak: -100 }, []);
   const readOutput = useCallback(() => engine.current?.levels().output ?? { rms: -100, peak: -100 }, []);
 
-  return { status, start, stop, readInput, readOutput };
+  return { status, start, stop, readInput, readOutput, impulse, loadImpulse, clearImpulse };
 }

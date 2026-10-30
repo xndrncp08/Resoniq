@@ -1,4 +1,4 @@
-import { AMP_DESIGNS, CAB_DESIGNS, EFFECT_DESIGNS, type AmpKnob, type StudioPatch } from "@/lib/studio/patch";
+import { AMP_DESIGNS, CAB_DESIGNS, EFFECT_DESIGNS, MIC_DESIGNS, SPEAKER_DESIGNS, type AmpKnob, type StudioPatch } from "@/lib/studio/patch";
 
 /** What the last edit set, for the readout. Covers every edit key; anything unexpected shows nothing rather than crashing. */
 export function describeEdit(key: string, p: StudioPatch): string | null {
@@ -12,6 +12,8 @@ export function describeEdit(key: string, p: StudioPatch): string | null {
   if (area === "cab") {
     if (a === "model") return CAB_DESIGNS[p.cab.model]?.name.toUpperCase() ?? null;
     if (a === "on") return show("CABINET", p.cab.on);
+    if (a === "speaker") return `SPEAKER ${SPEAKER_DESIGNS[p.cab.speaker]?.name.toUpperCase() ?? ""}`.trim();
+    if (a === "mic") return `${MIC_DESIGNS[p.cab.mic]?.name.toUpperCase() ?? ""} MIC`.trim();
     if (a === "micPosition") return show("MIC POSITION", p.cab.micPosition);
     if (a === "micDistance") return show("MIC DISTANCE", p.cab.micDistance);
     return null;

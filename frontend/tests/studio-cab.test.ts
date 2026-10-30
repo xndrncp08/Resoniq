@@ -60,7 +60,7 @@ describe("reading stored and legacy patches", () => {
     const p = normalizeStudioPatch(legacy);
     expect(() => parseStudioPatch(p)).not.toThrow();
     expect(p.amp).toMatchObject({ model: "basalt", gain: 7.5, bass: 6, mid: 5, treble: 10, bright: true });
-    expect(p.cab).toEqual({ model: "2x12-open", on: false, micPosition: 4, micDistance: 2 });
+    expect(p.cab).toEqual({ model: "2x12-open", on: false, micPosition: 4, micDistance: 2, speaker: "stock", mic: "dynamic" });
     expect(p.gate).toEqual({ on: true, threshold: -60 });
     expect(p.input).toBe(2);
     expect(p.effects).toHaveLength(1);
@@ -74,7 +74,7 @@ describe("reading stored and legacy patches", () => {
   });
 
   it("leaves valid patches exactly as they were", () => {
-    const valid = { ...defaultPatch("lumen"), cab: { model: "1x12-open" as const, on: true, micPosition: 7.5, micDistance: 1 }, effects: [newEffect("reverb", "r1")] };
+    const valid = { ...defaultPatch("lumen"), cab: { model: "1x12-open" as const, on: true, micPosition: 7.5, micDistance: 1, speaker: "alnico-15" as const, mic: "ribbon" as const }, effects: [newEffect("reverb", "r1"), newEffect("fuzz", "f1", "post")] };
     expect(normalizeStudioPatch(valid)).toEqual(valid);
   });
 

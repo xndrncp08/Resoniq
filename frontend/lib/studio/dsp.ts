@@ -1,4 +1,4 @@
-import type { AmpModelId, CabModelId } from "@/lib/studio/patch";
+import type { AmpModelId, CabModelId, MicId, SpeakerId } from "@/lib/studio/patch";
 
 /**
  * The math behind the studio's audio, kept free of Web Audio so it can be
@@ -26,9 +26,16 @@ export type Voicing = {
   stackMidHz: number;
   /** Fizz roll-off after the second stage. */
   lowpassHz: number;
+  /** A "Cut" control: raising it removes top end instead of adding it. */
+  cutControl?: boolean;
 };
 
 export const VOICINGS: Record<AmpModelId, Voicing> = {
+  atlas: { drive: [0.3, 4], stage1: "soft", stage2: "soft", rectify: 0, midHz: 500, midDb: -2, interstageHz: 35, tightHz: 110, stackMidHz: 420, lowpassHz: 12000 },
+  juniper: { drive: [1.5, 80], stage1: "asym", stage2: "asym", rectify: 0, midHz: 1200, midDb: 2, interstageHz: 45, tightHz: 130, stackMidHz: 800, lowpassHz: 6000 },
+  bellwether: { drive: [1, 60], stage1: "soft", stage2: "asym", rectify: 0, midHz: 2200, midDb: 4, interstageHz: 80, tightHz: 150, stackMidHz: 1000, lowpassHz: 9500, cutControl: true },
+  monarch: { drive: [0.6, 130], stage1: "soft", stage2: "soft", rectify: 0, midHz: 700, midDb: 4, interstageHz: 65, tightHz: 120, stackMidHz: 700, lowpassHz: 7500 },
+  foundry: { drive: [3, 700], stage1: "hard", stage2: "hard", rectify: 0, midHz: 1600, midDb: 1, interstageHz: 110, tightHz: 200, stackMidHz: 500, lowpassHz: 6000 },
   halcyon: { drive: [1, 45], stage1: "asym", stage2: "soft", rectify: 0, midHz: 800, midDb: 3, interstageHz: 70, tightHz: 150, stackMidHz: 750, lowpassHz: 7500 },
   basalt: { drive: [2, 420], stage1: "hard", stage2: "hard", rectify: 0, midHz: 1400, midDb: 2, interstageHz: 90, tightHz: 180, stackMidHz: 650, lowpassHz: 6500 },
   gilded: { drive: [1, 90], stage1: "soft", stage2: "asym", rectify: 0, midHz: 1000, midDb: 4, interstageHz: 60, tightHz: 140, stackMidHz: 900, lowpassHz: 8000 },
@@ -81,22 +88,43 @@ export const CAB_VOICINGS: Record<CabModelId, CabVoicing> = {
   "4x12-closed": { highpassHz: 75, thumpDb: 4, midHz: 2500, midDb: 3, lowpassHz: 5500 },
   "2x12-open": { highpassHz: 90, thumpDb: 1.5, midHz: 1800, midDb: 2, lowpassHz: 6500 },
   "1x12-open": { highpassHz: 105, thumpDb: 0.5, midHz: 1200, midDb: 2.5, lowpassHz: 5000 },
+  "2x12-closed": { highpassHz: 80, thumpDb: 3, midHz: 2200, midDb: 3, lowpassHz: 5800 },
+  "4x10-open": { highpassHz: 95, thumpDb: 1, midHz: 2800, midDb: 2, lowpassHz: 7000 },
+  "1x10-open": { highpassHz: 130, thumpDb: 0, midHz: 1000, midDb: 4, lowpassHz: 4600 },
+};
+
+/** How a speaker re-voices its cabinet: one peak, a low shelf and a scaled roll-off. "stock" changes nothing. */
+export type SpeakerVoicing = { peakHz: number; peakDb: number; lowDb: number; lowpassScale: number };
+export const SPEAKER_VOICINGS: Record<SpeakerId, SpeakerVoicing> = {
+  stock: { peakHz: 2000, peakDb: 0, lowDb: 0, lowpassScale: 1 },
+  "ceramic-25": { peakHz: 1500, peakDb: 2.5, lowDb: 0.5, lowpassScale: 0.9 },
+  "ceramic-70": { peakHz: 2800, peakDb: 4, lowDb: 1.5, lowpassScale: 1 },
+  "alnico-15": { peakHz: 3600, peakDb: 3, lowDb: -2, lowpassScale: 1.1 },
+  "american-12": { peakHz: 700, peakDb: -3.5, lowDb: 1, lowpassScale: 1.25 },
+  "neo-100": { peakHz: 1000, peakDb: 0, lowDb: -1, lowpassScale: 1.2 },
 };
 
 /**
  * Mic placement: toward the speaker's edge (10) darkens the top end; backing
  * off (10) loses the close-mic bass build-up.
  */
-export function micFilters(position: number, distance: number) {
+export function micFilters(position: number, distance: number, mic: MicId = "dynamic") {
   const p = Math.max(0, Math.min(10, position)) / 10;
   const d = Math.max(0, Math.min(10, distance)) / 10;
-  return { lowpassScale: 1 - 0.45 * p, presenceDb: 3 - 6 * p, proximityDb: 4 - 6 * d };
+  // A ribbon is darker with more proximity bass; a condenser brighter with less.
+  const m = mic === "ribbon" ? { lp: 0.75, presence: -3, proximity: 1.5 } : mic === "condenser" ? { lp: 1.25, presence: 2, proximity: 0.6 } : { lp: 1, presence: 0, proximity: 1 };
+  const proximity = 4 - 6 * d;
+  return { lowpassScale: (1 - 0.45 * p) * m.lp, presenceDb: 3 - 6 * p + m.presence, proximityDb: proximity > 0 ? proximity * m.proximity : proximity };
 }
+
+/** The gate pedal's 0–10 threshold in dBFS (same scale as the TANK-G mapping). */
+export const gatePedalDb = (knob: number) => -80 + Math.max(0, Math.min(10, knob)) * 5;
 
 /**
  * A reverb impulse: decaying noise shaped per voice. Room is short and dense,
- * Spring adds a periodic metallic flutter, Cloud swells in slowly. Stereo, so
- * the tail spreads across both speakers.
+ * Spring adds a periodic metallic flutter, Plate is bright and instantly dense,
+ * Hall waits a moment and darkens as it decays, Cloud swells in slowly.
+ * Stereo, so the tail spreads across both speakers.
  */
 export function reverbImpulse(voice: string, seconds: number, sampleRate: number, seed = 1): [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] {
   const n = Math.max(1, Math.round(seconds * sampleRate));
@@ -116,6 +144,13 @@ export function reverbImpulse(voice: string, seconds: number, sampleRate: number
         x = lp * 2.2;
       }
       if (voice === "Room" && t < 0.06) env *= 0.6 + 0.4 * Math.sin(t * 900);
+      if (voice === "Plate") env *= 0.8;
+      if (voice === "Hall") {
+        if (t < 0.025) env = 0;
+        // The tail loses its top end over time, as air absorbs it in a large room.
+        lp += (0.7 - 0.55 * Math.min(1, t / seconds)) * (x - lp);
+        x = lp * 1.5;
+      }
       ch[i] = x * env;
     }
   }

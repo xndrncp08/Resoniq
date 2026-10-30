@@ -1,186 +1,166 @@
 # Resoniq
 
-A community for guitarists and bassists built around the sound behind the
-playing. Musicians post performances, covers, gear demos and board tours with
-the exact rig attached: guitar, pickups, pedals in order, amp settings, cab.
-Others can watch the take, open the signal chain, save the tone, remix it
-(with credit) and compare it knob for knob. Communities, threaded
-discussions, follows, a gear catalog and search sit around that core.
+**Find a sound. Make it yours. Play it forward.**
 
-The original engine is still here: upload a recording and Resoniq infers a
-starting-point recipe (amp, cab, pedals, EQ, gain) you can tune on a tactile
-dashboard. What a player **declares** about their rig and what Resoniq's
-analysis **infers** from audio are stored apart and labelled apart, everywhere.
+Resoniq is a place for musicians to practice, discover people, share their work, and explore the sounds behind it. It brings together a community, a tone library, browser-based audio tools, and an analysis engine that turns a recording into a starting-point rig.
 
-- `docs/superpowers/specs/2026-10-22-platform-evolution-design.md`: design decisions
-- `docs/design-system.md`, `docs/brand.md`: tokens, components, icons, identity
-- `docs/deploy.md`: hosting requirements and credentials
-- `SECURITY.md`: what's protected, how, and the known gaps
+[Explore Resoniq](https://resoniq-two.vercel.app) · [Run locally](#getting-started) · [Architecture](#architecture) · [Documentation](#documentation)
 
-## An honest note on what the analysis is
+![Resoniq landing page, with a guitar and amplifier in a studio](docs/screenshots/home.png)
 
-No existing model reliably says "this is a Two-Rock amp with a Blues Driver"
-from a raw recording, and Resoniq doesn't pretend to. The engine:
+## What you can do
 
-1. **Measures** the audio with Librosa: spectral centroid and rolloff
-   (brightness), low-band energy (warmth), spectral flatness in dB over
-   non-silent frames (saturation), crest factor (compression), onset attack
-   and decay, harmonic/percussive balance, a rough THD estimate, reverb tail,
-   and amplitude modulation.
-2. **Infers** gear from those numbers with a small, transparent rules engine
-   (`python-engine/app/heuristics.py`). Its thresholds are reasoned
-   approximations, sanity-checked against a handful of CC-licensed
-   recordings, not fit to a dataset.
-3. Optionally has **Claude** turn the measurements and draft profile into
-   recipe text (with `ANTHROPIC_API_KEY`); otherwise a deterministic rule-based
-   recipe is used.
+- **Practice with intention.** Use a metronome with tap tempo, loop and slow down a local recording, and keep a practice note in your browser. Sign in to save tempo ladders and track takes across sessions. The metronome and loop player work without an account.
+- **Find your people.** Explore musician profiles by name, instrument, genre and collaboration preferences. Follow players, join communities, share posts and feedback, and start conversations.
+- **Share the sound behind the playing.** Document a rig, attach tones to posts, browse the gear catalog, save and compare settings, or remix a tone with source credit. Tones can be kept private or shared.
+- **Experiment in Amp Studio.** Dial in an amp, cabinet and effects, then listen to a demo, a local audio file, or live input through an audio interface. Save a sound to your account and take it into the rest of Resoniq. Studio processing is Resoniq's own approximation; it does not model a particular physical amplifier or pedal.
+- **Analyze a recording.** Measure a recording and explore a suggested signal chain, settings and EQ as a starting point for your own sound. Analysis results distinguish inferred settings from a musician's declared rig.
+- **Explore supported hardware.** The M-VAVE TANK-G library includes device-aware settings and setup sheets. Resoniq JSON and text setup sheets are not native M-EFCS presets; hardware and browser playback will sound different. See the [TANK-G report](docs/tank-g-library.md) for the hardware caveats.
 
-Recordings longer than a minute are measured on their loudest 60 seconds
-(found by streaming the file, then decoding only that stretch), which keeps
-the engine's memory flat on a 512 MB instance however long the song is; the
-result says which stretch was measured.
+![Resoniq practice room showing the metronome and audio loop player](docs/screenshots/practice.png)
 
-The UI frames every result as a closest match with a *heuristic* confidence,
-not a verified rig. The guitar isn't separated from the mix first, so sparse,
-guitar-forward recordings give the clearest readings. Known weak spots:
-modulation detection can read a playing rhythm as tremolo, and pickup
-position is a brightness guess.
+*Screenshots show the public site captured in October 2026. Features and availability depend on the deployed version and configuration.*
 
-## Structure
+## How audio analysis works
 
-```
-frontend/        Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4 + Motion/GSAP
-  app/(app)/     The signed-in app: feed, explore, search, communities, posts, profiles,
-                 tones, gear, compare, composer, notifications, settings, analyze, vault
-  app/admin/     The control center (staff only)
-  app/api/       Route handlers: auth, social, tones, gear, media, search, admin, analysis
-  lib/           Domain logic (posts, comments, tones, media, moderation, jobs, authz, …)
-  worker/        Background worker: media processing (ffmpeg), purges, announcement fan-out
-  prisma/        Schema, migrations, structural seed (communities, rules, gear catalog)
-python-engine/   FastAPI service: feature extraction, heuristics, recipe
-scripts/         smoke-test.sh, e2e-platform.sh, new-migration.sh
+The engine uses Librosa to measure characteristics such as brightness, warmth, saturation, dynamics, attack and decay, and time-based effects. A rules engine translates those measurements into a suggested tone profile. An optional Anthropic API key enables generated recipe text; otherwise the engine uses a deterministic recipe.
+
+These are **heuristic estimates**, not identification of the exact gear used. The engine does not separate guitar from the rest of a mix, so sparse, guitar-forward recordings generally give clearer results. Rhythmic playing can resemble tremolo, and pickup position is inferred from brightness. Longer recordings are scanned for a representative loud section; analysis works on bounded excerpts and reports the measured window. Listen, adjust, and treat the result as a starting point.
+
+## Architecture
+
+```text
+Browser ── Next.js app and API ── PostgreSQL (application data + job queue)
+                 │       │
+                 │       └────── Private Supabase storage or shared local storage
+                 └────────────── FastAPI analysis engine
+
+Worker ── PostgreSQL + shared storage ── FFmpeg/ffprobe for media processing
 ```
 
-Services: **frontend** (Next), **worker** (same codebase, `tsx worker/index.ts`,
-needs ffmpeg), **python-engine** (internal only), and **Postgres 16** (with
-`pg_trgm`), which also holds the job queue. Files go to a private Supabase
-bucket or a local volume shared by frontend and worker.
-
-## Motion
-
-Three rendering libraries, each with one job:
-
-| Library | Used for |
+| Component | Responsibility |
 | --- | --- |
-| [Motion](https://motion.dev) (`motion/react`) | Layout and presence: signal-chain nodes, pedal reorder, pickup selector, library grid, share dialog, dropzone gestures, page entrances |
-| [GSAP](https://gsap.com) | Timelines and render loops: hero waveform morph, How it works, the measurement-to-recipe reveal, measurement meters, the spectrum analyzer, EQ-curve tweening |
-| [three.js](https://threejs.org) via React Three Fiber | The 3D amp head on tone pages, the analysis editor and the landing hero; loaded on demand |
+| `frontend/` | Next.js 16 App Router, React 19 and TypeScript UI and API routes; Auth.js authentication; Prisma data access. |
+| `frontend/worker/` | Background media processing, cleanup and announcement delivery using the Postgres job queue. |
+| `frontend/prisma/` | Database schema, migrations and structural seed data. |
+| `python-engine/` | FastAPI service for audio feature extraction, heuristic inference and recipe generation. |
+| `scripts/` | Migration, deployment and end-to-end smoke-test scripts. |
+| `docs/` | Design, deployment, hardware and operational notes. |
 
-All of them honor `prefers-reduced-motion`. Client state is Zustand (tool
-stores, device preferences) and TanStack Query (server data that changes while
-a page is open); see `docs/state-and-3d.md` for who owns what.
+The interface uses Tailwind CSS, Motion, GSAP and React Three Fiber; Zustand and TanStack Query manage client and server state. Fonts are bundled locally. See [state and 3D](docs/state-and-3d.md) and the [design system](docs/design-system.md) for details.
 
-GSAP is free to use under its own [standard license](https://gsap.com/standard-license) (not open source).
+## Getting started
 
-Fonts are bundled under `frontend/public/fonts` with their SIL Open Font
-License, so builds don't need to contact Google Fonts.
+### Docker Compose
 
-## Running it
-
-### With Docker
+Requirements: Docker and Docker Compose. From the repository root:
 
 ```bash
-cp .env.example .env   # set AUTH_SECRET and RESONIQ_ENGINE_SECRET
+cp .env.example .env
+```
+
+Set `AUTH_SECRET` and `RESONIQ_ENGINE_SECRET` to separate, strong values in `.env` (for example, generate each with `openssl rand -hex 32`), then run:
+
+```bash
 docker compose up --build
-# http://localhost:3000
 ```
 
-Compose runs Postgres, applies migrations and the structural seed, then
-starts the engine (internal only), the worker (with ffmpeg) and the frontend.
-Without Supabase settings, uploads live in the `song_data` volume shared by
-the frontend and the worker.
+Open [localhost:3000](http://localhost:3000). Compose starts PostgreSQL, applies migrations and the structural seed, and runs the engine, frontend and worker. Local uploads use a volume shared by the frontend and worker unless Supabase is configured. To stop the services, run `docker compose down`; the named data volumes remain intact.
 
-Create the first admin (there's no UI path to it):
+### Run services directly
 
-```bash
-docker compose exec frontend true   # stack is up
-docker compose run --rm migrate npx tsx scripts/grant-role.ts --email you@example.com --role ADMIN
-```
-
-### Without Docker
-
-Requires Node 22+, Python 3.11+, libsndfile, ffmpeg/ffprobe, and Postgres 16.
+Requirements: Node.js 22+, Python 3.11+, PostgreSQL 16 with permission to enable `pg_trgm`, libsndfile, and FFmpeg/ffprobe. Create a local PostgreSQL database and set its connection string in `frontend/.env`.
 
 ```bash
-# python-engine
+# Terminal 1: analysis engine, from the repository root
 cd python-engine
-python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-RESONIQ_ENGINE_SECRET=<secret> .venv/bin/uvicorn main:app --port 8000
-
-# frontend (another terminal)
-cd frontend
-cp .env.example .env   # DATABASE_URL, AUTH_SECRET, RESONIQ_ENGINE_SECRET=<same secret>
-npm install
-npx prisma migrate dev
-npm run db:seed        # communities, moderation rules, gear catalog (no users or posts)
-npm run dev
-
-# worker (a third terminal): processes uploads, purges, announcements
-cd frontend && npx tsx worker/index.ts
-
-# first admin
-cd frontend && npm run admin:grant -- --email you@example.com --role ADMIN
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+RESONIQ_ENGINE_SECRET=your-shared-secret .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 ```
-
-Sign-in: Google is the primary sign-up and sign-in method once
-`AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are set (redirect URI
-`<AUTH_URL>/api/auth/callback/google`). Existing email/password accounts can
-always sign in.
-
-Email is optional: with `RESEND_API_KEY` and `RESONIQ_EMAIL_FROM` set,
-verification and password-reset emails are sent and public email/password
-sign-up opens. Without them in development, the links are printed to the
-frontend's log; in production the flows are hidden.
-
-Storage: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to use a
-**private** Supabase bucket named `songs` (audio and media). Otherwise files
-go to `frontend/.storage/`.
-
-### Migrations
-
-`npx prisma migrate dev --name <name>` works in a terminal. Non-interactive
-environments (agents, CI) can generate the SQL with
-`SHADOW_DATABASE_URL=… scripts/new-migration.sh <name>`. Search indexes are
-expression indexes added by hand in the `search` migration (Prisma doesn't
-model them), so keep queries in `lib/search.ts` in sync with them.
-
-## Checks
 
 ```bash
-cd frontend && npm run lint && npm run typecheck && npm test && npm run build
-TEST_DATABASE_URL=postgresql://…/resoniq_test npm run test:int   # real Postgres; name must end in _test
-cd python-engine && .venv/bin/ruff check . && .venv/bin/pytest
-BASE_URL=http://localhost:3000 scripts/smoke-test.sh     # analysis flow, needs the engine
-BASE_URL=http://localhost:3000 scripts/e2e-platform.sh   # social + media flow, needs the worker and ffmpeg
+# Terminal 2: frontend, from the repository root
+cd frontend
+cp .env.example .env
+# Edit DATABASE_URL and AUTH_SECRET, and set RESONIQ_ENGINE_SECRET to the same value as the engine.
+npm ci
+npx prisma migrate dev
+npm run db:seed
+npm run dev
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit and route tests,
-the Postgres integration suite with a migration-drift check, the build, the
-engine tests, then builds every image, starts the compose stack and runs both
-end-to-end scripts against it. There's no deploy stage yet: see
-`docs/deploy.md`.
+```bash
+# Terminal 3: worker, from the repository root
+cd frontend
+node --env-file=.env --import tsx worker/index.ts
+```
 
-## Security
+Open [localhost:3000](http://localhost:3000). The worker is needed for audio and video post processing and queued maintenance. The seed creates communities, moderation rules and gear catalog entries; it does not create users, posts or engagement.
 
-See [SECURITY.md](SECURITY.md) for what's protected, how, and the known gaps.
+To grant an existing account administrator access, run `npm run admin:grant -- --email you@example.com --role ADMIN` from `frontend/`. With Compose, use `docker compose run --rm migrate npx tsx scripts/grant-role.ts --email you@example.com --role ADMIN`.
 
-## Not built, on purpose
+### Configuration
 
-- Link-based ingestion (YouTube / Spotify / SoundCloud) is a disabled
-  placeholder. Pulling audio from those platforms runs into their terms of
-  service and licensing, so it isn't implemented.
-- Exports are Resoniq JSON only. Resoniq doesn't write Helix, Quad Cortex,
-  Kemper or other proprietary preset formats.
-- No fake activity: seeds create structure (communities, rules, catalog),
-  never users, posts or engagement. Landing-page numbers come from the
-  database, and illustrative UI is labelled "Interface preview".
+Start with [the Compose example](.env.example), [frontend example](frontend/.env.example) and [engine example](python-engine/.env.example). Never commit real credentials.
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection for the frontend, worker and migrations. |
+| `AUTH_SECRET`, `AUTH_URL` | Auth.js secret and public origin; configure the origin for deployed authentication and links. |
+| `RESONIQ_ENGINE_SECRET` | Shared secret for frontend-to-engine requests; use the same value on both services. |
+| `PYTHON_ENGINE_URL` | Engine address reachable by the frontend; local default is `http://localhost:8000`. |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Optional Google sign-in. Register `<AUTH_URL>/api/auth/callback/google` as the redirect URI. |
+| `RESEND_API_KEY`, `RESONIQ_EMAIL_FROM` | Optional verification and password-reset email delivery. In development, links are logged when email is not configured; public password registration depends on email configuration. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Optional private `songs` bucket storage. Without these, non-serverless development uses local disk. |
+| `ANTHROPIC_API_KEY` | Optional engine key for recipe text; the rules-based recipe works without it. |
+
+For hosted environments, storage, worker availability, email and authentication configuration determine which features are available. See [deployment](docs/deploy.md), [free-tier deployment notes](docs/deploy-free.md), and [security](SECURITY.md); deployment reports describe their validation at the time they were written and should be rechecked before release.
+
+## Development and checks
+
+Run frontend checks from `frontend/`:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Integration tests use a real PostgreSQL database and **truncate its tables**. Use a disposable database whose name ends in `_test`:
+
+```bash
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/resoniq_test npm run test:int
+```
+
+Run engine checks from `python-engine/`:
+
+```bash
+.venv/bin/ruff check .
+.venv/bin/pytest
+```
+
+From the repository root, with the appropriate services running:
+
+```bash
+BASE_URL=http://localhost:3000 scripts/smoke-test.sh
+BASE_URL=http://localhost:3000 scripts/e2e-platform.sh
+```
+
+The first script exercises analysis; the second exercises social and media flows and needs the worker and FFmpeg. Playwright tests are configured in `frontend/playwright.config.ts`: start an app on port 3100, then run `npm run test:e2e` from `frontend/`, or set `E2E_BASE_URL`. The signed-in suite creates and deletes its own account, so use an appropriate test environment.
+
+CI runs frontend lint, type checking, tests and build; PostgreSQL integration and migration-drift checks; engine lint and tests; and a Docker Compose smoke test. For schema changes, use Prisma migrations; `scripts/new-migration.sh` supports non-interactive migration generation with a shadow database. Search expression indexes are maintained in migrations and must stay in sync with `frontend/lib/search.ts`.
+
+## Documentation
+
+- [Deployment guide](docs/deploy.md) and [free-tier notes](docs/deploy-free.md)
+- [Security model and known gaps](SECURITY.md)
+- [Platform design](docs/superpowers/specs/2026-10-22-platform-evolution-design.md)
+- [Design system](docs/design-system.md), [brand](docs/brand.md), and [state and 3D](docs/state-and-3d.md)
+- [Managed tone publishing](docs/managed-tone-publishing.md) and [TANK-G library](docs/tank-g-library.md)
+- [Roadmap](ROADMAP.md)
+
+## Current boundaries
+
+Link-based YouTube, Spotify and SoundCloud ingestion is a disabled placeholder. Resoniq does not export proprietary hardware preset formats. Generated tones are labeled as such, and the structural seed does not fabricate community activity. Feature flags, credentials, storage and worker configuration can further limit what a particular deployment offers.

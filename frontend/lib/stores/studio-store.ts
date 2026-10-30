@@ -18,6 +18,8 @@ export type StudioState = {
   /** The inactive slot's undo history, restored when switching back. */
   parked: { past: StudioPatch[]; future: StudioPatch[] };
   view: StudioView;
+  /** The pedal open in the editor (view "fx"). */
+  selectedFx: string | null;
   lastEdit: { key: string; at: number } | null;
   edit: (key: string, change: (p: StudioPatch) => StudioPatch) => void;
   load: (patch: StudioPatch) => void;
@@ -26,6 +28,7 @@ export type StudioState = {
   reset: () => void;
   markSaved: (patch: StudioPatch) => void;
   setView: (v: StudioView) => void;
+  selectFx: (id: string | null) => void;
   switchSlot: (s: Slot) => void;
   copyToOther: () => void;
 };
@@ -67,6 +70,7 @@ export function createStudioStore(initial: StudioPatch, device: StudioDevice | n
       future: [],
       parked: { past: [], future: [] },
       view: "amp",
+      selectedFx: null,
       lastEdit: null,
       edit: (key, change) => commit(fit(change(structuredClone(get().patch))), key),
       load: (patch) => commit(fit(patch), null),
@@ -84,7 +88,9 @@ export function createStudioStore(initial: StudioPatch, device: StudioDevice | n
       },
       reset: () => commit(get().saved, null),
       markSaved: (patch) => set({ saved: patch }),
-      setView: (view) => set({ view }),
+      // Opening the effects view without a pedal picks the first one.
+      setView: (view) => set((s) => ({ view, selectedFx: view === "fx" && !s.patch.effects.some((e) => e.id === s.selectedFx) ? (s.patch.effects[0]?.id ?? null) : s.selectedFx })),
+      selectFx: (id) => set({ view: "fx", selectedFx: id }),
       // B starts as a copy of A the first time it's opened. Each slot keeps its own undo history.
       switchSlot: (slot) => {
         const s = get();

@@ -1,13 +1,14 @@
-import { EFFECT_DESIGNS, type Effect, type StudioPatch } from "@/lib/studio/patch";
-import { CAB_VOICINGS, VOICINGS, dbToGain, expMap, levelDb, masterDb, micFilters, reverbImpulse, shaperCurve, stackDb, stageDrives } from "@/lib/studio/dsp";
+import type { Effect, StudioPatch } from "@/lib/studio/patch";
+import { CAB_VOICINGS, SPEAKER_VOICINGS, VOICINGS, dbToGain, expMap, gatePedalDb, levelDb, masterDb, micFilters, reverbImpulse, shaperCurve, stackDb, stageDrives } from "@/lib/studio/dsp";
 
 /**
  * The studio's signal chain in Web Audio. Every control in the studio that
  * claims to change the sound changes a node here:
  *
- *   source → input → gate → [compressor, overdrive] → amp (two waveshaper
- *   stages with filters) → cabinet filters → [chorus, phaser, tremolo,
- *   delay, reverb] → output → limiter → speakers
+ *   source → input → gate → [pre-amp pedals, in order] → amp (two
+ *   waveshaper stages with filters) → cabinet (speaker and mic filters, or
+ *   a loaded impulse response) → [post pedals, in order] → output →
+ *   limiter → speakers
  *
  * Parameter changes glide (setTargetAtTime) so dragging a knob never clicks.
  */
@@ -107,6 +108,142 @@ function buildEffect(ctx: AudioContext, e: Effect): Unit {
           },
         };
       });
+    case "boost":
+      return unit(ctx, (input, output) => {
+        // Clean gain with a gentle treble tilt; it pushes whatever follows it harder.
+        const tilt = biquad(ctx, "highshelf", 1800);
+        const level = ctx.createGain();
+        chain(input, tilt, level, output);
+        return {
+          set: ({ params: p }) => {
+            tilt.gain.setTargetAtTime((p.tone - 5) * 1.6, t(), GLIDE);
+            level.gain.setTargetAtTime(dbToGain(p.level * 2), t(), GLIDE);
+          },
+        };
+      });
+    case "distortion":
+      return unit(ctx, (input, output) => {
+        // Hard clipping with a pre-emphasis bump, then a fixed fizz filter and a sweepable one.
+        const hp = biquad(ctx, "highpass", 120);
+        const emph = biquad(ctx, "peaking", 900, 6, 0.7);
+        const shaper = ctx.createWaveShaper();
+        shaper.oversample = "4x";
+        const fizz = biquad(ctx, "lowpass", 7000);
+        const tone = biquad(ctx, "lowpass", 3000);
+        const level = ctx.createGain();
+        chain(input, hp, emph, shaper, fizz, tone, level, output);
+        let last = -1;
+        return {
+          set: ({ params: p }) => {
+            if (p.drive !== last) shaper.curve = shaperCurve("hard", expMap(p.drive, 2, 250));
+            last = p.drive;
+            tone.frequency.setTargetAtTime(expMap(p.tone, 1200, 9000), t(), GLIDE);
+            level.gain.setTargetAtTime(dbToGain(stackDb(p.level) - 6), t(), GLIDE);
+          },
+        };
+      });
+    case "fuzz":
+      return unit(ctx, (input, output) => {
+        // Exponential clipping, then a tone control that fades from a low-pass to a high-pass (scooping the mids between).
+        const shaper = ctx.createWaveShaper();
+        shaper.oversample = "4x";
+        const lo = biquad(ctx, "lowpass", 700);
+        const hi = biquad(ctx, "highpass", 1300);
+        const loG = ctx.createGain();
+        const hiG = ctx.createGain();
+        const level = ctx.createGain();
+        chain(input, shaper);
+        chain(shaper, lo, loG, level);
+        chain(shaper, hi, hiG, level);
+        level.connect(output);
+        let last = -1;
+        return {
+          set: ({ params: p }) => {
+            if (p.drive !== last) shaper.curve = shaperCurve("fuzz", expMap(p.drive, 3, 400));
+            last = p.drive;
+            loG.gain.setTargetAtTime(1 - p.tone / 10, t(), GLIDE);
+            hiG.gain.setTargetAtTime((p.tone / 10) * 1.4, t(), GLIDE);
+            level.gain.setTargetAtTime(dbToGain(stackDb(p.level) - 4), t(), GLIDE);
+          },
+        };
+      });
+    case "wah":
+      return unit(ctx, (input, output) => {
+        // A resonant low-pass swept by the pedal position (or by an LFO in Auto).
+        const filter = biquad(ctx, "lowpass", 900, 0, 7);
+        const trim = ctx.createGain();
+        trim.gain.value = 0.55;
+        chain(input, filter, trim, output);
+        const sweep = lfo(ctx, filter.frequency, 0, 1);
+        return {
+          set: ({ params: p, voice }) => {
+            const centre = expMap(p.position, 380, 2200);
+            filter.frequency.setTargetAtTime(centre, t(), GLIDE);
+            sweep.osc.frequency.setTargetAtTime(expMap(p.rate, 0.3, 6), t(), GLIDE);
+            sweep.depth.gain.setTargetAtTime(voice === "Auto" ? centre * 0.75 * (p.depth / 10) : 0, t(), GLIDE);
+            filter.Q.setTargetAtTime(3 + (p.depth / 10) * 6, t(), GLIDE);
+          },
+          dispose: () => sweep.osc.stop(),
+        };
+      });
+    case "gate":
+      return unit(ctx, (input, output) => {
+        // Same detector as the input gate: the level just before this pedal, checked every 10 ms with 4 dB of hysteresis.
+        const vca = ctx.createGain();
+        const tap = ctx.createAnalyser();
+        tap.fftSize = 512;
+        input.connect(tap);
+        chain(input, vca, output);
+        const block = new Float32Array(512);
+        let open = true;
+        let threshold = -60;
+        let release = 0.05;
+        const timer = setInterval(() => {
+          tap.getFloatTimeDomainData(block);
+          const { rms } = levelDb(block);
+          const next = open ? rms > threshold - 4 : rms > threshold;
+          if (next !== open) vca.gain.setTargetAtTime(next ? 1 : 0, ctx.currentTime, next ? 0.001 : release);
+          open = next;
+        }, 10);
+        return {
+          set: ({ params: p }) => {
+            threshold = gatePedalDb(p.threshold);
+            release = expMap(p.release, 0.01, 0.3);
+          },
+          dispose: () => clearInterval(timer),
+        };
+      });
+    case "eq":
+      return unit(ctx, (input, output) => {
+        const bands = ([["b100", 100], ["b250", 250], ["b500", 500], ["b1k", 1000], ["b2k", 2000], ["b4k", 4000]] as const).map(([key, hz]) => ({ key, f: biquad(ctx, "peaking", hz, 0, 1.1) }));
+        const level = ctx.createGain();
+        chain(input, ...bands.map((b) => b.f), level, output);
+        return {
+          set: ({ params: p }) => {
+            for (const b of bands) b.f.gain.setTargetAtTime(stackDb(p[b.key]), t(), GLIDE);
+            level.gain.setTargetAtTime(dbToGain(stackDb(p.level)), t(), GLIDE);
+          },
+        };
+      });
+    case "flanger":
+      return unit(ctx, (input, output) => {
+        const delay = ctx.createDelay(0.02);
+        delay.delayTime.value = 0.003;
+        const regen = ctx.createGain();
+        const wet = ctx.createGain();
+        chain(input, delay, wet, output);
+        chain(delay, regen, delay);
+        const mod = lfo(ctx, delay.delayTime, 0.002, 0.3);
+        return {
+          set: ({ params: p }) => {
+            mod.osc.frequency.setTargetAtTime(expMap(p.rate, 0.05, 2.5), t(), GLIDE);
+            mod.depth.gain.setTargetAtTime(0.0002 + (p.depth / 10) * 0.0026, t(), GLIDE);
+            regen.gain.setTargetAtTime((p.feedback / 10) * 0.85, t(), GLIDE);
+            wet.gain.setTargetAtTime(p.mix / 10, t(), GLIDE);
+          },
+          dispose: () => mod.osc.stop(),
+        };
+      }, 1);
     case "chorus":
       return unit(ctx, (input, output) => {
         const delay = ctx.createDelay(0.05);
@@ -233,7 +370,12 @@ export class StudioAudio {
     s2: WaveShaperNode; fizz: BiquadFilterNode; bass: BiquadFilterNode; mid: BiquadFilterNode; treble: BiquadFilterNode;
     presence: BiquadFilterNode; depth: BiquadFilterNode; master: GainNode;
   };
-  private cab: { hp: BiquadFilterNode; thump: BiquadFilterNode; mid: BiquadFilterNode; lp: BiquadFilterNode; proximity: BiquadFilterNode; presence: BiquadFilterNode };
+  private cab: {
+    hp: BiquadFilterNode; thump: BiquadFilterNode; mid: BiquadFilterNode; speakerPeak: BiquadFilterNode; speakerLow: BiquadFilterNode;
+    lp: BiquadFilterNode; proximity: BiquadFilterNode; presence: BiquadFilterNode; filterOut: GainNode; ir: ConvolverNode; irOut: GainNode;
+  };
+  private impulse: AudioBuffer | null = null;
+  private cabOn = true;
   private postHead: GainNode;
   private output: GainNode;
   private outputTap: AnalyserNode;
@@ -266,8 +408,11 @@ export class StudioAudio {
     };
     this.cab = {
       hp: biquad(ctx, "highpass", 75), thump: biquad(ctx, "peaking", 110, 0, 1.2), mid: biquad(ctx, "peaking", 2500, 0, 1),
+      speakerPeak: biquad(ctx, "peaking", 2000, 0, 1.1), speakerLow: biquad(ctx, "lowshelf", 120),
       lp: biquad(ctx, "lowpass", 5500, 0, 0.9), proximity: biquad(ctx, "lowshelf", 150), presence: biquad(ctx, "peaking", 3200, 0, 1.4),
+      filterOut: ctx.createGain(), ir: ctx.createConvolver(), irOut: ctx.createGain(),
     };
+    this.cab.irOut.gain.value = 0;
     this.postHead = ctx.createGain();
     this.output = ctx.createGain();
     // Last line of defence for ears and speakers: a fast limiter just under full scale.
@@ -285,7 +430,9 @@ export class StudioAudio {
     const a = this.amp;
     chain(this.ampIn, a.tight, a.bright, a.push, a.s1, a.inter, a.s2, a.fizz, a.bass, a.mid, a.treble, a.presence, a.depth, a.master);
     const c = this.cab;
-    chain(a.master, c.hp, c.thump, c.mid, c.lp, c.proximity, c.presence, this.postHead);
+    // Two cabinets in parallel, one silent: the filter model, and the convolver for a loaded impulse response.
+    chain(a.master, c.hp, c.thump, c.mid, c.speakerPeak, c.speakerLow, c.lp, c.proximity, c.presence, c.filterOut, this.postHead);
+    chain(a.master, c.ir, c.irOut, this.postHead);
     chain(this.output, limiter, this.outputTap, ctx.destination);
     this.preHead.connect(this.ampIn);
     this.postHead.connect(this.output);
@@ -334,22 +481,28 @@ export class StudioAudio {
     set(a.mid.frequency, v.stackMidHz);
     set(a.mid.gain, stackDb(p.amp.mid));
     set(a.treble.gain, stackDb(p.amp.treble));
-    set(a.presence.gain, stackDb(p.amp.presence, 9));
+    set(a.presence.gain, v.cutControl ? -stackDb(p.amp.presence, 9) : stackDb(p.amp.presence, 9));
     set(a.depth.gain, stackDb(p.amp.depth, 9));
     // Waveshapers output near full scale at any gain; −10 dB leaves headroom for the cab's resonances and the effects.
     set(a.master.gain, dbToGain(masterDb(p.amp.master) - 10));
 
     const cv = CAB_VOICINGS[p.cab.model];
-    const mic = micFilters(p.cab.micPosition, p.cab.micDistance);
+    const sv = SPEAKER_VOICINGS[p.cab.speaker];
+    const mic = micFilters(p.cab.micPosition, p.cab.micDistance, p.cab.mic);
     const c = this.cab;
     const on = p.cab.on;
     set(c.hp.frequency, on ? cv.highpassHz : 10);
     set(c.thump.gain, on ? cv.thumpDb : 0);
     set(c.mid.frequency, cv.midHz);
     set(c.mid.gain, on ? cv.midDb : 0);
-    set(c.lp.frequency, on ? cv.lowpassHz * mic.lowpassScale : 20000);
+    set(c.speakerPeak.frequency, sv.peakHz);
+    set(c.speakerPeak.gain, on ? sv.peakDb : 0);
+    set(c.speakerLow.gain, on ? sv.lowDb : 0);
+    set(c.lp.frequency, on ? Math.min(20000, cv.lowpassHz * sv.lowpassScale * mic.lowpassScale) : 20000);
     set(c.proximity.gain, on ? mic.proximityDb : 0);
     set(c.presence.gain, on ? mic.presenceDb : 0);
+    this.cabOn = on;
+    this.routeCab();
 
     this.applyEffects(p.effects);
   }
@@ -370,21 +523,47 @@ export class StudioAudio {
       }
       this.units.get(e.id)!.unit.set(e);
     }
-    const order = effects.map((e) => `${e.id}:${e.type}`).join("|");
+    const order = effects.map((e) => `${e.id}:${e.type}:${e.placement}`).join("|");
     if (order === this.order) return;
     this.order = order;
     // Rewire: pre-amp effects between the gate and the amp, the rest after the cabinet.
     this.preHead.disconnect();
     this.postHead.disconnect();
     for (const { unit } of this.units.values()) unit.output.disconnect();
-    const pre = effects.filter((e) => EFFECT_DESIGNS[e.type].placement === "pre").map((e) => this.units.get(e.id)!.unit);
-    const post = effects.filter((e) => EFFECT_DESIGNS[e.type].placement === "post").map((e) => this.units.get(e.id)!.unit);
+    const pre = effects.filter((e) => e.placement === "pre").map((e) => this.units.get(e.id)!.unit);
+    const post = effects.filter((e) => e.placement !== "pre").map((e) => this.units.get(e.id)!.unit);
     let node: AudioNode = this.preHead;
     for (const u of pre) { node.connect(u.input); node = u.output; }
     node.connect(this.ampIn);
     node = this.postHead;
     for (const u of post) { node.connect(u.input); node = u.output; }
     node.connect(this.output);
+  }
+
+  /**
+   * A cabinet impulse response (a WAV of a real or imagined speaker and mic)
+   * replaces the filter cabinet while the cabinet is on; null goes back to
+   * the filters. Normalized to unit energy so loading one doesn't jump in level.
+   */
+  setImpulse(ir: AudioBuffer | null) {
+    if (ir) {
+      let energy = 0;
+      for (let ch = 0; ch < ir.numberOfChannels; ch++) for (const v of ir.getChannelData(ch)) energy += v * v;
+      const scale = 1 / Math.sqrt(energy / ir.numberOfChannels || 1);
+      const copy = this.ctx.createBuffer(ir.numberOfChannels, ir.length, ir.sampleRate);
+      for (let ch = 0; ch < ir.numberOfChannels; ch++) copy.copyToChannel(ir.getChannelData(ch).map((v) => v * scale), ch);
+      this.cab.ir.normalize = false;
+      this.cab.ir.buffer = copy;
+    }
+    this.impulse = ir;
+    this.routeCab();
+  }
+
+  private routeCab() {
+    const useIr = this.cabOn && this.impulse !== null;
+    const t = this.ctx.currentTime;
+    this.cab.filterOut.gain.setTargetAtTime(useIr ? 0 : 1, t, GLIDE);
+    this.cab.irOut.gain.setTargetAtTime(useIr ? 1 : 0, t, GLIDE);
   }
 
   async play(buffer: AudioBuffer) {
