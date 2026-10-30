@@ -218,14 +218,15 @@ model Tone {
   // Legacy anonymous attribution; managed creators use their labelled profile.
   anonymous    Boolean        @default(false)
 
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  remixOf     Tone?      @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
-  remixes     Tone[]     @relation("remix")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  remixOf     Tone?         @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
+  remixes     Tone[]        @relation("remix")
   posts       Post[]
-  signatureOf User[]     @relation("signatureTone")
+  signatureOf User[]        @relation("signatureTone")
   gear        ToneGear[]
   saves       ToneSave[]
   draft       ToneDraft?
+  versions    ToneVersion[]
   riffs       Riff[]
 
   @@index([userId, favorite, createdAt])
@@ -1153,4 +1154,27 @@ model RiffTake {
 
   @@index([riffId, createdAt])
   @@index([ownerId, createdAt])
+}
+
+enum ToneVersionKind {
+  BASELINE
+  CREATED
+  SAVED
+  RESTORED
+}
+
+/// Tone Time Machine: a snapshot of a tone's settings after each change (BASELINE = how it was before history began).
+model ToneVersion {
+  id        String          @id @default(cuid())
+  toneId    String
+  kind      ToneVersionKind @default(SAVED)
+  name      String
+  data      Json?
+  rig       Json?
+  note      String?
+  createdAt DateTime        @default(now())
+
+  tone Tone @relation(fields: [toneId], references: [id], onDelete: Cascade)
+
+  @@index([toneId, createdAt])
 }

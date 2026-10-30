@@ -31,6 +31,8 @@ export type StudioState = {
   selectFx: (id: string | null) => void;
   switchSlot: (s: Slot) => void;
   copyToOther: () => void;
+  /** Puts a patch into a compare slot (e.g. an old version into B) without touching the other side's history. */
+  loadInto: (slot: Slot, patch: StudioPatch) => void;
 };
 
 export type StudioStore = ReturnType<typeof createStudioStore>;
@@ -97,6 +99,11 @@ export function createStudioStore(initial: StudioPatch, device: StudioDevice | n
         if (slot === s.active) return;
         const target = s.slots[slot] ?? s.patch;
         set({ active: slot, patch: target, slots: { ...s.slots, [slot]: target }, past: s.parked.past, future: s.parked.future, parked: { past: s.past, future: s.future }, lastEdit: null });
+      },
+      loadInto: (slot, patch) => {
+        const s = get();
+        if (slot === s.active) return commit(fit(patch), null);
+        set({ slots: { ...s.slots, [slot]: fit(patch) } });
       },
       copyToOther: () => {
         const s = get();

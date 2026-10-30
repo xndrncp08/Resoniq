@@ -56,10 +56,10 @@ export function useSaveStudio(userId: string) {
   const key = studioKeys.presets(userId);
   return useMutation({
     scope: { id: key.join(":") },
-    mutationFn: async ({ patch, origin, mode, name }: { patch: StudioPatch; origin: StudioOrigin; mode: SaveMode; name: string }) => {
+    mutationFn: async ({ patch, origin, mode, name, revisionNote }: { patch: StudioPatch; origin: StudioOrigin; mode: SaveMode; name: string; revisionNote?: string | null }) => {
       const body = saveBody(patch, origin);
       if (mode === "update" && origin.toneId && origin.isOwner) {
-        await api(`/api/tones/${origin.toneId}`, { method: "PATCH", body: { ...body, name } });
+        await api(`/api/tones/${origin.toneId}`, { method: "PATCH", body: { ...body, name, ...(revisionNote && { revisionNote }) } });
         return { id: origin.toneId, name };
       }
       if (origin.toneId && !origin.isOwner) {
@@ -82,6 +82,10 @@ export function useSaveStudio(userId: string) {
     onError: (_err, _vars, previous) => {
       if (previous) client.setQueryData(key, previous);
     },
-    onSettled: () => client.invalidateQueries({ queryKey: key }),
+    onSettled: (_r, _e, { origin }) => {
+      void client.invalidateQueries({ queryKey: key });
+      // A save adds a version to the tone's history.
+      if (origin.toneId) void client.invalidateQueries({ queryKey: ["user", userId, "tones", origin.toneId, "versions"] });
+    },
   });
 }

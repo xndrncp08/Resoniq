@@ -13,6 +13,7 @@ import { TANK_G_SLUG, validateTankGRig } from "@/lib/devices/tank-g";
 import { parseStoredToneData, parseToneName } from "@/lib/tone-validation";
 import { fail } from "@/lib/validation";
 import { ANONYMOUS_AUTHOR } from "@/lib/system-identity";
+import { parseNote, recordVersion } from "@/lib/tone-versions";
 import type { RigSpec } from "@/types/rig";
 import type { RecipeCore } from "@/types/tone";
 
@@ -142,12 +143,15 @@ export type ToneInput = {
   description?: string | null;
   visibility?: ToneVisibility;
   favorite?: boolean;
+  /** Tone Time Machine: a note on what this save changed. */
+  revisionNote?: string | null;
 };
 
 export function parseToneInput(body: Record<string, unknown>, { partial }: { partial: boolean }): ToneInput {
   const out: ToneInput = {};
   if (body.name !== undefined || !partial) out.name = parseToneName(body.name);
   if (body.data !== undefined) out.data = body.data === null ? null : parseStoredToneData(body.data);
+  if (body.revisionNote !== undefined) out.revisionNote = parseNote(body.revisionNote);
   if (body.rig !== undefined) out.rig = parseRig(body.rig);
   if (body.description !== undefined) {
     if (body.description !== null && typeof body.description !== "string") fail("description must be text.");
@@ -215,13 +219,14 @@ export async function createTone(actor: Actor, input: ToneInput & { songId?: str
       select: { id: true },
     });
     await syncToneGear(tx, tone.id, gearIds);
+    await recordVersion(tx, tone.id, null, { name: input.name!, data: (input.data ?? null) as Prisma.JsonValue, rig: (input.rig ?? null) as unknown as Prisma.JsonValue }, { kind: "CREATED", note: null });
     return tone.id;
   });
 }
 
-export async function updateTone(actor: Actor, id: string, input: ToneInput) {
+export async function updateTone(actor: Actor, id: string, input: ToneInput, versionKind: "SAVED" | "RESTORED" = "SAVED") {
   await prisma.$transaction(async (tx) => {
-    const tone = await tx.tone.findFirst({ where: { id, userId: actor.id }, select: { id: true, publishedAt: true, data: true } });
+    const tone = await tx.tone.findFirst({ where: { id, userId: actor.id }, select: { id: true, publishedAt: true, data: true, name: true, rig: true } });
     if (!tone) throw new ApiError(404, "Tone not found.");
     const data: Prisma.ToneUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
@@ -234,7 +239,8 @@ export async function updateTone(actor: Actor, id: string, input: ToneInput) {
         ...((input.data.recipe ?? recipeCoreFromStored(tone.data)) && { recipe: input.data.recipe ?? recipeCoreFromStored(tone.data)! }),
         ...((input.data.studio ?? studioPatchFromStored(tone.data)) && { studio: input.data.studio ?? studioPatchFromStored(tone.data)! }),
       };
-      data.data = merged === null ? (null as unknown as Prisma.InputJsonValue) : json(merged);
+      // A restore puts back exactly what the version held; ordinary saves merge.
+      data.data = versionKind === "RESTORED" ? json(input.data) : merged === null ? (null as unknown as Prisma.InputJsonValue) : json(merged);
       // An analysis recipe the creator retunes is labelled as adjusted, not as raw analysis.
       // Only the recipe counts: adding or changing a studio patch leaves the analysis as it was.
       const before = recipeCoreFromStored(tone.data);
@@ -248,7 +254,8 @@ export async function updateTone(actor: Actor, id: string, input: ToneInput) {
       data.visibility = input.visibility;
       if (input.visibility === "PUBLIC" && !tone.publishedAt) data.publishedAt = new Date();
     }
-    await tx.tone.update({ where: { id }, data });
+    const after = await tx.tone.update({ where: { id }, data, select: { name: true, data: true, rig: true } });
+    await recordVersion(tx, id, { name: tone.name, data: tone.data, rig: tone.rig }, after, { kind: versionKind, note: input.revisionNote ?? null });
   });
   return (await getTone(id, actor.id))!;
 }

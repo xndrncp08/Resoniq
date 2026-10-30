@@ -25,6 +25,7 @@ import { patchFromTone } from "@/lib/studio/from-tone";
 import { presetsQuery, studioKeys, useSaveStudio, type SaveMode, type StudioOrigin } from "@/lib/queries/studio";
 import { api, errorMessage } from "@/lib/client-api";
 import ToneDnaPanel from "@/components/tone/ToneDnaPanel";
+import ToneHistory from "@/components/tone/ToneHistory";
 
 // ── Store wiring ───────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ function PresetBar({ origin }: { origin: StudioOrigin }) {
 }
 
 /** Preset actions that don't need a big button: rename, duplicate, import, export, share. */
-function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimilar, notify }: { origin: StudioOrigin; signedIn: boolean; onRename: () => void; onDuplicate: () => void; onShare: () => void; onSimilar: () => void; notify: Notify }) {
+function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimilar, onHistory, notify }: { origin: StudioOrigin; signedIn: boolean; onRename: () => void; onDuplicate: () => void; onShare: () => void; onSimilar: () => void; onHistory: () => void; notify: Notify }) {
   const store = useStudioStore();
   const confirmLeave = useConfirmLeave();
   const [open, setOpen] = useState(false);
@@ -158,6 +159,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimila
   const owner = signedIn && origin.isOwner && !!origin.toneId;
   const items = [
     { id: "rename", text: "Rename…", icon: "edit", hidden: !owner },
+    { id: "history", text: "History…", icon: "clock", hidden: !owner },
     { id: "duplicate", text: "Duplicate…", icon: "copy" },
     { id: "import", text: "Import preset file…", icon: "upload" },
     { id: "export", text: "Export preset file", icon: "download" },
@@ -167,6 +169,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimila
   const run = (id: (typeof items)[number]["id"]) => {
     setOpen(false);
     if (id === "rename") onRename();
+    else if (id === "history") onHistory();
     else if (id === "duplicate") onDuplicate();
     else if (id === "import") file.current?.click();
     else if (id === "export") exportFile();
@@ -192,7 +195,7 @@ function PresetMenu({ origin, signedIn, onRename, onDuplicate, onShare, onSimila
   );
 }
 
-function Toolbar({ origin, signedIn, onSave, onRename, onShare, onSimilar, notify }: { origin: StudioOrigin; signedIn: boolean; onSave: (mode: SaveMode, name?: string) => void; onRename: () => void; onShare: () => void; onSimilar: () => void; notify: Notify }) {
+function Toolbar({ origin, signedIn, onSave, onRename, onShare, onSimilar, onHistory, notify }: { origin: StudioOrigin; signedIn: boolean; onSave: (mode: SaveMode, name?: string) => void; onRename: () => void; onShare: () => void; onSimilar: () => void; onHistory: () => void; notify: Notify }) {
   const store = useStudioStore();
   const active = useStudio((s) => s.active);
   const canUndo = useStudio((s) => s.past.length > 0);
@@ -221,7 +224,7 @@ function Toolbar({ origin, signedIn, onSave, onRename, onShare, onSimilar, notif
         ) : (
           <Link href="/login?callbackUrl=/studio" className="focus-ring inline-flex h-8 items-center rounded-full bg-copper px-3 font-body text-[13px] font-medium text-bg">Sign in to save</Link>
         )}
-        <PresetMenu origin={origin} signedIn={signedIn} onRename={onRename} onDuplicate={() => onSave("new", `${origin.name} (copy)`)} onShare={onShare} onSimilar={onSimilar} notify={notify} />
+        <PresetMenu origin={origin} signedIn={signedIn} onRename={onRename} onDuplicate={() => onSave("new", `${origin.name} (copy)`)} onShare={onShare} onSimilar={onSimilar} onHistory={onHistory} notify={notify} />
         <span className={`font-mono text-[10px] uppercase tracking-[0.14em] ${dirty ? "text-amber" : "text-muted"}`} aria-live="polite">{dirty ? "Unsaved" : owner ? "Saved" : ""}</span>
       </div>
     </div>
@@ -775,15 +778,22 @@ function AddPedalDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ── Dialogs ────────────────────────────────────────────────────────────
 
-function NameDialog({ open, title, note, initialName, pending, error, onClose, onSave }: { open: boolean; title: string; note: string; initialName: string; pending: boolean; error: string | null; onClose: () => void; onSave: (name: string) => void }) {
+function NameDialog({ open, title, note, initialName, pending, error, onClose, onSave, withRevisionNote = false }: { open: boolean; title: string; note: string; initialName: string; pending: boolean; error: string | null; onClose: () => void; onSave: (name: string, revisionNote: string | null) => void; withRevisionNote?: boolean }) {
   const [name, setName] = useState(initialName);
+  const [revision, setRevision] = useState("");
   return (
     <Dialog open={open} title={title} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); onSave(name.trim() || initialName); }} className="space-y-4">
+      <form onSubmit={(e) => { e.preventDefault(); onSave(name.trim() || initialName, revision.trim() || null); }} className="space-y-4">
         <label className="block">
           <span className="label-engraved">Name</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required autoFocus className="panel-inset mt-2 h-11 w-full rounded-xl px-3 font-body text-base outline-none" />
         </label>
+        {withRevisionNote && (
+          <label className="block">
+            <span className="label-engraved">What changed? <span className="normal-case tracking-normal text-muted">(optional, kept in the history)</span></span>
+            <input value={revision} onChange={(e) => setRevision(e.target.value)} maxLength={200} placeholder="Darker for the verse; less delay" className="panel-inset mt-2 h-11 w-full rounded-xl px-3 font-body text-sm outline-none" />
+          </label>
+        )}
         <p className="font-body text-xs text-muted">{note}</p>
         {error && <p role="alert" className="font-body text-sm text-danger">{error} Your edits are still here.</p>}
         <div className="flex justify-end gap-2">
@@ -906,7 +916,7 @@ export default function StudioApp({ initial, origin, context, justSaved = false 
   );
 }
 
-type Dialogs = { kind: "save"; mode: SaveMode; name: string } | { kind: "rename" } | { kind: "share" } | { kind: "add" } | { kind: "similar"; patch: StudioPatch } | null;
+type Dialogs = { kind: "save"; mode: SaveMode; name: string } | { kind: "rename" } | { kind: "share" } | { kind: "add" } | { kind: "similar"; patch: StudioPatch } | { kind: "history" } | null;
 
 function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; from: string; context?: ReactNode; justSaved: boolean }) {
   const store = useStudioStore();
@@ -988,7 +998,7 @@ function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; fr
         </p>
         {context}
       </header>
-      <Toolbar origin={origin} signedIn={!!userId} onSave={requestSave} onRename={() => { setRenaming({ pending: false, error: null }); setDialog({ kind: "rename" }); }} onShare={() => setDialog({ kind: "share" })} onSimilar={() => setDialog({ kind: "similar", patch: store.getState().patch })} notify={notify} />
+      <Toolbar origin={origin} signedIn={!!userId} onSave={requestSave} onRename={() => { setRenaming({ pending: false, error: null }); setDialog({ kind: "rename" }); }} onShare={() => setDialog({ kind: "share" })} onSimilar={() => setDialog({ kind: "similar", patch: store.getState().patch })} onHistory={() => setDialog({ kind: "history" })} notify={notify} />
       <Rack audio={audio} />
       {savedTone && (
         // What to do with a sound once it's saved: the rest of Resoniq, one tap away.
@@ -1034,6 +1044,28 @@ function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; fr
       <Dialog open={dialog?.kind === "similar"} title="Tone DNA · similar sounds" onClose={() => setDialog(null)} wide>
         {dialog?.kind === "similar" && <ToneDnaPanel patch={dialog.patch} />}
       </Dialog>
+      <Dialog open={dialog?.kind === "history"} title="History" onClose={() => setDialog(null)} wide>
+        {dialog?.kind === "history" && userId && origin.toneId && (
+          <ToneHistory
+            userId={userId}
+            toneId={origin.toneId}
+            dirty={dirty}
+            onHear={(v) => {
+              store.getState().loadInto(store.getState().active === "A" ? "B" : "A", v.patch);
+              setDialog(null);
+              notify(`The version from ${new Date(v.createdAt).toLocaleString()} is in ${store.getState().active === "A" ? "B" : "A"}. Press it (or C) to hear it against what you have now.`);
+            }}
+            onRestored={(tone) => {
+              const p = patchFromTone(tone).patch;
+              store.getState().load(p);
+              store.getState().markSaved(store.getState().patch);
+              setDialog(null);
+              notify("Restored. The version you replaced is still in the history.");
+              router.refresh();
+            }}
+          />
+        )}
+      </Dialog>
       <AddPedalDialog open={dialog?.kind === "add"} onClose={() => setDialog(null)} />
       <ShareDialog key={`share-${dialog?.kind === "share"}`} open={dialog?.kind === "share"} origin={origin} onClose={() => setDialog(null)} notify={notify} />
       <NameDialog
@@ -1051,16 +1083,17 @@ function Studio({ origin, from, context, justSaved }: { origin: StudioOrigin; fr
         key={dialog?.kind === "save" ? `save-${dialog.mode}-${dialog.name}` : "save-closed"}
         open={dialog?.kind === "save"}
         title={dialog?.kind === "save" && dialog.mode === "update" ? "Save changes" : "Save as a new sound"}
-        note={dialog?.kind === "save" && dialog.mode === "update" ? "Updates this sound in place." : "New sounds are private until you choose to share them."}
+        note={dialog?.kind === "save" && dialog.mode === "update" ? "Updates this sound in place. The previous settings stay in its history." : "New sounds are private until you choose to share them."}
         initialName={dialog?.kind === "save" ? dialog.name : ""}
         pending={save.isPending}
         error={save.error ? errorMessage(save.error) : null}
         onClose={() => setDialog(null)}
-        onSave={(name) => {
+        withRevisionNote={dialog?.kind === "save" && dialog.mode === "update"}
+        onSave={(name, revisionNote) => {
           if (dialog?.kind !== "save") return;
           const p = store.getState().patch;
           save.mutate(
-            { patch: p, origin, mode: dialog.mode, name },
+            { patch: p, origin, mode: dialog.mode, name, revisionNote },
             {
               onSuccess: ({ id, name: saved }) => {
                 store.getState().markSaved(p);
