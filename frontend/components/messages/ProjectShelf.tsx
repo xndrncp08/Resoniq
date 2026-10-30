@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/app/ui";
+import StageStepper from "@/components/projects/StageStepper";
 import { api, errorMessage } from "@/lib/client-api";
 import { riffsQuery } from "@/lib/queries/riffs";
 import { canvasesQuery, useCreateCanvas } from "@/lib/queries/canvases";
@@ -38,6 +39,7 @@ export default function ProjectShelf({ userId, projectId }: { userId: string; pr
   const empty = (text: string) => <li className="text-xs text-muted">{text}</li>;
   return (
     <section aria-label="Project shelf" className="space-y-3 rounded-xl border border-line bg-surface/40 p-3">
+      <StageStepper userId={userId} projectId={projectId} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Col title="Riffs">
           {riffs.data?.length ? riffs.data.slice(0, 5).map((r) => <li key={r.id}><Link href={`/riffs/${r.id}`} className="truncate text-ink-dim hover:text-ink">{r.title}</Link> <span className="text-xs text-muted">· {r.takes} take{r.takes === 1 ? "" : "s"}</span></li>) : empty("Share a riff from the Riff Vault (Start a project, or move one in).")}

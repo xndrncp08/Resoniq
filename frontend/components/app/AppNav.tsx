@@ -19,6 +19,7 @@ function primary(): Item[] {
     { href: "/practice", label: "Practice", icon: "audio" },
     { href: "/riffs", label: "Riff Vault", icon: "mic" },
     { href: "/write", label: "Songwriting", icon: "edit" },
+    { href: "/projects", label: "Projects", icon: "users", match: ["/rooms"] },
     { href: "/gigs", label: "Gig Mode", icon: "signal-chain" },
     { href: "/studio", label: "Amp Studio", icon: "amp" },
     { href: "/musicians", label: "Musicians", icon: "user" },
