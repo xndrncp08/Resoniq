@@ -217,6 +217,15 @@ model Tone {
   origin       ToneOrigin     @default(MEMBER)
   // Legacy anonymous attribution; managed creators use their labelled profile.
   anonymous    Boolean        @default(false)
+  // Tone DNA (lib/tone-dna.ts), stored for indexed similarity search; dnaVersion says which formula wrote it.
+  dnaVersion   Int?
+  dnaDrive     Float?
+  dnaLow       Float?
+  dnaMid       Float?
+  dnaBright    Float?
+  dnaSpace     Float?
+  dnaMotion    Float?
+  dnaSqueeze   Float?
 
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   remixOf     Tone?         @relation("remix", fields: [remixOfId], references: [id], onDelete: SetNull)
@@ -236,6 +245,7 @@ model Tone {
   @@index([visibility, saveCount(sort: Desc), id(sort: Desc)])
   @@index([remixOfId])
   @@index([origin, visibility, createdAt])
+  @@index([visibility, dnaDrive])
 }
 
 enum ToneVisibility {

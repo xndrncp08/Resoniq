@@ -14,6 +14,8 @@ import { parseStoredToneData, parseToneName } from "@/lib/tone-validation";
 import { fail } from "@/lib/validation";
 import { ANONYMOUS_AUTHOR } from "@/lib/system-identity";
 import { parseNote, recordVersion } from "@/lib/tone-versions";
+import { dnaColumns } from "@/lib/tone-dna";
+import { dnaOfStored } from "@/lib/similar-tones";
 import type { RigSpec } from "@/types/rig";
 import type { RecipeCore } from "@/types/tone";
 
@@ -215,6 +217,7 @@ export async function createTone(actor: Actor, input: ToneInput & { songId?: str
         remixOfId: input.remixOfId,
         recipeEdited: input.recipeEdited ?? false,
         favorite: input.favorite ?? false,
+        ...dnaColumns(dnaOfStored({ data: (input.data ?? null) as Prisma.JsonValue, rig: (input.rig ?? null) as unknown as Prisma.JsonValue })),
       },
       select: { id: true },
     });
@@ -255,6 +258,8 @@ export async function updateTone(actor: Actor, id: string, input: ToneInput, ver
       if (input.visibility === "PUBLIC" && !tone.publishedAt) data.publishedAt = new Date();
     }
     const after = await tx.tone.update({ where: { id }, data, select: { name: true, data: true, rig: true } });
+    // Keep the stored Tone DNA in step with the settings (indexed similarity search).
+    if (input.data !== undefined || input.rig !== undefined) await tx.tone.update({ where: { id }, data: dnaColumns(dnaOfStored(after)) });
     await recordVersion(tx, id, { name: tone.name, data: tone.data, rig: tone.rig }, after, { kind: versionKind, note: input.revisionNote ?? null });
   });
   return (await getTone(id, actor.id))!;
