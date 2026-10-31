@@ -17,4 +17,14 @@ describe("content security policy", () => {
     expect(directive(csp, "script-src")).toMatch(/^script-src 'self' 'nonce-[^']+' 'strict-dynamic'$/);
     expect(directive(csp, "frame-src")).toBe("frame-src 'none'");
   });
+
+  it("upgrades insecure requests on HTTPS (production) but not on plain-HTTP localhost", () => {
+    const https = proxy(new NextRequest("https://resoniq.example/feed")).headers.get("content-security-policy")!;
+    const proxied = proxy(new NextRequest("http://internal/feed", { headers: { "x-forwarded-proto": "https" } })).headers.get("content-security-policy")!;
+    if (process.env.NODE_ENV !== "development") {
+      expect(https).toContain("upgrade-insecure-requests");
+      expect(proxied).toContain("upgrade-insecure-requests");
+    }
+    expect(csp).not.toContain("upgrade-insecure-requests");
+  });
 });

@@ -26,6 +26,7 @@ export function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   // With Supabase storage, media is redirected to signed URLs and uploads go straight to the bucket.
   const storageOrigin = supabaseOrigin();
+  const secure = request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
 
   const csp = [
     "default-src 'self'",
@@ -43,7 +44,8 @@ export function proxy(request: NextRequest) {
     "form-action 'self'",
     "frame-ancestors 'none'",
     "frame-src 'none'",
-    ...(isDev ? [] : ["upgrade-insecure-requests"]),
+    // Only over HTTPS: on plain-HTTP localhost (a local production build), Safari would upgrade every script to https and load nothing.
+    ...(!isDev && secure ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 
   const requestHeaders = new Headers(request.headers);

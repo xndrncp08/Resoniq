@@ -1,9 +1,9 @@
+import { collectErrors } from "./errors";
 import { expect, test } from "@playwright/test";
 import { deleteAccount, signUp } from "./account";
 
 test("save with a note, hear the old version in B, restore it", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  const errors = collectErrors(page);
   await signUp(page, "hist");
   try {
     await page.goto("/studio");
@@ -21,7 +21,7 @@ test("save with a note, hear the old version in B, restore it", async ({ page })
     const dialog = page.getByRole("dialog", { name: "Save changes" });
     await dialog.getByPlaceholder("Darker for the verse; less delay").fill("All the gain");
     await dialog.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(page.locator("[aria-live=polite]").getByText("Saved", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Preset actions" }).click();
     await page.getByRole("menuitem", { name: "History…" }).click();
