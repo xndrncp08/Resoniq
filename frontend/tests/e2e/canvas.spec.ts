@@ -25,6 +25,11 @@ test("two writers edit the same song at once; nothing is lost, and the chart rea
     await b.page.goto(url.replace(/^https?:\/\/[^/]+/, ""));
     await expect(lyrics(b.page, "Chorus")).toBeVisible();
 
+    // Each sees the other, and which section they're in.
+    await expect(a.page.getByLabel("Also here").getByText(`@${b.handle}`)).toBeVisible({ timeout: 10_000 });
+    await lyrics(b.page, "Chorus").click();
+    await expect(a.page.getByText(`@${b.handle} is here`)).toBeVisible({ timeout: 10_000 });
+
     // Different sections at the same moment: both land.
     await lyrics(a.page, "Verse 1").fill("[Am]Lights on the [F]highway");
     await lyrics(b.page, "Chorus").fill("[C]Hold the [G]line");

@@ -6,7 +6,7 @@ import { Button, IconButton } from "@/components/app/ui";
 import { Waveform } from "@/components/riffs/TakePlayer";
 import { api, ClientApiError, errorMessage } from "@/lib/client-api";
 import { bestOffset, clockOffset, correction, expectedPosition, type RoomClock } from "@/lib/rooms/sync";
-import { ROOM_REACTIONS, type RoomComment, type RoomState } from "@/lib/rooms/service";
+import { ROOM_REACTIONS, type RoomComment, type RoomState, type RoomUnchanged } from "@/lib/rooms/service";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -29,11 +29,13 @@ export default function RoomView({ id }: { id: string }) {
   const clock = useRef<RoomClock>({ playing: false, positionSec: 0, stateAt: 0 });
   const samples = useRef<{ rtt: number; offset: number }[]>([]);
   const lastComment = useRef<string | null>(null);
+  // The room version this page holds; a poll with it gets a short "unchanged" answer.
+  const known = useRef<number | null>(null);
   const kick = useRef<() => void>(() => {});
   const offset = () => bestOffset(samples.current);
   const duration = room?.take?.durationSec ?? mediaDuration ?? Infinity;
 
-  // Poll the room: every 2 s while playing, 4 s otherwise; back off while the connection is down.
+  // Poll the room: every 3 s while playing, 5 s paused, 15 s in a hidden tab; back off while the connection is down.
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -41,9 +43,25 @@ export default function RoomView({ id }: { id: string }) {
     const poll = async () => {
       const sentAt = Date.now();
       try {
-        const { room: r } = await api<{ room: RoomState }>(`/api/rooms/${id}/sync`, { body: { since: lastComment.current } });
+        const { room: r } = await api<{ room: RoomState | RoomUnchanged }>(`/api/rooms/${id}/sync`, { body: { since: lastComment.current, knownVersion: known.current } });
         const receivedAt = Date.now();
         samples.current = [...samples.current.slice(-9), { rtt: receivedAt - sentAt, offset: clockOffset(sentAt, receivedAt, r.serverNow) }];
+        failures = 0;
+        if ("unchanged" in r) {
+          // Same room state; only who's here may have changed. Someone new means fetching names in full next time.
+          if (alive) {
+            setConn("live");
+            setRoom((prev) => {
+              if (!prev) return prev;
+              const byId = new Map(prev.present.map((p) => [p.id, p]));
+              if (r.presentIds.some((pid) => !byId.has(pid))) known.current = null;
+              return { ...prev, present: r.presentIds.flatMap((pid) => byId.get(pid) ?? []) };
+            });
+          }
+          if (alive) timer = setTimeout(poll, delay());
+          return;
+        }
+        known.current = r.version;
         clock.current = { playing: r.playing, positionSec: r.positionSec, stateAt: r.stateAt };
         if (r.comments.length) {
           lastComment.current = r.comments.at(-1)!.createdAt;
@@ -56,9 +74,11 @@ export default function RoomView({ id }: { id: string }) {
         failures++;
         if (alive) setConn("reconnecting");
       }
-      if (alive) timer = setTimeout(poll, Math.min(30_000, (clock.current.playing ? 2000 : 4000) * 2 ** Math.min(failures, 3)));
+      if (alive) timer = setTimeout(poll, delay());
     };
-    kick.current = () => { clearTimeout(timer); void poll(); };
+    const delay = () => Math.min(30_000, (document.visibilityState !== "visible" ? 15_000 : clock.current.playing ? 3000 : 5000) * 2 ** Math.min(failures, 3));
+    // After our own change, ask for the full state at once.
+    kick.current = () => { clearTimeout(timer); known.current = null; void poll(); };
     const onVisible = () => document.visibilityState === "visible" && kick.current();
     document.addEventListener("visibilitychange", onVisible);
     void poll();

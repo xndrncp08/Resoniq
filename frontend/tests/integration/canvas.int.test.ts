@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createCanvas, deleteCanvas, getCanvas, listCanvases, listRevisions, parseContent, saveCanvas, setCanvasProject } from "@/lib/canvas/service";
+import { canvasPresence, createCanvas, deleteCanvas, getCanvas, listCanvases, listRevisions, parseContent, saveCanvas, setCanvasProject } from "@/lib/canvas/service";
 import { createRiff, riffProject } from "@/lib/riffs/service";
 import { addProjectMember, leaveProject } from "@/lib/messaging";
 import { makeActor, resetDb } from "./db";
@@ -76,5 +76,23 @@ describe("Songwriting Canvas", () => {
     expect(() => parseContent({ title: "x", sections: [{ id: "a", kind: "kazoo", name: "", lyrics: "" }], arrangement: [] })).toThrow(/kind/);
     expect(() => parseContent({ title: "x", sections: [], arrangement: ["ghost"] })).toThrow(/doesn't exist/);
     expect(() => parseContent({ title: "x", sections: [{ id: "a", kind: "verse", name: "V", lyrics: "x".repeat(7000) }], arrangement: [] })).toThrow(/at most/);
+  });
+
+  it("shows who else is in the song and where, with its version, to members only", async () => {
+    const me = await makeActor();
+    const bandmate = await makeActor();
+    const outsider = await makeActor();
+    const riff = await createRiff(me.id, { title: "Hook" });
+    const { projectId } = await riffProject(me.id, riff.id);
+    await addProjectMember(me, projectId, bandmate.id);
+    const c = await createCanvas(me.id, { projectId });
+    await canvasPresence(me.id, c.id, "verse-1");
+    const seen = await canvasPresence(bandmate.id, c.id, "chorus-1");
+    expect(seen.version).toBe(c.version);
+    expect(seen.present).toEqual([expect.objectContaining({ id: me.id, sectionId: "verse-1" })]);
+    // Moving to another section is reported at once (not throttled).
+    await canvasPresence(me.id, c.id, "chorus-1");
+    expect((await canvasPresence(bandmate.id, c.id, null)).present[0].sectionId).toBe("chorus-1");
+    await expect(canvasPresence(outsider.id, c.id, null)).rejects.toMatchObject({ status: 404 });
   });
 });

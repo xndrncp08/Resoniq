@@ -11,7 +11,10 @@ import { fail } from "@/lib/validation";
  */
 
 export const ROOM_REACTIONS = ["🔥", "👏", "🎯", "😍", "🤔", "🔁"] as const;
-const PRESENT_MS = 15_000;
+const PRESENT_MS = 25_000;
+// Heartbeats only write when this much time has passed (polls come every 3–15 s).
+const HEARTBEAT_WRITE_MS = 8000;
+const ACTIVE_WRITE_MS = 60_000;
 const IDLE_MS = 30 * 60_000;
 const MAX_OPEN_ROOMS = 3;
 const MAX_COMMENTS = 500;
@@ -21,9 +24,11 @@ export type RoomTake = { id: string; riffId: string; riffTitle: string; label: s
 export type RoomComment = { id: string; author: Person; takeId: string | null; atSec: number; body: string | null; emoji: string | null; createdAt: string };
 export type RoomState = {
   id: string; title: string; project: { id: string; title: string | null }; host: Person; isHost: boolean; canControl: boolean; anyoneControls: boolean;
-  ended: boolean; take: RoomTake | null; playing: boolean; positionSec: number; stateAt: number; serverNow: number;
+  version: number; ended: boolean; take: RoomTake | null; playing: boolean; positionSec: number; stateAt: number; serverNow: number;
   present: Person[]; comments: RoomComment[]; takes: RoomTake[];
 };
+/** What a poll gets when nothing changed since the version it already has. */
+export type RoomUnchanged = { unchanged: true; version: number; serverNow: number; presentIds: string[] };
 export type RoomSummary = { id: string; title: string; host: Person; present: number; takeTitle: string | null; createdAt: string };
 
 const PERSON = { select: { id: true, handle: true, name: true } } as const;
@@ -87,18 +92,27 @@ export async function listRooms(userId: string, projectId: string): Promise<Room
   });
 }
 
-/** One poll: records that this person is here, then returns the room's clock, who's present and feedback since `since`. */
-export async function syncRoom(userId: string, id: string, since: Date | null): Promise<RoomState> {
+/**
+ * One poll: records that this person is here (throttled), then returns the
+ * room's clock, who's present and feedback since `since`; or, when the
+ * caller already has the current version, just the clock and who's present.
+ */
+export async function syncRoom(userId: string, id: string, since: Date | null): Promise<RoomState>;
+export async function syncRoom(userId: string, id: string, since: Date | null, knownVersion: number | null): Promise<RoomState | RoomUnchanged>;
+export async function syncRoom(userId: string, id: string, since: Date | null, knownVersion: number | null = null): Promise<RoomState | RoomUnchanged> {
   let room = await roomFor(userId, id);
   const now = new Date();
   if (!room.endedAt && now.getTime() - room.lastActiveAt.getTime() > IDLE_MS) {
-    room = await prisma.listeningRoom.update({ where: { id }, data: { endedAt: now, playing: false } });
+    room = await prisma.listeningRoom.update({ where: { id }, data: { endedAt: now, playing: false, version: { increment: 1 } } });
   }
   if (!room.endedAt) {
-    await prisma.$transaction([
-      prisma.roomParticipant.upsert({ where: { roomId_userId: { roomId: id, userId } }, create: { roomId: id, userId, lastSeenAt: now }, update: { lastSeenAt: now } }),
-      prisma.listeningRoom.update({ where: { id }, data: { lastActiveAt: now } }),
-    ]);
+    const me = await prisma.roomParticipant.findUnique({ where: { roomId_userId: { roomId: id, userId } }, select: { lastSeenAt: true } });
+    if (!me || now.getTime() - me.lastSeenAt.getTime() > HEARTBEAT_WRITE_MS) await prisma.roomParticipant.upsert({ where: { roomId_userId: { roomId: id, userId } }, create: { roomId: id, userId, lastSeenAt: now }, update: { lastSeenAt: now } });
+    if (now.getTime() - room.lastActiveAt.getTime() > ACTIVE_WRITE_MS) await prisma.listeningRoom.update({ where: { id }, data: { lastActiveAt: now } });
+  }
+  if (knownVersion === room.version) {
+    const here = await prisma.roomParticipant.findMany({ where: { roomId: id, lastSeenAt: { gt: new Date(now.getTime() - PRESENT_MS) } }, select: { userId: true } });
+    return { unchanged: true, version: room.version, serverNow: Date.now(), presentIds: here.map((p) => p.userId) };
   }
   const [present, comments, takes, host, project] = await Promise.all([
     prisma.roomParticipant.findMany({ where: { roomId: id, lastSeenAt: { gt: new Date(now.getTime() - PRESENT_MS) } }, select: { userId: true } }),
@@ -110,7 +124,7 @@ export async function syncRoom(userId: string, id: string, since: Date | null): 
   const people = await prisma.user.findMany({ where: { id: { in: [...new Set([...present.map((p) => p.userId), ...comments.map((c) => c.authorId)])] } }, ...PERSON });
   const person = (pid: string) => people.find((p) => p.id === pid) ?? { id: pid, handle: "former-member", name: null };
   return {
-    id: room.id, title: room.title, project, host, isHost: room.hostId === userId, canControl: !room.endedAt && (room.hostId === userId || room.anyoneControls), anyoneControls: room.anyoneControls,
+    id: room.id, version: room.version, title: room.title, project, host, isHost: room.hostId === userId, canControl: !room.endedAt && (room.hostId === userId || room.anyoneControls), anyoneControls: room.anyoneControls,
     ended: !!room.endedAt, take: takes.find((t) => t.id === room.takeId) ?? null, playing: room.playing, positionSec: room.positionSec, stateAt: room.stateAt.getTime(), serverNow: Date.now(),
     present: present.map((p) => person(p.userId)),
     comments: comments.map((c) => ({ id: c.id, author: person(c.authorId), takeId: c.takeId, atSec: c.atSec, body: c.body, emoji: c.emoji, createdAt: c.createdAt.toISOString() })),
@@ -135,7 +149,7 @@ export async function controlRoom(userId: string, id: string, c: ControlInput) {
   if (room.hostId !== userId && !room.anyoneControls) throw new ApiError(403, "Only the host controls playback in this room.");
   const now = new Date();
   const current = room.playing ? room.positionSec + (now.getTime() - room.stateAt.getTime()) / 1000 : room.positionSec;
-  const data: Prisma.ListeningRoomUpdateInput = { stateAt: now, lastActiveAt: now };
+  const data: Prisma.ListeningRoomUpdateInput = { stateAt: now, lastActiveAt: now, version: { increment: 1 } };
   if (c.action === "play") Object.assign(data, { playing: true, positionSec: c.positionSec ?? current });
   if (c.action === "pause") Object.assign(data, { playing: false, positionSec: c.positionSec ?? current });
   if (c.action === "seek") Object.assign(data, { positionSec: c.positionSec ?? 0 });
@@ -152,7 +166,10 @@ export async function commentInRoom(userId: string, id: string, body: Record<str
   if (!emoji && !text) fail("Write something, or pick a reaction.");
   if (text.length > 500) fail("Comments are at most 500 characters.");
   if ((await prisma.roomComment.count({ where: { roomId: id } })) >= MAX_COMMENTS) throw new ApiError(409, "This session has reached its comment limit.");
-  await prisma.roomComment.create({ data: { roomId: id, authorId: userId, takeId: room.takeId, atSec, body: emoji ? null : text, emoji } });
+  await prisma.$transaction([
+    prisma.roomComment.create({ data: { roomId: id, authorId: userId, takeId: room.takeId, atSec, body: emoji ? null : text, emoji } }),
+    prisma.listeningRoom.update({ where: { id }, data: { version: { increment: 1 } } }),
+  ]);
 }
 
 /** Host only: who may control playback, or end the session. */
@@ -163,5 +180,5 @@ export async function updateRoom(userId: string, id: string, body: Record<string
   if (body.anyoneControls !== undefined) data.anyoneControls = typeof body.anyoneControls === "boolean" ? body.anyoneControls : fail("anyoneControls must be true or false.");
   if (body.end === true) Object.assign(data, { endedAt: new Date(), playing: false });
   if (!Object.keys(data).length) fail("Nothing to change.");
-  await prisma.listeningRoom.update({ where: { id }, data });
+  await prisma.listeningRoom.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
 }

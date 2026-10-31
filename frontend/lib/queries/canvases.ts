@@ -13,9 +13,9 @@ export const canvasKeys = {
 export const canvasesQuery = (userId: string, projectId?: string) =>
   queryOptions({ queryKey: canvasKeys.list(userId, projectId), queryFn: ({ signal }) => api<{ canvases: CanvasSummary[] }>(`/api/canvases${projectId ? `?project=${projectId}` : ""}`, { signal }).then((r) => r.canvases), staleTime: 30_000 });
 
-/** Polled while the page is visible so collaborators' saves show up. */
+/** Refetched when the presence poll reports a newer version (components/canvas/useCanvasPresence), not on a timer. */
 export const canvasQuery = (userId: string, id: string) =>
-  queryOptions({ queryKey: canvasKeys.one(userId, id), queryFn: ({ signal }) => api<{ canvas: CanvasView }>(`/api/canvases/${id}`, { signal }).then((r) => r.canvas), refetchInterval: 4000, refetchIntervalInBackground: false });
+  queryOptions({ queryKey: canvasKeys.one(userId, id), queryFn: ({ signal }) => api<{ canvas: CanvasView }>(`/api/canvases/${id}`, { signal }).then((r) => r.canvas) });
 
 export const revisionsQuery = (userId: string, id: string) =>
   queryOptions({ queryKey: canvasKeys.revisions(userId, id), queryFn: ({ signal }) => api<{ revisions: RevisionView[] }>(`/api/canvases/${id}/revisions`, { signal }).then((r) => r.revisions) });

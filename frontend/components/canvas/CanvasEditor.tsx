@@ -20,6 +20,7 @@ import ChordChart from "@/components/canvas/ChordChart";
 import PublishDialog from "@/components/social/PublishDialog";
 import TakePlayer from "@/components/riffs/TakePlayer";
 import { useCanvasDraft } from "@/components/canvas/useCanvasDraft";
+import { useCanvasPresence } from "@/components/canvas/useCanvasPresence";
 
 const KIND_LABEL: Record<SectionKind, string> = { intro: "Intro", verse: "Verse", "pre-chorus": "Pre-chorus", chorus: "Chorus", bridge: "Bridge", solo: "Solo", breakdown: "Breakdown", outro: "Outro", other: "Other" };
 const STATUS: Record<string, string> = { saved: "Saved", saving: "Saving…", unsaved: "Unsaved", offline: "Offline · retrying", error: "Not saved" };
@@ -33,6 +34,8 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
   useUnsavedChanges({ dirty, label: "this song", save: flush });
   const [mode, setMode] = useState<"write" | "chart">("write");
   const [transpose, setTranspose] = useState(0);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const present = useCanvasPresence(userId, initial.id, activeSection);
   const [dialog, setDialog] = useState<"revisions" | "setlist" | "share" | "publish" | null>(null);
   const riffs = useQuery(riffsQuery(userId));
   const set = (patch: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -70,6 +73,12 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
         {canvas.project ? <>In <Link href={`/messages/${canvas.project.id}`} className="text-copper hover:underline">{canvas.project.title ?? "a project"}</Link>: everyone in it can edit.</> : "Private to you."}
         {canvas.updatedBy && <> Last saved by @{canvas.updatedBy.handle} <TimeAgo iso={canvas.updatedAt} />.</>}
       </p>
+      {present.length > 0 && (
+        <p className="-mt-2 flex flex-wrap items-center gap-1.5 font-body text-sm" aria-live="polite" aria-label="Also here">
+          <span className="text-muted">Also here:</span>
+          {present.map((p) => <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-signal/40 bg-signal/10 px-2 py-0.5 text-ink"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-signal" />@{p.handle}</span>)}
+        </p>
+      )}
       {notices.length > 0 && (
         <div role="alert" className="flex items-start gap-3 rounded-xl border border-amber/40 bg-amber/10 p-3 font-body text-sm">
           <ul className="flex-1 space-y-1">{notices.map((m, i) => <li key={i}>{m}</li>)}</ul>
@@ -128,7 +137,8 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
             {draft.sections.map((s) => {
               const riff = s.riffId ? canvas.riffs[s.riffId] ?? null : null;
               return (
-                <li key={s.id} className="space-y-2 rounded-xl border border-line bg-surface/40 p-3">
+                <li key={s.id} onFocusCapture={() => setActiveSection(s.id)} className={`space-y-2 rounded-xl border bg-surface/40 p-3 ${present.some((p) => p.sectionId === s.id) ? "border-signal/50" : "border-line"}`}>
+                  {present.filter((p) => p.sectionId === s.id).map((p) => <p key={p.id} className="font-mono text-[10px] uppercase tracking-[0.12em] text-signal">@{p.handle} is here</p>)}
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="w-36"><span className="sr-only">Section type</span><select value={s.kind} onChange={(e) => setSection(s.id, { kind: e.target.value as SectionKind })} className={input}>{SECTION_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
                     <label className="min-w-0 flex-1"><span className="sr-only">Section name</span><input value={s.name} onChange={(e) => setSection(s.id, { name: e.target.value })} maxLength={60} className={input} /></label>
