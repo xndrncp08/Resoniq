@@ -25,7 +25,9 @@ const ABANDONED_MS = 24 * 3_600_000;
 
 export type RiffTakeView = { id: string; label: string | null; durationSec: number | null; peaks: number[] | null; sizeBytes: number; mime: string; src: string; createdAt: string };
 export type RiffSummary = { id: string; title: string; tags: string[]; key: string | null; bpm: number | null; stage: RiffStage; pinned: boolean; takes: number; lastTake: RiffTakeView | null; shared: boolean; owner: { handle: string; name: string | null } | null; updatedAt: string };
-export type RiffView = RiffSummary & { notes: string | null; tone: { id: string; name: string } | null; project: { id: string; title: string | null } | null; canEdit: boolean; allTakes: RiffTakeView[] };
+export type TakeFeedback = { id: string; atSec: number; body: string | null; emoji: string | null; author: string; createdAt: string };
+/** `feedback`: what was said about each take in the project's listening rooms (only ever shown to people who can open the riff). */
+export type RiffView = RiffSummary & { notes: string | null; tone: { id: string; name: string } | null; project: { id: string; title: string | null } | null; canEdit: boolean; allTakes: RiffTakeView[]; feedback: Record<string, TakeFeedback[]> };
 export type RiffInput = { title: string; notes: string | null; tags: string[]; key: string | null; bpm: number | null; stage: RiffStage; pinned: boolean; toneId: string | null };
 
 // ── Validation ─────────────────────────────────────────────────────────
@@ -152,10 +154,16 @@ export async function getRiff(viewerId: string, id: string): Promise<RiffView | 
   const r = await prisma.riff.findFirst({ where: { AND: [{ id }, viewableRiffWhere(viewerId)] }, select: DETAIL_SELECT });
   if (!r) return null;
   const all = await prisma.riffTake.findMany({ where: { riffId: id, status: "READY" }, orderBy: { createdAt: "asc" }, select: TAKE_SELECT });
+  const comments = r.project && all.length
+    ? await prisma.roomComment.findMany({ where: { takeId: { in: all.map((t) => t.id) }, room: { projectId: r.project.id } }, orderBy: { atSec: "asc" }, take: 500, select: { id: true, takeId: true, atSec: true, body: true, emoji: true, authorId: true, createdAt: true } })
+    : [];
+  const authors = comments.length ? await prisma.user.findMany({ where: { id: { in: [...new Set(comments.map((c) => c.authorId))] } }, select: { id: true, handle: true } }) : [];
+  const feedback: Record<string, TakeFeedback[]> = {};
+  for (const c of comments) (feedback[c.takeId!] ??= []).push({ id: c.id, atSec: c.atSec, body: c.body, emoji: c.emoji, author: authors.find((a) => a.id === c.authorId)?.handle ?? "former-member", createdAt: c.createdAt.toISOString() });
   const canEdit = r.ownerId === viewerId;
   // A private tone stays private: collaborators only see a tone they could open themselves.
   const tone = r.tone && (r.tone.visibility !== "PRIVATE" || r.tone.userId === viewerId) ? { id: r.tone.id, name: r.tone.name } : null;
-  return { ...summary(r, viewerId), notes: r.notes, tone, project: r.project, canEdit, allTakes: all.map(takeView) };
+  return { ...summary(r, viewerId), notes: r.notes, tone, project: r.project, canEdit, allTakes: all.map(takeView), feedback };
 }
 
 // ── Writes ─────────────────────────────────────────────────────────────

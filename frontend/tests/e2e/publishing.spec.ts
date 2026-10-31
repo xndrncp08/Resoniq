@@ -40,8 +40,15 @@ test("a take goes from the vault to the profile, playable by anyone who sees the
     expect((await anon.request.get(src)).headers()["content-type"]).toBe("audio/wav");
     await anon.close();
 
-    // A second take becomes an alternate mix of the release.
+    // A timestamp in a comment plays the release from that moment.
     const postUrl = page.url();
+    const postId = postUrl.split("/p/")[1];
+    expect((await page.request.post(`/api/posts/${postId}/comments`, { data: { body: "Love the slide at 0:01" } })).ok()).toBe(true);
+    await page.reload();
+    await page.getByRole("button", { name: "Play from 0:01" }).click();
+    await expect.poll(() => page.locator("audio").first().evaluate((a: HTMLAudioElement) => a.currentTime)).toBeGreaterThanOrEqual(1);
+
+    // A second take becomes an alternate mix of the release.
     await page.goto(`/riffs/${riff.id}`);
     await page.waitForLoadState("networkidle");
     await page.locator("input[type=file]").setInputFiles({ name: "take2.wav", mimeType: "audio/wav", buffer: wav(3) });
