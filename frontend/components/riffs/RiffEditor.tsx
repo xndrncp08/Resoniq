@@ -17,6 +17,7 @@ import type { RiffView } from "@/lib/riffs/service";
 import Recorder from "@/components/riffs/Recorder";
 import PublishDialog from "@/components/social/PublishDialog";
 import TakePlayer, { TakeCompare } from "@/components/riffs/TakePlayer";
+import { formatTime, SeekProvider, TimeLink } from "@/components/media/seek";
 import { STAGE_LABEL } from "@/components/riffs/RiffList";
 
 type Draft = { title: string; notes: string; tags: string; key: string; bpm: string; stage: RiffStage; toneId: string };
@@ -108,6 +109,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
           <ol className="space-y-2">
             {takes.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface/40 p-3">
+                <SeekProvider>
                 <TakePlayer take={t} title={t.label ?? "take"} />
                 <div className="flex items-center gap-1">
                   {riff.canEdit ? (
@@ -120,6 +122,15 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
                   {riff.canEdit && <IconButton icon="share" label={`Publish ${t.label ?? "take"}`} onClick={() => setPublishing(t.id)} size={34} />}
                   {riff.canEdit && <IconButton icon="trash" label={`Delete ${t.label ?? "take"}`} onClick={() => delTake.mutate(t.id)} size={34} />}
                 </div>
+                {riff.feedback[t.id]?.length ? (
+                  <details className="basis-full font-body text-sm">
+                    <summary className="cursor-pointer text-xs text-muted hover:text-ink">{riff.feedback[t.id].length} note{riff.feedback[t.id].length === 1 ? "" : "s"} from listening sessions</summary>
+                    <ul className="mt-2 space-y-1">
+                      {riff.feedback[t.id].map((f) => <li key={f.id} className="flex items-baseline gap-2"><TimeLink seconds={f.atSec} label={formatTime(f.atSec)} /><span className="text-ink-dim">{f.emoji ?? f.body}</span><span className="text-xs text-muted">@{f.author}</span></li>)}
+                    </ul>
+                  </details>
+                ) : null}
+                </SeekProvider>
               </li>
             ))}
           </ol>

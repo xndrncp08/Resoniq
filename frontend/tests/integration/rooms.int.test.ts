@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { commentInRoom, controlRoom, createRoom, listRooms, parseControl, syncRoom, updateRoom } from "@/lib/rooms/service";
-import { completeTake, createRiff, parseTakeStart, riffProject, startTake } from "@/lib/riffs/service";
+import { completeTake, createRiff, getRiff, parseTakeStart, riffProject, startTake } from "@/lib/riffs/service";
 import { addProjectMember, leaveProject } from "@/lib/messaging";
 import { getStorage } from "@/lib/storage";
 import { makeActor, prisma, resetDb } from "./db";
@@ -111,5 +111,15 @@ describe("Live Listening Rooms", () => {
     const before = (await prisma.roomParticipant.findUniqueOrThrow({ where: { roomId_userId: { roomId: id, userId: guest.id } } })).lastSeenAt;
     await syncRoom(guest.id, id, null);
     expect((await prisma.roomParticipant.findUniqueOrThrow({ where: { roomId_userId: { roomId: id, userId: guest.id } } })).lastSeenAt).toEqual(before);
+  });
+
+  it("brings a take's listening-session feedback to the riff, for the project only", async () => {
+    const { host, guest, outsider, projectId, riff, t1 } = await band();
+    const id = await createRoom(host.id, { projectId });
+    await commentInRoom(guest.id, id, { atSec: 3.2, body: "Push the chorus" });
+    await commentInRoom(host.id, id, { atSec: 1, emoji: "🔥" });
+    const seen = (await getRiff(guest.id, riff.id))!;
+    expect(seen.feedback[t1].map((f) => [f.atSec, f.body ?? f.emoji])).toEqual([[1, "🔥"], [3.2, "Push the chorus"]]);
+    expect(await getRiff(outsider.id, riff.id)).toBeNull();
   });
 });

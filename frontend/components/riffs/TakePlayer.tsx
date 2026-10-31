@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import { IconButton } from "@/components/app/ui";
 import type { RiffTakeView } from "@/lib/riffs/service";
 import { canPlay } from "@/lib/riffs/peaks";
+import { SeekMarks, useSeekTarget } from "@/components/media/seek";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -66,6 +67,13 @@ export default function TakePlayer({ take, title }: { take: RiffTakeView; title:
     return () => { for (const [e, f] of events) a.removeEventListener(e, f); };
   }, [take.mime]);
   const toggle = () => (playing ? audio.current?.pause() : void audio.current?.play().catch(() => setPlaying(false)));
+  // Timestamps in the surrounding post, comments or feedback ("the bend at 1:24") play from that moment.
+  useSeekTarget((s) => {
+    const a = audio.current;
+    if (!a) return;
+    a.currentTime = s;
+    void a.play().catch(() => setPlaying(false));
+  });
   if (unplayable) {
     return (
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -78,7 +86,10 @@ export default function TakePlayer({ take, title }: { take: RiffTakeView; title:
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <audio ref={audio} src={take.src} preload="none" />
       <IconButton icon={playing ? "pause" : "play"} label={`${playing ? "Pause" : "Play"} ${title}`} onClick={toggle} size={40} />
-      <Waveform peaks={take.peaks} progress={duration ? time / duration : 0} onSeek={(f) => { if (audio.current && duration) audio.current.currentTime = f * duration; }} label={`Position in ${title}`} />
+      <div className="relative flex min-w-0 flex-1">
+        <Waveform peaks={take.peaks} progress={duration ? time / duration : 0} onSeek={(f) => { if (audio.current && duration) audio.current.currentTime = f * duration; }} label={`Position in ${title}`} />
+        <SeekMarks duration={duration} className="absolute inset-x-0 -top-1 h-1.5" />
+      </div>
       <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-muted">{fmt(playing || time ? time : duration)}</span>
     </div>
   );
