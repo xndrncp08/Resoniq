@@ -25,6 +25,13 @@ export default function InfiniteList<T extends { id: string }>({
 }) {
   const [items, setItems] = useState(initial);
   const [cursor, setCursor] = useState(initialCursor);
+  // A new endpoint (another filter, tab or sort) is a new list: start from the server's new first page.
+  const [shownFor, setShownFor] = useState(endpoint);
+  if (shownFor !== endpoint) {
+    setShownFor(endpoint);
+    setItems(initial);
+    setCursor(initialCursor);
+  }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);

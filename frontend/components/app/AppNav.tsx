@@ -16,6 +16,7 @@ function primary(): Item[] {
   return [
     { href: "/feed", label: "Feed", icon: "feed", match: ["/p"] },
     { href: "/explore", label: "Explore", icon: "explore", match: ["/search", "/tag"] },
+    { href: "/music", label: "Music", icon: "waveform" },
     { href: "/practice", label: "Practice", icon: "audio" },
     { href: "/riffs", label: "Riff Vault", icon: "mic" },
     { href: "/write", label: "Songwriting", icon: "edit" },

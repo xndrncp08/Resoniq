@@ -4,6 +4,7 @@ import { optionalActor } from "@/lib/api";
 import { risingMusicians, suggestedCommunities, trendingTags } from "@/lib/discovery";
 import { popularGear } from "@/lib/gear";
 import { listPosts } from "@/lib/posts";
+import { MUSIC_WHERE } from "@/lib/music";
 import { listTones } from "@/lib/tones";
 import Icon from "@/components/icons/Icon";
 import { compact, EmptyState, LinkButton } from "@/components/app/ui";
@@ -28,9 +29,10 @@ function Head({ icon, title, href, label = "See all" }: { icon: Parameters<typeo
 export default async function ExplorePage() {
   const viewer = await optionalActor();
   const vid = viewer?.id ?? null;
-  const [hot, videos, tones, communities, gear, musicians, tags] = await Promise.all([
+  const [hot, videos, music, tones, communities, gear, musicians, tags] = await Promise.all([
     listPosts({}, vid, { sort: "top", window: "week", cursor: null, limit: 4 }),
     listPosts({ media: { some: { kind: "VIDEO", status: "READY" } } }, vid, { sort: "hot", cursor: null, limit: 4 }),
+    listPosts(MUSIC_WHERE, vid, { sort: "new", cursor: null, limit: 4 }),
     listTones(vid, { sort: "popular", cursor: null, limit: 6 }),
     suggestedCommunities(vid, 8),
     popularGear(null, 10),
@@ -60,6 +62,10 @@ export default async function ExplorePage() {
       <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-2xl font-semibold">Make room for music today.</h2><LinkButton href="/practice" icon="audio" variant="signal">Open practice room</LinkButton></div><ConversationStarters /></section>
 
       {empty && <EmptyState icon="explore" title="Discovery fills up as people post" action={<LinkButton href="/new" variant="primary">Share something</LinkButton>}>Trending posts, popular tones and rising musicians appear here from real activity only.</EmptyState>}
+
+      {music.items.length > 0 && (
+        <section><Head icon="waveform" title="New music" href="/music" label="Browse all music" /><div className="grid gap-4 lg:grid-cols-2">{music.items.map((p) => <PostCard key={p.id} post={p} signedIn={!!viewer} />)}</div></section>
+      )}
 
       {videos.items.length > 0 && (
         <section><Head icon="video" title="Performances" href="/feed?sort=hot&category=PERFORMANCE" /><div className="grid gap-4 lg:grid-cols-2">{videos.items.map((p) => <PostCard key={p.id} post={p} signedIn={!!viewer} />)}</div></section>
