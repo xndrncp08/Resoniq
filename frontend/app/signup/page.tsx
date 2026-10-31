@@ -23,7 +23,7 @@ export default async function SignupPage({
     <main id="main" className="flex min-h-screen items-center justify-center px-6">
       {open ? (
         <AuthForm mode="signup" googleEnabled={googleEnabled} passwordForm={password.open} passwordNote={password.reason}
-          callbackUrl={safeCallbackPath(callbackUrl, "/feed")} />
+          callbackUrl={safeCallbackPath(callbackUrl, "/welcome")} />
       ) : (
         <div className="panel w-full max-w-md space-y-4 p-8 text-center" role="status">
           <h1 className="font-display text-2xl font-semibold">Not open yet</h1>
