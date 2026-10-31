@@ -40,6 +40,25 @@ test("a take goes from the vault to the profile, playable by anyone who sees the
     expect((await anon.request.get(src)).headers()["content-type"]).toBe("audio/wav");
     await anon.close();
 
+    // A second take becomes an alternate mix of the release.
+    const postUrl = page.url();
+    await page.goto(`/riffs/${riff.id}`);
+    await page.waitForLoadState("networkidle");
+    await page.locator("input[type=file]").setInputFiles({ name: "take2.wav", mimeType: "audio/wav", buffer: wav(3) });
+    await expect(page.getByRole("button", { name: "Play Take 2" })).toBeVisible();
+    await page.goto(postUrl);
+    await page.getByRole("button", { name: "Manage release" }).click();
+    const manage = page.getByRole("dialog", { name: "Manage release" });
+    await manage.getByRole("combobox", { name: "Add a take" }).selectOption({ label: "Glass Harbour · Take 2" });
+    await manage.getByRole("textbox", { name: "Mix name" }).nth(1).fill("Acoustic");
+    await manage.getByRole("button", { name: "Save changes" }).click();
+    await expect(manage.getByRole("region", { name: "Earlier versions" })).toBeVisible();
+    await manage.getByRole("button", { name: "Close" }).first().click();
+    const mixes = page.getByRole("radiogroup", { name: "Mix" });
+    await expect(mixes.getByRole("radio")).toHaveCount(2);
+    await mixes.getByRole("radio", { name: "Acoustic" }).click();
+    await expect(page.getByRole("button", { name: "Play Glass Harbour (Acoustic)" })).toBeVisible();
+
     await page.goto(`/u/${me}?tab=music`);
     await expect(page.getByRole("link", { name: "Glass Harbour" })).toBeVisible();
   } finally {

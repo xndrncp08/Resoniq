@@ -249,7 +249,7 @@ export async function audibleTake(viewerId: string | null, id: string) {
   const select = { storageKey: true, mime: true } as const;
   const own = viewerId ? await prisma.riffTake.findFirst({ where: { id, status: "READY", riff: viewableRiffWhere(viewerId) }, select }) : null;
   if (own) return own;
-  const post = await prisma.post.findFirst({ where: { AND: [{ releaseTakeId: id }, visiblePostWhere(viewerId)] }, select: { id: true } });
+  const post = await prisma.post.findFirst({ where: { AND: [{ releaseTakeIds: { has: id } }, visiblePostWhere(viewerId)] }, select: { id: true } });
   return post ? prisma.riffTake.findFirst({ where: { id, status: "READY" }, select }) : null;
 }
 
