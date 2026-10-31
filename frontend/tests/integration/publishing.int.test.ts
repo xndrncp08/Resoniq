@@ -4,6 +4,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Actor } from "@/lib/authz";
 import { buildRelease, parseReleaseInput, releaseData } from "@/lib/publishing";
+import { notifyCredited, recordCredits, respondToCredit } from "@/lib/credits";
 import { createPost, deletePost, getPost, listPosts, musicWhere } from "@/lib/posts";
 import { audibleTake, completeTake, createRiff, parseTakeStart, riffProject, startTake } from "@/lib/riffs/service";
 import { createCanvas, parseContent, saveCanvas } from "@/lib/canvas/service";
@@ -22,9 +23,16 @@ async function take(ownerId: string, riffId: string) {
   await completeTake(ownerId, id);
   return id;
 }
+/** What POST /api/posts does with a release. */
 async function publish(actor: Actor, release: unknown, title = "Released") {
   const r = await buildRelease(actor.id, parseReleaseInput(release));
-  return createPost(actor, { title, body: "", category: "ORIGINAL", communitySlug: null, toneId: null }, { attach: async (tx, postId) => void (await tx.post.update({ where: { id: postId }, data: releaseData(r) })), requireContent: false });
+  let credited: string[] = [];
+  const post = await createPost(actor, { title, body: "", category: "ORIGINAL", communitySlug: null, toneId: null }, {
+    attach: async (tx, postId) => { await tx.post.update({ where: { id: postId }, data: releaseData(r) }); credited = await recordCredits(tx, postId, actor.id, r.credits); },
+    requireContent: false,
+  });
+  await notifyCredited(post.id, actor.id, credited);
+  return post;
 }
 
 describe("music publishing", () => {
@@ -58,8 +66,15 @@ describe("music publishing", () => {
     await saveCanvas(me.id, song.id, song.version, parseContent({ title: "Northbound (v2)", sections: [], arrangement: [] }));
     expect((await getPost(post.id, null))?.release?.title).toBe("Northbound");
 
-    // It shows on both musicians' Music tabs and counts toward the project.
-    for (const id of [me.id, bandmate.id]) expect((await listPosts(musicWhere(id), null, { sort: "new", cursor: null, limit: 10 })).items.map((p) => p.id)).toEqual([post.id]);
+    // The bandmate is told, and the release reaches their profile only once they confirm.
+    const music = async (id: string) => (await listPosts(musicWhere(id), null, { sort: "new", cursor: null, limit: 10 })).items.map((p) => p.id);
+    expect(await prisma.notification.count({ where: { userId: bandmate.id, type: "CREDIT_ADDED", postId: post.id } })).toBe(1);
+    expect(post.release?.credits.map((c) => [c.role, c.status])).toEqual([["Songwriter", "CONFIRMED"], ["Drums", "PENDING"]]);
+    expect(await music(me.id)).toEqual([post.id]);
+    expect(await music(bandmate.id)).toEqual([]);
+    await respondToCredit(bandmate.id, post.id, { action: "confirm" });
+    expect(await music(bandmate.id)).toEqual([post.id]);
+    expect(await prisma.notification.count({ where: { userId: me.id, type: "CREDIT_RESPONSE" } })).toBe(1);
     expect((await getProject(me.id, projectId)).counts.published).toBe(1);
 
     // Deleting the post makes the take private again.
@@ -81,5 +96,23 @@ describe("music publishing", () => {
     expect(() => parseReleaseInput({})).toThrow(/song, a take/);
     expect(() => parseReleaseInput({ takeId: "../../x" })).toThrow(/invalid/);
     expect(() => parseReleaseInput({ takeId: "abcdefghijkl", credits: [{ handle: "x", role: "" }] })).toThrow(/handle|role/);
+  });
+
+  it("lets a credited musician dispute: hidden from everyone but the author, who sees why", async () => {
+    const me = await makeActor();
+    const other = await makeActor();
+    const riff = await createRiff(me.id, { title: "Hook" });
+    const t = await take(me.id, riff.id);
+    const { projectId } = await riffProject(me.id, riff.id);
+    await addProjectMember(me, projectId, other.id);
+    const handle = (await prisma.user.findUniqueOrThrow({ where: { id: other.id }, select: { handle: true } })).handle;
+    const post = await publish(me, { takeId: t, credits: [{ handle, role: "Vocals" }, { handle, role: "Lyrics" }] });
+    expect(post.release?.credits).toEqual([expect.objectContaining({ userId: other.id, role: "Vocals, Lyrics", status: "PENDING" })]);
+    await respondToCredit(other.id, post.id, { action: "dispute", note: "I didn't sing on this" });
+    expect((await getPost(post.id, null))?.release?.credits).toEqual([]);
+    expect((await getPost(post.id, me.id))?.release?.credits[0]).toMatchObject({ status: "DISPUTED", note: "I didn't sing on this" });
+    expect((await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).creditUserIds).toEqual([]);
+    await expect(respondToCredit(me.id, post.id, { action: "dispute" })).rejects.toThrow(/Credit not found|doesn't need confirming/);
+    await expect(respondToCredit(other.id, post.id, { action: "maybe" })).rejects.toThrow(/confirm or dispute/);
   });
 });

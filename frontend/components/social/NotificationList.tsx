@@ -20,7 +20,7 @@ export type NotificationItem = {
   actor: { id: string; handle: string; name: string | null; image: string | null } | null;
 };
 
-const ICON: Record<string, IconName> = { FOLLOW: "user", MENTION: "at", COMMENT: "comment", REPLY: "comment", TONE_SAVE: "bookmark", TONE_REMIX: "remix", MODERATION: "shield", ANNOUNCEMENT: "megaphone", MEDIA_READY: "check", MEDIA_FAILED: "alert", COLLAB_INVITE: "users", COLLAB_ACCEPTED: "users", PROJECT_ADDED: "users" };
+const ICON: Record<string, IconName> = { FOLLOW: "user", MENTION: "at", COMMENT: "comment", REPLY: "comment", TONE_SAVE: "bookmark", TONE_REMIX: "remix", MODERATION: "shield", ANNOUNCEMENT: "megaphone", MEDIA_READY: "check", MEDIA_FAILED: "alert", COLLAB_INVITE: "users", COLLAB_ACCEPTED: "users", PROJECT_ADDED: "users", CREDIT_ADDED: "waveform", CREDIT_RESPONSE: "waveform" };
 
 function describe(n: NotificationItem): { text: string; href: string } {
   const who = n.actor ? n.actor.name ?? `@${n.actor.handle}` : "Resoniq";
@@ -32,6 +32,8 @@ function describe(n: NotificationItem): { text: string; href: string } {
     case "COMMENT": return { text: `${who} commented on${on}`, href: `/p/${n.postId}#comments` };
     case "REPLY": return { text: `${who} replied to your comment`, href: `/p/${n.postId}#comments` };
     case "COLLAB_INVITE": return { text: `${who} invited you to collaborate on “${String(d.title ?? "a project")}”`, href: `/messages/${String(d.conversationId ?? "")}` };
+    case "CREDIT_ADDED": return { text: `${who} credited you on a release. Confirm it to list it on your profile`, href: `/p/${n.postId}` };
+    case "CREDIT_RESPONSE": return { text: d.status === "CONFIRMED" ? `${who} confirmed their credit (${String(d.role ?? "")})` : `${who} disputed their credit${d.note ? `: “${String(d.note)}”` : ""}. It's no longer shown`, href: `/p/${n.postId}` };
     case "COLLAB_ACCEPTED": return { text: `${who} accepted your invite. “${String(d.title ?? "Your project")}” is ready`, href: `/messages/${String(d.conversationId ?? "")}` };
     case "PROJECT_ADDED": return { text: `${who} added you to “${String(d.title ?? "a project")}”`, href: `/messages/${String(d.conversationId ?? "")}` };
     case "TONE_SAVE": return { text: `${who} saved your tone`, href: `/t/${n.toneId}` };

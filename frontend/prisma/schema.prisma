@@ -99,6 +99,7 @@ model User {
   setlists           Setlist[]
   riffs              Riff[]
   songCanvases       SongCanvas[]
+  releaseCredits     ReleaseCredit[]
 
   @@index([pinnedPostId])
   @@index([signatureToneId])
@@ -591,15 +592,16 @@ model Post {
   releaseProjectId String?
   creditUserIds    String[]      @default([])
 
-  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  community Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
-  tone      Tone?      @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  author    User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community Community?      @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  tone      Tone?           @relation(fields: [toneId], references: [id], onDelete: SetNull)
   tags      PostTag[]
   comments  Comment[]
   votes     PostVote[]
   bookmarks Bookmark[]
   media     Media[]
-  pinnedBy  User[]     @relation("pinnedPost")
+  pinnedBy  User[]          @relation("pinnedPost")
+  credits   ReleaseCredit[]
 
   @@index([status, hotRank, id])
   @@index([hotRank(sort: Desc), id(sort: Desc)])
@@ -702,6 +704,9 @@ enum NotificationType {
   COLLAB_INVITE
   COLLAB_ACCEPTED
   PROJECT_ADDED
+  // Music credits: someone credited you on a release; a credited musician confirmed or disputed.
+  CREDIT_ADDED
+  CREDIT_RESPONSE
 }
 
 model Notification {
@@ -1317,4 +1322,28 @@ model Presence {
 
   @@id([scope, userId])
   @@index([scope, lastSeenAt])
+}
+
+enum CreditStatus {
+  PENDING
+  CONFIRMED
+  DISPUTED
+}
+
+/// A musician credited on a release. Shown on their profile only once they confirm; a disputed credit is hidden from the post.
+model ReleaseCredit {
+  postId      String
+  userId      String
+  role        String
+  status      CreditStatus @default(PENDING)
+  // The credited musician's reason when disputing (shown to the author only).
+  note        String?
+  respondedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, status])
 }
