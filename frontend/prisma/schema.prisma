@@ -1261,6 +1261,8 @@ model ListeningRoom {
   positionSec    Float     @default(0)
   stateAt        DateTime  @default(now())
   anyoneControls Boolean   @default(true)
+  // Bumped by every control, comment or setting change: a poll that already has this version gets a short answer.
+  version        Int       @default(1)
   lastActiveAt   DateTime  @default(now())
   endedAt        DateTime?
   createdAt      DateTime  @default(now())
@@ -1304,4 +1306,15 @@ enum ProjectStage {
   RECORDING
   REVIEWING
   RELEASED
+}
+
+/// Who is looking at something right now (e.g. "canvas:<id>"), and where in it. Rows older than a few seconds mean gone.
+model Presence {
+  scope      String
+  userId     String
+  detail     String?
+  lastSeenAt DateTime @default(now())
+
+  @@id([scope, userId])
+  @@index([scope, lastSeenAt])
 }

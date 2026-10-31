@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api-error";
 import { fail } from "@/lib/validation";
 import { SONG_KEYS } from "@/lib/song-keys";
+import { heartbeat, present } from "@/lib/presence";
 import { SECTION_KINDS, type CanvasContent, type CanvasSection, type SectionKind } from "@/lib/canvas/merge";
 
 /**
@@ -219,4 +220,16 @@ export async function setCanvasProject(ownerId: string, id: string, projectId: s
 export async function deleteCanvas(ownerId: string, id: string) {
   const { count } = await prisma.songCanvas.deleteMany({ where: { id, ownerId } });
   if (!count) throw new ApiError(404, "Song not found.");
+}
+
+export type CanvasPresence = { version: number; present: { id: string; handle: string; name: string | null; sectionId: string | null }[] };
+
+/** The editor's poll: says where this person is (a section id, or none), and returns the song's version and who else is here. */
+export async function canvasPresence(viewerId: string, id: string, sectionId: string | null): Promise<CanvasPresence> {
+  const canvas = await prisma.songCanvas.findFirst({ where: { AND: [{ id }, editableCanvasWhere(viewerId)] }, select: { version: true } });
+  if (!canvas) throw new ApiError(404, "Song not found.");
+  await heartbeat(`canvas:${id}`, viewerId, sectionId);
+  const here = (await present(`canvas:${id}`)).filter((p) => p.userId !== viewerId);
+  const people = here.length ? await prisma.user.findMany({ where: { id: { in: here.map((p) => p.userId) } }, select: { id: true, handle: true, name: true } }) : [];
+  return { version: canvas.version, present: here.flatMap((p) => { const u = people.find((x) => x.id === p.userId); return u ? [{ ...u, sectionId: p.detail }] : []; }) };
 }

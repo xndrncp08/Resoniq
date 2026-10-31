@@ -93,4 +93,23 @@ describe("Live Listening Rooms", () => {
     expect((await syncRoom(host.id, id, null)).ended).toBe(true);
     await expect(controlRoom(host.id, id, parseControl({ action: "play" }))).rejects.toMatchObject({ status: 409 });
   });
+
+  it("answers briefly when nothing changed, and writes heartbeats sparingly", async () => {
+    const { host, guest, projectId } = await band();
+    const id = await createRoom(host.id, { projectId });
+    const full = await syncRoom(guest.id, id, null);
+    const again = await syncRoom(guest.id, id, null, full.version);
+    expect(again).toMatchObject({ unchanged: true, version: full.version });
+    expect("presentIds" in again && again.presentIds.sort()).toEqual([host.id, guest.id].sort());
+    // Any change moves the version on, so the next poll gets the full state.
+    await controlRoom(host.id, id, parseControl({ action: "play" }));
+    const changed = await syncRoom(guest.id, id, null, full.version);
+    expect("unchanged" in changed).toBe(false);
+    await commentInRoom(host.id, id, { atSec: 1, emoji: "🔥" });
+    expect("unchanged" in (await syncRoom(guest.id, id, null, (changed as { version: number }).version))).toBe(false);
+    // Polls within a few seconds don't rewrite the heartbeat.
+    const before = (await prisma.roomParticipant.findUniqueOrThrow({ where: { roomId_userId: { roomId: id, userId: guest.id } } })).lastSeenAt;
+    await syncRoom(guest.id, id, null);
+    expect((await prisma.roomParticipant.findUniqueOrThrow({ where: { roomId_userId: { roomId: id, userId: guest.id } } })).lastSeenAt).toEqual(before);
+  });
 });
