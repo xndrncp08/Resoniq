@@ -13,10 +13,11 @@ import { recipeCoreFromStored } from "@/lib/tone-recipe";
 import type { RigSpec } from "@/types/rig";
 import { toMediaView, type MediaView } from "@/lib/media/view";
 import { readRelease, type Release } from "@/lib/publishing";
+import { creditViews, type CreditView } from "@/lib/credits";
 
-function releaseView(v: Prisma.JsonValue | null) {
+function releaseView(v: Prisma.JsonValue | null, credits: CreditView[]) {
   const r = readRelease(v);
-  return r && { ...r, src: r.take ? `/api/riff-takes/${r.take.id}/audio` : null };
+  return r && { ...r, credits, src: r.take ? `/api/riff-takes/${r.take.id}/audio` : null };
 }
 
 export const POST_CATEGORIES: PostCategory[] = [
@@ -78,6 +79,7 @@ export const POST_VIEW_SELECT = {
   authorId: true,
   toneId: true,
   release: true,
+  credits: { orderBy: { createdAt: "asc" }, select: { userId: true, role: true, status: true, note: true, user: { select: { handle: true, name: true } } } },
   author: { select: AUTHOR_SELECT },
   community: { select: { id: true, slug: true, name: true, kind: true } },
   tags: { select: { tag: true } },
@@ -131,7 +133,7 @@ export type PostView = {
   tone: PostTone | null;
   media: MediaView[];
   /** Published music (a song and/or a take, with credits); the recording plays through /api/riff-takes/[id]/audio. */
-  release: (Release & { src: string | null }) | null;
+  release: (Omit<Release, "credits"> & { src: string | null; credits: CreditView[] }) | null;
   viewer: { vote: -1 | 0 | 1; bookmarked: boolean; isAuthor: boolean };
 };
 
@@ -157,7 +159,7 @@ export function toPostView(row: PostRow, viewer: { vote?: number; bookmarked?: b
     tone: toPostTone(row.tone),
     // Others only ever see finished media; the author also sees what's processing or failed.
     media: row.media.filter((m) => isAuthor || m.status === "READY").map((m) => toMediaView(m, viewer.viewerId ?? null)),
-    release: releaseView(row.release),
+    release: releaseView(row.release, creditViews(row.credits, row.authorId, viewer.viewerId ?? null)),
     viewer: { vote: (Math.sign(viewer.vote ?? 0) as -1 | 0 | 1), bookmarked: !!viewer.bookmarked, isAuthor },
   };
 }

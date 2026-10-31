@@ -91,7 +91,6 @@ export const releaseData = (r: Release): Prisma.PostUpdateInput => ({
   release: r as unknown as Prisma.InputJsonValue,
   releaseTakeId: r.take?.id ?? null,
   releaseProjectId: r.projectId,
-  creditUserIds: [...new Set(r.credits.map((c) => c.userId))],
 });
 
 /** A stored release, read leniently. */
