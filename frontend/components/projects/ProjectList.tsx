@@ -29,7 +29,7 @@ export default function ProjectList({ userId, initial }: { userId: string; initi
                     <div className="flex gap-1" role="img" aria-label={`Stage ${at + 1} of ${PROJECT_STAGES.length}: ${STAGE_LABEL[p.stage]}${p.stageSet ? "" : " (suggested)"}`}>
                       {PROJECT_STAGES.map((s, i) => <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= at ? (p.completedAt ? "bg-signal" : "bg-copper") : "bg-line"}`} />)}
                     </div>
-                    <p className="font-body text-xs text-muted">{p.counts.riffs} riff{p.counts.riffs === 1 ? "" : "s"} · {p.counts.takes} take{p.counts.takes === 1 ? "" : "s"} · {p.counts.songs} song{p.counts.songs === 1 ? "" : "s"}{p.counts.openRooms ? ` · ${p.counts.openRooms} listening now` : ""}</p>
+                    <p className="font-body text-xs text-muted">{p.counts.riffs} riff{p.counts.riffs === 1 ? "" : "s"} · {p.counts.takes} take{p.counts.takes === 1 ? "" : "s"} · {p.counts.songs} song{p.counts.songs === 1 ? "" : "s"}{p.counts.published ? ` · ${p.counts.published} released` : ""}{p.counts.openRooms ? ` · ${p.counts.openRooms} listening now` : ""}</p>
                     <div className="flex items-center gap-2">
                       <span className="flex -space-x-2">{p.members.slice(0, 5).map((m) => <Avatar key={m.id} user={m} size={24} className="ring-2 ring-surface" />)}</span>
                       <span className="ml-auto font-body text-xs text-muted">Active <TimeAgo iso={p.lastActivity} /></span>

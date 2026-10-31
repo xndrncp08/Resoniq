@@ -12,9 +12,15 @@ import { fail } from "@/lib/validation";
 import { recipeCoreFromStored } from "@/lib/tone-recipe";
 import type { RigSpec } from "@/types/rig";
 import { toMediaView, type MediaView } from "@/lib/media/view";
+import { readRelease, type Release } from "@/lib/publishing";
+
+function releaseView(v: Prisma.JsonValue | null) {
+  const r = readRelease(v);
+  return r && { ...r, src: r.take ? `/api/riff-takes/${r.take.id}/audio` : null };
+}
 
 export const POST_CATEGORIES: PostCategory[] = [
-  "DISCUSSION", "QUESTION", "PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON", "TUTORIAL", "PEDALBOARD",
+  "DISCUSSION", "QUESTION", "PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON", "TUTORIAL", "PEDALBOARD", "ORIGINAL",
 ];
 export const MAX_TITLE = 200;
 export const MAX_BODY = 10_000;
@@ -71,6 +77,7 @@ export const POST_VIEW_SELECT = {
   editedAt: true,
   authorId: true,
   toneId: true,
+  release: true,
   author: { select: AUTHOR_SELECT },
   community: { select: { id: true, slug: true, name: true, kind: true } },
   tags: { select: { tag: true } },
@@ -123,6 +130,8 @@ export type PostView = {
   tags: string[];
   tone: PostTone | null;
   media: MediaView[];
+  /** Published music (a song and/or a take, with credits); the recording plays through /api/riff-takes/[id]/audio. */
+  release: (Release & { src: string | null }) | null;
   viewer: { vote: -1 | 0 | 1; bookmarked: boolean; isAuthor: boolean };
 };
 
@@ -148,6 +157,7 @@ export function toPostView(row: PostRow, viewer: { vote?: number; bookmarked?: b
     tone: toPostTone(row.tone),
     // Others only ever see finished media; the author also sees what's processing or failed.
     media: row.media.filter((m) => isAuthor || m.status === "READY").map((m) => toMediaView(m, viewer.viewerId ?? null)),
+    release: releaseView(row.release),
     viewer: { vote: (Math.sign(viewer.vote ?? 0) as -1 | 0 | 1), bookmarked: !!viewer.bookmarked, isAuthor },
   };
 }
@@ -171,6 +181,9 @@ export async function withViewerState(rows: PostRow[], viewerId: string | null):
  */
 /** Takes: performances, covers, demos and A/Bs with media attached. */
 export const PERFORMANCE_WHERE = { category: { in: ["PERFORMANCE", "COVER", "GEAR_DEMO", "TONE_COMPARISON"] as PostCategory[] }, media: { some: {} } } satisfies Prisma.PostWhereInput;
+
+/** A musician's music: original music they published, and releases that credit them. */
+export const musicWhere = (userId: string): Prisma.PostWhereInput => ({ OR: [{ authorId: userId, category: "ORIGINAL" }, { creditUserIds: { has: userId } }] });
 
 export function visiblePostWhere(viewerId: string | null): Prisma.PostWhereInput {
   return {

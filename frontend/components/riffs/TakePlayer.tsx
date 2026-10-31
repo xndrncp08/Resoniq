@@ -7,9 +7,16 @@ import { canPlay } from "@/lib/riffs/peaks";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
+export function downsample(peaks: number[], max: number): number[] {
+  if (peaks.length <= max) return peaks;
+  const size = peaks.length / max;
+  return Array.from({ length: max }, (_, i) => Math.max(...peaks.slice(Math.floor(i * size), Math.floor((i + 1) * size))));
+}
+
 /** The waveform (from stored peaks) doubles as the seek bar; flat bars when there are none. */
 export function Waveform({ peaks, progress, onSeek, label }: { peaks: number[] | null; progress: number; onSeek?: (fraction: number) => void; label: string }) {
-  const bars = peaks?.length ? peaks : Array.from({ length: 60 }, () => 0.15);
+  // At most 64 bars (loudest of each group), so the waveform fits a phone row instead of widening the page.
+  const bars = peaks?.length ? downsample(peaks, 64) : Array.from({ length: 48 }, () => 0.15);
   const seek = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     onSeek?.(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
@@ -30,10 +37,10 @@ export function Waveform({ peaks, progress, onSeek, label }: { peaks: number[] |
       aria-valuenow={Math.round(progress * 100)}
       onPointerDown={onSeek ? seek : undefined}
       onKeyDown={onSeek ? key : undefined}
-      className="focus-ring flex h-12 min-w-0 flex-1 cursor-pointer items-center gap-[2px] rounded"
+      className="focus-ring flex h-12 min-w-0 flex-1 cursor-pointer items-center gap-px overflow-hidden rounded"
     >
       {bars.map((v, i) => (
-        <span key={i} aria-hidden className={`min-w-px flex-1 rounded-full ${i / bars.length <= progress ? "bg-copper" : "bg-line-strong"}`} style={{ height: `${Math.max(8, v * 100)}%` }} />
+        <span key={i} aria-hidden className={`min-w-0 flex-1 rounded-full ${i / bars.length <= progress ? "bg-copper" : "bg-line-strong"}`} style={{ height: `${Math.max(8, v * 100)}%` }} />
       ))}
     </div>
   );

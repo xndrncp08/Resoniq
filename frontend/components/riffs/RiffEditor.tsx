@@ -15,6 +15,7 @@ import { riffQuery, useDeleteRiff, useDeleteTake, useRenameTake, useSaveRiff, us
 import { SONG_KEYS } from "@/lib/setlists";
 import type { RiffView } from "@/lib/riffs/service";
 import Recorder from "@/components/riffs/Recorder";
+import PublishDialog from "@/components/social/PublishDialog";
 import TakePlayer, { TakeCompare } from "@/components/riffs/TakePlayer";
 import { STAGE_LABEL } from "@/components/riffs/RiffList";
 
@@ -37,6 +38,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
   const [progress, setProgress] = useState<number | null>(null);
   const [compare, setCompare] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const body = () => ({ title: draft.title, notes: draft.notes || null, tags: draft.tags.split(",").map((t) => t.trim()).filter(Boolean), key: draft.key || null, bpm: draft.bpm ? Number(draft.bpm) : null, stage: draft.stage, toneId: draft.toneId || null });
@@ -115,6 +117,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
                     <input type="checkbox" checked={compare.includes(t.id)} onChange={(e) => setCompare((c) => (e.target.checked ? [...c.slice(-1), t.id] : c.filter((x) => x !== t.id)))} className="accent-copper" /> A/B
                   </label>
                   <a href={t.src} download className="focus-ring rounded-full p-2 text-muted hover:text-ink" aria-label={`Download ${t.label ?? "take"}`}><Icon name="download" size={16} /></a>
+                  {riff.canEdit && <IconButton icon="share" label={`Publish ${t.label ?? "take"}`} onClick={() => setPublishing(t.id)} size={34} />}
                   {riff.canEdit && <IconButton icon="trash" label={`Delete ${t.label ?? "take"}`} onClick={() => delTake.mutate(t.id)} size={34} />}
                 </div>
               </li>
@@ -148,6 +151,7 @@ export default function RiffEditor({ userId, initial }: { userId: string; initia
         </div>
       </section>
 
+      {publishing && <PublishDialog open onClose={() => setPublishing(null)} userId={userId} title={riff.title} projectId={riff.project?.id ?? null} source={{ takeId: publishing }} />}
       {riff.canEdit && (
         <section aria-labelledby="share-h" className="flex flex-wrap items-center gap-3 rounded-2xl border border-line p-4">
           <div className="mr-auto">

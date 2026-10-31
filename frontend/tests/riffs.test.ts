@@ -61,3 +61,12 @@ describe("riff validation", () => {
     expect(() => parseTakeStart({ size: 10, mime: "audio/wav", peaks: [2] })).toThrow(/peaks/);
   });
 });
+
+describe("waveform downsampling", () => {
+  it("keeps the loudest of each group and leaves short waveforms alone", async () => {
+    const { downsample } = await import("@/components/riffs/TakePlayer");
+    expect(downsample([0.1, 0.9, 0.2, 0.3], 2)).toEqual([0.9, 0.3]);
+    expect(downsample([0.5, 1], 64)).toEqual([0.5, 1]);
+    expect(downsample(Array.from({ length: 120 }, (_, i) => i / 119), 64)).toHaveLength(64);
+  });
+});

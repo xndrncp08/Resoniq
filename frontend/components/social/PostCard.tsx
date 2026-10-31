@@ -10,6 +10,7 @@ import RichText from "@/components/app/RichText";
 import MediaGallery from "@/components/media/MediaGallery";
 import { SeekProvider } from "@/components/media/seek";
 import ToneAttachment, { RigOverlay } from "@/components/social/ToneAttachment";
+import ReleaseAttachment from "@/components/social/ReleaseAttachment";
 import VoteControl from "@/components/social/VoteControl";
 import { CATEGORY_META } from "@/components/social/categories";
 import { api } from "@/lib/client-api";
@@ -125,6 +126,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
             </div>
           )}
           <MediaGallery media={post.media} title={post.title ?? undefined} videoOverlay={post.tone ? <RigOverlay tone={post.tone} /> : undefined} />
+          {post.release && <ReleaseAttachment release={post.release} detail={detail} />}
           {post.tone && <ToneAttachment tone={post.tone} />}
           {post.tags.length > 0 && (
             <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs">

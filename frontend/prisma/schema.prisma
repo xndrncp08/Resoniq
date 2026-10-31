@@ -551,6 +551,8 @@ enum PostCategory {
   TONE_COMPARISON
   TUTORIAL
   PEDALBOARD
+  // Finished music published from the Riff Vault or the Songwriting Canvas.
+  ORIGINAL
 }
 
 // PROCESSING: waiting on media. HELD: automod or report threshold, visible to the author and staff only.
@@ -563,25 +565,31 @@ enum ContentStatus {
 }
 
 model Post {
-  toneDraft     ToneDraft?
-  id            String        @id @default(cuid())
-  authorId      String
-  communityId   String?
-  category      PostCategory  @default(DISCUSSION)
-  title         String?
-  body          String        @default("")
-  toneId        String?
-  status        ContentStatus @default(PUBLISHED)
-  removedReason String?
-  heldReasons   String[]      @default([])
-  score         Int           @default(0)
-  upCount       Int           @default(0)
-  commentCount  Int           @default(0)
-  bookmarkCount Int           @default(0)
+  toneDraft        ToneDraft?
+  id               String        @id @default(cuid())
+  authorId         String
+  communityId      String?
+  category         PostCategory  @default(DISCUSSION)
+  title            String?
+  body             String        @default("")
+  toneId           String?
+  status           ContentStatus @default(PUBLISHED)
+  removedReason    String?
+  heldReasons      String[]      @default([])
+  score            Int           @default(0)
+  upCount          Int           @default(0)
+  commentCount     Int           @default(0)
+  bookmarkCount    Int           @default(0)
   // Stored hot rank (lib/ranking.ts): monotonic in time, so it can be indexed.
-  hotRank       Float         @default(0)
-  createdAt     DateTime      @default(now())
-  editedAt      DateTime?
+  hotRank          Float         @default(0)
+  createdAt        DateTime      @default(now())
+  editedAt         DateTime?
+  // Music publishing: a snapshot of the released song or take (lib/publishing.ts), the recording it plays,
+  // the project it came from, and everyone credited (indexed so profiles can list their credits).
+  release          Json?
+  releaseTakeId    String?
+  releaseProjectId String?
+  creditUserIds    String[]      @default([])
 
   author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   community Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
@@ -600,6 +608,9 @@ model Post {
   @@index([communityId, status, createdAt])
   @@index([authorId, createdAt])
   @@index([toneId])
+  @@index([releaseTakeId])
+  @@index([releaseProjectId])
+  @@index([creditUserIds], type: Gin)
 }
 
 model PostTag {

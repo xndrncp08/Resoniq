@@ -17,6 +17,7 @@ import { SONG_KEYS } from "@/lib/setlists";
 import type { CanvasView } from "@/lib/canvas/service";
 import { conversationsQuery } from "@/lib/queries/conversations";
 import ChordChart from "@/components/canvas/ChordChart";
+import PublishDialog from "@/components/social/PublishDialog";
 import TakePlayer from "@/components/riffs/TakePlayer";
 import { useCanvasDraft } from "@/components/canvas/useCanvasDraft";
 
@@ -32,7 +33,7 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
   useUnsavedChanges({ dirty, label: "this song", save: flush });
   const [mode, setMode] = useState<"write" | "chart">("write");
   const [transpose, setTranspose] = useState(0);
-  const [dialog, setDialog] = useState<"revisions" | "setlist" | "share" | null>(null);
+  const [dialog, setDialog] = useState<"revisions" | "setlist" | "share" | "publish" | null>(null);
   const riffs = useQuery(riffsQuery(userId));
   const set = (patch: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...patch }));
   const setSection = (id: string, patch: Partial<CanvasSection>) => setDraft((d) => ({ ...d, sections: d.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
@@ -92,6 +93,7 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
           <Button size="sm" icon="clock" onClick={() => setDialog("revisions")}>Revisions</Button>
           <Button size="sm" icon="signal-chain" onClick={() => setDialog("setlist")}>Add to a setlist</Button>
           {canvas.isOwner && <Button size="sm" icon="users" onClick={() => setDialog("share")}>{canvas.project ? "Project" : "Write together"}</Button>}
+          {canvas.isOwner && <Button size="sm" variant="primary" icon="share" disabled={dirty} title={dirty ? "Wait for your changes to save" : undefined} onClick={() => setDialog("publish")}>Publish</Button>}
         </span>
       </div>
 
@@ -157,6 +159,16 @@ export default function CanvasEditor({ userId, initial }: { userId: string; init
         </>
       )}
 
+      {dialog === "publish" && (
+        <PublishDialog
+          open
+          onClose={() => setDialog(null)}
+          userId={userId}
+          title={canvas.title}
+          projectId={canvas.project?.id ?? null}
+          source={{ canvasId: canvas.id, takes: Object.values(canvas.riffs).flatMap((r) => (r.take ? [{ id: r.take.id, label: `${r.title}${r.take.label ? ` · ${r.take.label}` : ""}` }] : [])) }}
+        />
+      )}
       <Dialog open={dialog === "revisions"} title="Revisions" onClose={() => setDialog(null)} wide>
         {dialog === "revisions" && <Revisions userId={userId} id={canvas.id} onRestore={(c) => { setDraft(c); setDialog(null); }} />}
       </Dialog>

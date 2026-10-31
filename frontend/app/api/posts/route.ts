@@ -5,14 +5,19 @@ import { attachMedia } from "@/lib/media/service";
 import { createPost, parsePostInput, type PostAttachHook, type PostInput } from "@/lib/posts";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { assertCanPublish } from "@/lib/verification";
+import { buildRelease, parseReleaseInput, releaseData } from "@/lib/publishing";
 
-/** Body: { title?, body?, category?, community?, toneId?, mediaIds? } */
+/** Body: { title?, body?, category?, community?, toneId?, mediaIds?, release?: { canvasId?, takeId?, credits? } } */
 export const POST = route("posts.create", async (req) => {
   const actor = await requireActor({ write: true });
   await enforceRateLimit("post-write", actor.id, RATE_LIMITS.postWrite);
   await assertCanPublish(actor.id);
-  const input = parsePostInput(await readJson(req, 64 * 1024)) as PostInput;
+  const raw = await readJson(req, 64 * 1024);
+  const input = parsePostInput(raw) as PostInput;
   const mediaIds = input.mediaIds ?? [];
+  // Publishing music: permissions and credits are checked before anything is written.
+  const release = raw.release !== undefined ? await buildRelease(actor.id, parseReleaseInput(raw.release)) : null;
+  if (release && !input.title) input.title = release.title;
   if (!input.body && !input.title && !mediaIds.length && !input.toneId) throw new ApiError(400, "Write something, attach media or share a tone.");
 
   const attach: PostAttachHook = async (tx, postId) => {
@@ -26,6 +31,7 @@ export const POST = route("posts.create", async (req) => {
       if (tone.visibility === "PRIVATE") await tx.tone.update({ where: { id: tone.id }, data: { visibility: "UNLISTED" } });
       await tx.post.update({ where: { id: postId }, data: { toneId: tone.id } });
     }
+    if (release) await tx.post.update({ where: { id: postId }, data: releaseData(release) });
     // Posts with media still processing stay PROCESSING (author-only) until the worker finishes.
     return mediaIds.length ? attachMedia(tx, actor.id, postId, mediaIds) : undefined;
   };

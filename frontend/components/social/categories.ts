@@ -9,4 +9,5 @@ export const CATEGORY_META: Record<string, { label: string; icon: IconName }> = 
   TONE_COMPARISON: { label: "Tone A/B", icon: "compare" },
   TUTORIAL: { label: "Tutorial", icon: "knob" },
   PEDALBOARD: { label: "Board tour", icon: "signal-chain" },
+  ORIGINAL: { label: "Original music", icon: "waveform" },
 };
