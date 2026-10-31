@@ -6,6 +6,7 @@ import { getStorage } from "@/lib/storage";
 import { viewableToneWhere } from "@/lib/tones";
 import { SONG_KEYS } from "@/lib/song-keys";
 import { extForMime, sniffRiffAudio } from "@/lib/riffs/sniff";
+import { visiblePostWhere } from "@/lib/posts";
 
 /**
  * Riff Vault: ideas and their recorded takes. Everything is private to the
@@ -239,9 +240,17 @@ export async function deleteTake(ownerId: string, id: string) {
   await getStorage().remove(take.storageKey).catch(() => {});
 }
 
-/** A take the viewer may hear (ready, and they own the riff or are in its project). */
-export async function audibleTake(viewerId: string, id: string) {
-  return prisma.riffTake.findFirst({ where: { id, status: "READY", riff: viewableRiffWhere(viewerId) }, select: { storageKey: true, mime: true } });
+/**
+ * A take the viewer may hear: ready, and they own the riff or are in its
+ * project, or it was published in a post this viewer can see (signed-out
+ * visitors included, for public posts).
+ */
+export async function audibleTake(viewerId: string | null, id: string) {
+  const select = { storageKey: true, mime: true } as const;
+  const own = viewerId ? await prisma.riffTake.findFirst({ where: { id, status: "READY", riff: viewableRiffWhere(viewerId) }, select }) : null;
+  if (own) return own;
+  const post = await prisma.post.findFirst({ where: { AND: [{ releaseTakeId: id }, visiblePostWhere(viewerId)] }, select: { id: true } });
+  return post ? prisma.riffTake.findFirst({ where: { id, status: "READY" }, select }) : null;
 }
 
 /**

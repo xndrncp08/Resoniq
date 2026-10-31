@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiError, enforceRateLimit, optionalActor, route } from "@/lib/api";
 import { decodeCursor, parseLimit } from "@/lib/pagination";
-import { listPosts, parseFeedQuery, PERFORMANCE_WHERE } from "@/lib/posts";
+import { listPosts, musicWhere, parseFeedQuery, PERFORMANCE_WHERE } from "@/lib/posts";
 import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 type Ctx = { params: Promise<{ handle: string }> };
@@ -15,7 +15,7 @@ export const GET = route<Ctx>("users.posts", async (req, { params }) => {
   const url = new URL(req.url);
   const q = parseFeedQuery(url);
   return NextResponse.json(
-    await listPosts({ authorId: user.id, ...(url.searchParams.get("kind") === "performances" && PERFORMANCE_WHERE), ...(url.searchParams.get("exclude") && { id: { not: url.searchParams.get("exclude")! } }) }, viewer?.id ?? null, {
+    await listPosts({ ...(url.searchParams.get("kind") === "music" ? musicWhere(user.id) : { authorId: user.id }), ...(url.searchParams.get("kind") === "performances" && PERFORMANCE_WHERE), ...(url.searchParams.get("exclude") && { id: { not: url.searchParams.get("exclude")! } }) }, viewer?.id ?? null, {
       ...q,
       sort: q.sort ?? "new",
       cursor: decodeCursor(url.searchParams.get("cursor")),

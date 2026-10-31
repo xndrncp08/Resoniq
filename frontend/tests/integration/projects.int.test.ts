@@ -17,8 +17,9 @@ describe("music projects", () => {
     await createCanvas(me.id, { projectId });
     p = await getProject(me.id, projectId);
     expect(p).toMatchObject({ stage: "WRITING", counts: { songs: 1 } });
-    expect(suggestStage({ riffs: 1, takes: 3, songs: 1, openRooms: 0, feedback: 0 })).toBe("RECORDING");
-    expect(suggestStage({ riffs: 1, takes: 3, songs: 1, openRooms: 1, feedback: 0 })).toBe("REVIEWING");
+    expect(suggestStage({ riffs: 1, takes: 3, songs: 1, openRooms: 0, feedback: 0, published: 0 })).toBe("RECORDING");
+    expect(suggestStage({ riffs: 1, takes: 3, songs: 1, openRooms: 1, feedback: 0, published: 0 })).toBe("REVIEWING");
+    expect(suggestStage({ riffs: 1, takes: 3, songs: 1, openRooms: 1, feedback: 4, published: 1 })).toBe("RELEASED");
   });
 
   it("let any member move the stage or finish it, announced in the thread; outsiders get nothing", async () => {

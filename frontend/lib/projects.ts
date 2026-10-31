@@ -12,7 +12,7 @@ import { fail } from "@/lib/validation";
 import { PROJECT_STAGES, STAGE_LABEL } from "@/lib/projects-shared";
 export { PROJECT_STAGES, STAGE_LABEL };
 
-export type ProjectCounts = { riffs: number; takes: number; songs: number; openRooms: number; feedback: number };
+export type ProjectCounts = { riffs: number; takes: number; songs: number; openRooms: number; feedback: number; published: number };
 export type ProjectView = {
   id: string; title: string | null; brief: string | null; stage: ProjectStage; stageSet: boolean; completedAt: string | null; lastActivity: string;
   members: { id: string; handle: string; name: string | null; image: string | null }[]; counts: ProjectCounts;
@@ -20,6 +20,7 @@ export type ProjectView = {
 
 /** The stage a project's contents suggest, for projects whose members haven't set one. */
 export function suggestStage(c: ProjectCounts): ProjectStage {
+  if (c.published > 0) return "RELEASED";
   if (c.feedback > 0 || c.openRooms > 0) return "REVIEWING";
   if (c.takes > 1 && c.songs > 0) return "RECORDING";
   if (c.songs > 0) return "WRITING";
@@ -27,19 +28,21 @@ export function suggestStage(c: ProjectCounts): ProjectStage {
 }
 
 async function counts(projectIds: string[]): Promise<Map<string, ProjectCounts>> {
-  const [riffs, takes, songs, rooms, feedback] = await Promise.all([
+  const [riffs, takes, songs, rooms, feedback, published] = await Promise.all([
     prisma.riff.groupBy({ by: ["projectId"], where: { projectId: { in: projectIds } }, _count: true }),
     prisma.riffTake.findMany({ where: { status: "READY", riff: { projectId: { in: projectIds } } }, select: { riff: { select: { projectId: true } } } }),
     prisma.songCanvas.groupBy({ by: ["projectId"], where: { projectId: { in: projectIds } }, _count: true }),
     prisma.listeningRoom.groupBy({ by: ["projectId"], where: { projectId: { in: projectIds }, endedAt: null }, _count: true }),
     prisma.roomComment.findMany({ where: { room: { projectId: { in: projectIds } } }, select: { room: { select: { projectId: true } } } }),
+    prisma.post.groupBy({ by: ["releaseProjectId"], where: { releaseProjectId: { in: projectIds }, status: "PUBLISHED" }, _count: true }),
   ]);
-  const out = new Map(projectIds.map((id) => [id, { riffs: 0, takes: 0, songs: 0, openRooms: 0, feedback: 0 }]));
+  const out = new Map(projectIds.map((id) => [id, { riffs: 0, takes: 0, songs: 0, openRooms: 0, feedback: 0, published: 0 }]));
   for (const r of riffs) if (r.projectId) out.get(r.projectId)!.riffs = r._count;
   for (const t of takes) if (t.riff.projectId) out.get(t.riff.projectId)!.takes++;
   for (const s of songs) if (s.projectId) out.get(s.projectId)!.songs = s._count;
   for (const r of rooms) out.get(r.projectId)!.openRooms = r._count;
   for (const f of feedback) out.get(f.room.projectId)!.feedback++;
+  for (const p of published) if (p.releaseProjectId) out.get(p.releaseProjectId)!.published = p._count;
   return out;
 }
 

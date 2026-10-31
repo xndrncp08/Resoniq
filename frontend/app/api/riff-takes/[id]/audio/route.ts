@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
-import { ApiError, enforceRateLimit, route } from "@/lib/api";
-import { requireActor } from "@/lib/authz";
+import { ApiError, enforceRateLimit, optionalActor, route } from "@/lib/api";
 import { parseRange } from "@/lib/http-range";
-import { RATE_LIMITS } from "@/lib/rate-limit";
+import { clientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { audibleTake } from "@/lib/riffs/service";
 import { getStorage } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** A take's audio for its owner or the riff's project members. Supabase: a 5-minute signed URL; local: ranged stream. */
+/** A take's audio for its owner, the riff's project members, or anyone who can see a post it was published in. Supabase: a 5-minute signed URL; local: ranged stream. */
 export const GET = route<Ctx>("riff-takes.audio", async (req, { params }) => {
-  const actor = await requireActor();
-  await enforceRateLimit("media-read", actor.id, RATE_LIMITS.mediaRead);
-  const take = await audibleTake(actor.id, (await params).id);
+  const actor = await optionalActor();
+  await enforceRateLimit("media-read", actor?.id ?? clientIp(req), RATE_LIMITS.mediaRead);
+  const take = await audibleTake(actor?.id ?? null, (await params).id);
   if (!take) throw new ApiError(404, "Not found.");
   const cache = "private, no-store";
   const storage = getStorage();

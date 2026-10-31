@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { optionalActor } from "@/lib/api";
 import { getPublicProfile } from "@/lib/profiles";
-import { listPosts, PERFORMANCE_WHERE } from "@/lib/posts";
+import { listPosts, musicWhere, PERFORMANCE_WHERE } from "@/lib/posts";
 import { getShowcase, type Showcase } from "@/lib/portfolio";
 import { OPEN_TO_LABEL } from "@/lib/portfolio-options";
 import { patchFromTone } from "@/lib/studio/from-tone";
@@ -54,7 +54,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   const [{ handle }, sp] = await Promise.all([params, searchParams]);
   const { viewer, profile, showcase, contact } = await load(handle);
   if (!profile || !showcase) notFound();
-  const tab = sp.tab === "tones" || sp.tab === "performances" || (sp.tab === "saved" && profile.isSelf) ? sp.tab : "posts";
+  const tab = sp.tab === "tones" || sp.tab === "performances" || sp.tab === "music" || (sp.tab === "saved" && profile.isSelf) ? sp.tab : "posts";
   const vid = viewer?.id ?? null;
 
   return (
@@ -136,6 +136,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         <div className="min-w-0 space-y-4 lg:order-1">
           <Tabs label="Profile" items={[
             { href: `/u/${profile.handle}`, label: "Posts", active: tab === "posts" },
+            { href: `/u/${profile.handle}?tab=music`, label: "Music", active: tab === "music" },
             { href: `/u/${profile.handle}?tab=performances`, label: "Performances", active: tab === "performances" },
             { href: `/u/${profile.handle}?tab=tones`, label: "Tones", active: tab === "tones" },
             ...(profile.isSelf ? [{ href: `/u/${profile.handle}?tab=saved`, label: "Saved tones", active: tab === "saved" }] : []),
@@ -151,6 +152,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               <ProfilePosts profileId={profile.id} handle={profile.handle} viewerId={vid} exclude={showcase.pinnedPost?.id} />
             </>
           )}
+          {tab === "music" && <ProfileMusic profileId={profile.id} handle={profile.handle} viewerId={vid} />}
           {tab === "performances" && <ProfilePosts profileId={profile.id} handle={profile.handle} viewerId={vid} performances />}
           {tab === "tones" && <ProfileTones profileId={profile.id} handle={profile.handle} viewerId={vid} isSelf={profile.isSelf} />}
           {tab === "saved" && <SavedTones profileId={profile.id} />}
@@ -174,6 +176,12 @@ async function ProfilePosts({ profileId, handle, viewerId, performances = false,
       empty={<EmptyState icon={performances ? "video" : "feed"} title={performances ? "No performances yet" : "No posts yet"} />}
     />
   );
+}
+
+/** Finished music: what they published and what they're credited on. */
+async function ProfileMusic({ profileId, handle, viewerId }: { profileId: string; handle: string; viewerId: string | null }) {
+  const page = await listPosts(musicWhere(profileId), viewerId, { sort: "new", cursor: null, limit: 12 });
+  return <PostFeed endpoint={`/api/users/${handle}/posts?sort=new&limit=12&kind=music`} initial={page.items} cursor={page.nextCursor} signedIn={!!viewerId} empty={<EmptyState icon="waveform" title="No music published yet" />} />;
 }
 
 /** The gear they play, grouped the way it sits in a signal path. */

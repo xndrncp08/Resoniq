@@ -51,7 +51,9 @@ test("a host and a guest hear the same moment, see each other's feedback, and pa
     expect(Math.abs(h - g)).toBeLessThan(0.5);
 
     // Seeking moves everyone.
-    await host.page.getByRole("slider", { name: "Position for everyone" }).click({ position: { x: 300, y: 10 } });
+    const wave = host.page.getByRole("slider", { name: "Position for everyone" });
+    const box = (await wave.boundingBox())!;
+    await wave.click({ position: { x: box.width * 0.6, y: box.height / 2 } });
     await expect.poll(() => playhead(host.page), { timeout: 5_000 }).toBeGreaterThan(5);
     await expect.poll(() => playhead(guest.page), { timeout: 10_000 }).toBeGreaterThan(5);
     await expect.poll(async () => Math.abs((await playhead(guest.page)) - (await playhead(host.page))), { timeout: 10_000 }).toBeLessThan(0.5);
