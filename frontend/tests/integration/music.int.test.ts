@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Actor } from "@/lib/authz";
 import { createPost, listPosts } from "@/lib/posts";
-import { artistsToDiscover, forYouWhere, genreWhere, musicGenres, MUSIC_WHERE, notifyFollowersOfRelease } from "@/lib/music";
+import { artistsToDiscover, forYouWhere, genreWhere, musicGenres, MUSIC_WHERE } from "@/lib/music";
+import { announceRelease } from "@/lib/credits";
+import { moderatePost } from "@/lib/moderation";
 import { makeActor, prisma, resetDb } from "./db";
 
 beforeEach(resetDb);
@@ -38,16 +40,30 @@ describe("music discovery", () => {
     expect(await musicGenres()).toEqual(expect.arrayContaining(["jazz", "soul", "metal", "doom"]));
   });
 
-  it("tells followers about a new release, but not credited people twice or about community posts", async () => {
+  it("announces a release once it is public: credited people and followers, once, never from a community", async () => {
     const artist = await makeActor();
     const fan = await makeActor();
     const bandmate = await makeActor();
+    const admin = { ...(await makeActor()), role: "ADMIN" as const };
+    await prisma.user.update({ where: { id: admin.id }, data: { role: "ADMIN" } });
     for (const f of [fan, bandmate]) await prisma.follow.create({ data: { followerId: f.id, followingId: artist.id } });
-    const post = { id: (await release(artist, "Debut")).id, authorId: artist.id, category: "ORIGINAL", community: null };
-    await notifyFollowersOfRelease(post, [bandmate.id]);
-    await notifyFollowersOfRelease({ ...post, community: { slug: "jazz" } });
-    await notifyFollowersOfRelease({ ...post, category: "QUESTION" });
-    const sent = await prisma.notification.findMany({ where: { type: "NEW_RELEASE" }, select: { userId: true, actorId: true, postId: true } });
-    expect(sent).toEqual([{ userId: fan.id, actorId: artist.id, postId: post.id }]);
+    const sent = () => prisma.notification.findMany({ where: { type: { in: ["NEW_RELEASE", "CREDIT_ADDED"] } }, select: { userId: true, type: true }, orderBy: { type: "asc" } });
+
+    // Held by the content screen at publish: nobody hears about it yet.
+    const held = await release(artist, "Debut");
+    await prisma.post.update({ where: { id: held.id }, data: { status: "HELD" } });
+    await prisma.releaseCredit.create({ data: { postId: held.id, userId: bandmate.id, role: "Bass" } });
+    await announceRelease(held.id);
+    expect(await sent()).toEqual([]);
+
+    // Approved: the bandmate is asked to confirm their credit, the fan hears about the release.
+    await moderatePost(admin, held.id, { action: "restore", reason: "" });
+    expect(await sent()).toEqual([{ userId: fan.id, type: "NEW_RELEASE" }, { userId: bandmate.id, type: "CREDIT_ADDED" }].sort((a, b) => a.type.localeCompare(b.type)));
+    await announceRelease(held.id);
+    expect(await sent()).toHaveLength(2);
+
+    const question = await createPost(artist, { title: "Strings?", body: "Which gauge", category: "QUESTION", communitySlug: null, toneId: null });
+    await announceRelease(question.id);
+    expect(await sent()).toHaveLength(2);
   });
 });

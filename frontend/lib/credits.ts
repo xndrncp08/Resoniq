@@ -60,3 +60,25 @@ export function creditViews(rows: { userId: string; role: string; status: Credit
     .filter((c) => c.status !== "DISPUTED" || isAuthor)
     .map((c) => ({ userId: c.userId, handle: c.user.handle, name: c.user.name, role: c.role, status: c.status, note: isAuthor ? c.note : null }));
 }
+
+/**
+ * Tell people about a release once it is actually public: credited musicians get
+ * CREDIT_ADDED (so they can confirm or dispute) and followers get NEW_RELEASE.
+ *
+ * A post can become public in three places: at creation, when a moderator approves
+ * a held post, and when its media finishes processing. All three call this, and it
+ * sends at most once per post (a post that was already announced, then held after an
+ * edit and approved again, stays quiet).
+ */
+export async function announceRelease(postId: string) {
+  const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, category: true, communityId: true, status: true } });
+  if (!post || post.status !== "PUBLISHED" || post.category !== "ORIGINAL") return;
+  if (await prisma.notification.count({ where: { postId, type: { in: ["CREDIT_ADDED", "NEW_RELEASE"] } } })) return;
+  const credited = (await prisma.releaseCredit.findMany({ where: { postId, userId: { not: post.authorId } }, select: { userId: true } })).map((c) => c.userId);
+  await notifyCredited(postId, post.authorId, credited);
+  // Posts inside a community stay inside it; credited people already have their own notice.
+  if (post.communityId) return;
+  // shortcut: newest 2000 followers in one insert; queue it through the jobs table if an artist outgrows that.
+  const followers = await prisma.follow.findMany({ where: { followingId: post.authorId, followerId: { notIn: credited } }, orderBy: { createdAt: "desc" }, take: 2000, select: { followerId: true } });
+  await notify(followers.map((f) => ({ userId: f.followerId, type: "NEW_RELEASE" as const, actorId: post.authorId, postId })));
+}

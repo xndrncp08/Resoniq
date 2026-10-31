@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { suggestionPool } from "@/lib/discovery";
 
 /** Where a new musician is in getting set up, read from what they've actually done (nothing extra is stored). */
 export async function onboardingSteps(userId: string) {
@@ -15,11 +16,10 @@ export async function onboardingSteps(userId: string) {
 /** People worth following for a newcomer: most overlap with what they play and listen to, then most followed. */
 export async function welcomeMusicians(userId: string, limit = 6) {
   const me = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { instruments: true, genres: true } });
-  // shortcut: scores the 60 most-followed people in memory; move to SQL once suggestions need the long tail.
+  const ids = await suggestionPool({ id: { not: userId }, status: "ACTIVE", kind: "PERSON", managedCreator: null }, me);
   const people = await prisma.user.findMany({
-    where: { id: { not: userId }, status: "ACTIVE", kind: "PERSON", managedCreator: null },
+    where: { id: { in: ids } },
     orderBy: [{ followerCount: "desc" }, { createdAt: "asc" }],
-    take: 60,
     select: { id: true, handle: true, name: true, image: true, bio: true, followerCount: true, instruments: true, genres: true, followers: { where: { followerId: userId }, select: { followerId: true } } },
   });
   const overlap = (u: { instruments: string[]; genres: string[] }) => u.genres.filter((g) => me.genres.includes(g)).length * 2 + u.instruments.filter((i) => me.instruments.includes(i)).length;

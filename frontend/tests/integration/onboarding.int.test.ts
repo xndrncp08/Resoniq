@@ -25,4 +25,13 @@ describe("onboarding", () => {
     expect(await onboardingSteps(me.id)).toMatchObject({ interests: true, follows: true, created: true, done: 3 });
     expect((await welcomeMusicians(me.id)).find((u) => u.id === jazz.id)?.viewerFollows).toBe(true);
   });
+
+  it("finds people who share your genres however many more popular people there are", async () => {
+    const me = await makeActor();
+    await prisma.user.update({ where: { id: me.id }, data: { genres: ["shoegaze"] } });
+    for (let i = 0; i < 25; i++) await prisma.user.update({ where: { id: (await makeActor()).id }, data: { followerCount: 100 + i } });
+    const quiet = await makeActor();
+    await prisma.user.update({ where: { id: quiet.id }, data: { genres: ["shoegaze"] } });
+    expect((await welcomeMusicians(me.id))[0]).toMatchObject({ id: quiet.id, shared: ["shoegaze"] });
+  });
 });

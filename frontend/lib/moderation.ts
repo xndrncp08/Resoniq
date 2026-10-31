@@ -5,6 +5,7 @@ import type { Actor } from "@/lib/authz";
 import { recordAudit } from "@/lib/audit";
 import { isCommunityModerator } from "@/lib/communities";
 import { notify } from "@/lib/notify";
+import { announceRelease } from "@/lib/credits";
 import { can } from "@/lib/permissions";
 import { fail } from "@/lib/validation";
 
@@ -48,6 +49,8 @@ export async function moderatePost(actor: Actor, postId: string, { action, reaso
     await recordAudit(tx, { actorId: actor.id, action: `post.${action}`, targetType: "Post", targetId: postId, reason: reason || undefined, meta: { from: post.status } });
     await notify({ userId: post.authorId, type: "MODERATION", actorId: null, postId, data: { action, target: "post", reason } }, tx);
   });
+  // A release held at publish was never announced; approving it is when credits and followers hear about it.
+  if (action === "restore") await announceRelease(postId);
 }
 
 export async function moderateComment(actor: Actor, commentId: string, { action, reason }: { action: ModerationAction; reason: string }) {
