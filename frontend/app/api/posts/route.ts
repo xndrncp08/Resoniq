@@ -7,6 +7,7 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
 import { assertCanPublish } from "@/lib/verification";
 import { buildRelease, parseReleaseInput, releaseData } from "@/lib/publishing";
 import { notifyCredited, recordCredits } from "@/lib/credits";
+import { notifyFollowersOfRelease } from "@/lib/music";
 
 /** Body: { title?, body?, category?, community?, toneId?, mediaIds?, release?: { canvasId?, takeId?, credits? } } */
 export const POST = route("posts.create", async (req) => {
@@ -41,6 +42,9 @@ export const POST = route("posts.create", async (req) => {
     return mediaIds.length ? attachMedia(tx, actor.id, postId, mediaIds) : undefined;
   };
   const post = await createPost(actor, input, { attach, requireContent: false });
-  if (post.status === "PUBLISHED") await notifyCredited(post.id, actor.id, credited);
+  if (post.status === "PUBLISHED") {
+    await notifyCredited(post.id, actor.id, credited);
+    await notifyFollowersOfRelease({ id: post.id, authorId: actor.id, category: post.category, community: post.community }, credited);
+  }
   return NextResponse.json({ post }, { status: 201 });
 });

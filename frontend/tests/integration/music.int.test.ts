@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Actor } from "@/lib/authz";
 import { createPost, listPosts } from "@/lib/posts";
-import { artistsToDiscover, forYouWhere, genreWhere, musicGenres, MUSIC_WHERE } from "@/lib/music";
+import { artistsToDiscover, forYouWhere, genreWhere, musicGenres, MUSIC_WHERE, notifyFollowersOfRelease } from "@/lib/music";
 import { makeActor, prisma, resetDb } from "./db";
 
 beforeEach(resetDb);
@@ -36,5 +36,18 @@ describe("music discovery", () => {
     expect(artists.map((a) => a.id)).not.toContain(followed.id);
     expect(artists[0]).toMatchObject({ id: jazz.id, sharedGenres: ["jazz"], releases: 1 });
     expect(await musicGenres()).toEqual(expect.arrayContaining(["jazz", "soul", "metal", "doom"]));
+  });
+
+  it("tells followers about a new release, but not credited people twice or about community posts", async () => {
+    const artist = await makeActor();
+    const fan = await makeActor();
+    const bandmate = await makeActor();
+    for (const f of [fan, bandmate]) await prisma.follow.create({ data: { followerId: f.id, followingId: artist.id } });
+    const post = { id: (await release(artist, "Debut")).id, authorId: artist.id, category: "ORIGINAL", community: null };
+    await notifyFollowersOfRelease(post, [bandmate.id]);
+    await notifyFollowersOfRelease({ ...post, community: { slug: "jazz" } });
+    await notifyFollowersOfRelease({ ...post, category: "QUESTION" });
+    const sent = await prisma.notification.findMany({ where: { type: "NEW_RELEASE" }, select: { userId: true, actorId: true, postId: true } });
+    expect(sent).toEqual([{ userId: fan.id, actorId: artist.id, postId: post.id }]);
   });
 });

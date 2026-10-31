@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { MUSICIAN_CARD_SELECT } from "@/lib/discovery";
+import { notify } from "@/lib/notify";
 
 /**
  * Discovering original music: releases by genre (the artist's genres or the
@@ -54,4 +55,12 @@ export async function artistsToDiscover(viewerId: string | null, limit = 6) {
     .map((u) => ({ ...u, releases: u._count.posts, sharedGenres: shared(u.genres) }))
     .sort((a, b) => b.sharedGenres.length - a.sharedGenres.length)
     .slice(0, limit);
+}
+
+/** Tell followers about a new release on the artist's profile (community posts stay inside their community). Credited people already got their own notice. */
+export async function notifyFollowersOfRelease(post: { id: string; authorId: string; category: string; community: object | null }, skip: string[] = []) {
+  if (post.category !== "ORIGINAL" || post.community) return;
+  // shortcut: newest 2000 followers in one insert; queue it through the jobs table if an artist outgrows that.
+  const followers = await prisma.follow.findMany({ where: { followingId: post.authorId, followerId: { notIn: skip } }, orderBy: { createdAt: "desc" }, take: 2000, select: { followerId: true } });
+  await notify(followers.map((f) => ({ userId: f.followerId, type: "NEW_RELEASE" as const, actorId: post.authorId, postId: post.id })));
 }

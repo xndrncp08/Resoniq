@@ -711,6 +711,8 @@ enum NotificationType {
   // Music credits: someone credited you on a release; a credited musician confirmed or disputed.
   CREDIT_ADDED
   CREDIT_RESPONSE
+  // Someone you follow released original music.
+  NEW_RELEASE
 }
 
 model Notification {
