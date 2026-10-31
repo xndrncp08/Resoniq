@@ -31,6 +31,8 @@ export const metadata: Metadata = {
     "A home for musicians: practice with a metronome and audio loops, discover tones, share your progress and find people to make music with. Any instrument. Any setup.",
   metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
   openGraph: { siteName: "Resoniq", images: ["/brand/og-studio.jpg"] },
+  // Large previews on X/Bluesky/Slack; page-level openGraph images are reused for the card.
+  twitter: { card: "summary_large_image" },
   icons: { icon: [{ url: "/brand/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }], apple: "/brand/app-icon-180.png" },
 };
 

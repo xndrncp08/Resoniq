@@ -184,3 +184,13 @@ export async function restoreRelease(authorId: string, postId: string, revisionI
   const takes = old.takes.filter((t) => alive.has(t.id));
   await writeRelease(postId, current, { ...current, chart: old.chart, takes, take: takes[0] ?? null }, `Restored the version from ${rev.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC`);
 }
+
+/**
+ * The facts a link preview shows for a release: key, tempo and mixes as short chips,
+ * and the confirmed credits as one line (pending or disputed names are never shown).
+ */
+export function releaseFacts(r: { key: string | null; bpm: number | null; takes: { mix?: string }[]; credits: { name: string | null; handle: string; role: string; status: string }[] }) {
+  const chips = [r.key, r.bpm ? `${r.bpm} BPM` : null, r.takes.length > 1 ? `${r.takes.length} mixes` : null].filter((c): c is string => !!c);
+  const credits = r.credits.filter((c) => c.status === "CONFIRMED").map((c) => `${c.name ?? `@${c.handle}`} (${c.role})`).join(", ");
+  return { chips, credits };
+}
