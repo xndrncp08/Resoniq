@@ -10,6 +10,8 @@ import SideRail from "@/components/social/SideRail";
 import FeaturedStrip from "@/components/social/FeaturedStrip";
 import ConversationStarters from "@/components/social/ConversationStarters";
 import { CATEGORY_META } from "@/components/social/categories";
+import GettingStartedCard from "@/components/onboarding/GettingStartedCard";
+import { onboardingSteps } from "@/lib/onboarding";
 
 export const metadata: Metadata = { title: "Feed" };
 
@@ -24,7 +26,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
   const category = POST_CATEGORIES.find((c) => c === sp.category);
   const q = { sort, window, category, cursor: null, limit: 15 };
   const page = tab === "following" && viewer ? await followingFeed(viewer.id, q) : await forYouFeed(viewer?.id ?? null, q);
-  const me = viewer ? await prisma.user.findUnique({ where: { id: viewer.id }, select: { handle: true, name: true, image: true } }) : null;
+  const [me, steps] = viewer ? await Promise.all([prisma.user.findUnique({ where: { id: viewer.id }, select: { handle: true, name: true, image: true } }), onboardingSteps(viewer.id)]) : [null, null];
   const qs = (o: Record<string, string>) => `/feed?${new URLSearchParams({ tab, sort, t: window, ...(category && { category }), ...o })}`;
 
   return (
@@ -48,6 +50,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
         {sort === "top" && (
           <Tabs label="Time range" items={(["day", "week", "month", "year", "all"] as const).map((w) => ({ href: qs({ t: w }), label: w === "all" ? "All time" : `This ${w}`, active: window === w }))} />
         )}
+        {steps && steps.done < steps.total && <GettingStartedCard done={steps.done} total={steps.total} />}
         {me ? (
           <ComposerPrompt user={me} />
         ) : (
