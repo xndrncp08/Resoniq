@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Actor } from "@/lib/authz";
-import { buildRelease, parseReleaseInput, releaseData } from "@/lib/publishing";
+import { buildRelease, parseReleaseInput, parseReleaseUpdate, releaseCandidates, releaseData, restoreRelease, updateRelease } from "@/lib/publishing";
 import { notifyCredited, recordCredits, respondToCredit } from "@/lib/credits";
 import { createPost, deletePost, getPost, listPosts, musicWhere } from "@/lib/posts";
 import { audibleTake, completeTake, createRiff, parseTakeStart, riffProject, startTake } from "@/lib/riffs/service";
@@ -114,5 +114,43 @@ describe("music publishing", () => {
     expect((await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).creditUserIds).toEqual([]);
     await expect(respondToCredit(me.id, post.id, { action: "dispute" })).rejects.toThrow(/Credit not found|doesn't need confirming/);
     await expect(respondToCredit(other.id, post.id, { action: "maybe" })).rejects.toThrow(/confirm or dispute/);
+  });
+
+  it("manages mixes and versions: alternates play publicly, removed ones don't, and every change can be undone", async () => {
+    const me = await makeActor();
+    const other = await makeActor();
+    const riff = await createRiff(me.id, { title: "Two Mixes" });
+    const main = await take(me.id, riff.id);
+    const acoustic = await take(me.id, riff.id);
+    const song = await createCanvas(me.id, { title: "Two Mixes" });
+    const post = await publish(me, { canvasId: song.id, takeId: main });
+    expect(post.release?.takes.map((t) => t.mix)).toEqual(["Main"]);
+    expect(await audibleTake(null, acoustic)).toBeNull();
+
+    await updateRelease(me.id, post.id, parseReleaseUpdate({ takes: [{ takeId: acoustic, mix: "Acoustic" }, { takeId: main, mix: "Main" }], note: "Acoustic first" }));
+    const v2 = (await getPost(post.id, null))!.release!;
+    expect(v2.takes.map((t) => [t.id, t.mix])).toEqual([[acoustic, "Acoustic"], [main, "Main"]]);
+    expect(v2.src).toBe(`/api/riff-takes/${acoustic}/audio`);
+    expect(await audibleTake(null, acoustic)).not.toBeNull();
+
+    // Refresh the chart from the song as it is now.
+    await saveCanvas(me.id, song.id, song.version, parseContent({ title: "Two Mixes", sections: [{ id: "v", kind: "verse", name: "Verse", lyrics: "[C]new words" }], arrangement: ["v"] }));
+    await updateRelease(me.id, post.id, parseReleaseUpdate({ takes: [{ takeId: main, mix: "Main" }], refreshChart: true }));
+    const v3 = (await getPost(post.id, null))!.release!;
+    expect(v3.chart?.sections[0].lyrics).toBe("[C]new words");
+    expect(await audibleTake(null, acoustic)).toBeNull();
+
+    // Restore the two-mix version.
+    const { revisions } = await releaseCandidates(me.id, post.id);
+    expect(revisions[0].mixes).toEqual(["Acoustic", "Main"]);
+    await restoreRelease(me.id, post.id, revisions[0].id);
+    expect((await getPost(post.id, null))!.release!.takes.map((t) => t.mix)).toEqual(["Acoustic", "Main"]);
+
+    // Only the author manages it, with takes they may use.
+    await expect(updateRelease(other.id, post.id, parseReleaseUpdate({ takes: [] }))).rejects.toMatchObject({ status: 404 });
+    const theirs = await take(other.id, (await createRiff(other.id, { title: "Theirs" })).id);
+    await expect(updateRelease(me.id, post.id, parseReleaseUpdate({ takes: [{ takeId: theirs, mix: "Stolen" }] }))).rejects.toMatchObject({ status: 403 });
+    expect(() => parseReleaseUpdate({ takes: Array.from({ length: 7 }, (_, i) => ({ takeId: `abcdefghijk${i}`, mix: "x" })) })).toThrow(/up to 6/);
+    expect(() => parseReleaseUpdate({ takes: [{ takeId: main, mix: "a" }, { takeId: main, mix: "b" }] })).toThrow(/once/);
   });
 });

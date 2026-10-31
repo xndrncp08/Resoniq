@@ -589,19 +589,22 @@ model Post {
   // the project it came from, and everyone credited (indexed so profiles can list their credits).
   release          Json?
   releaseTakeId    String?
+  // Every take in the release (main mix first, then alternates): any of them plays for whoever can see the post.
+  releaseTakeIds   String[]      @default([])
   releaseProjectId String?
   creditUserIds    String[]      @default([])
 
-  author    User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  community Community?      @relation(fields: [communityId], references: [id], onDelete: SetNull)
-  tone      Tone?           @relation(fields: [toneId], references: [id], onDelete: SetNull)
-  tags      PostTag[]
-  comments  Comment[]
-  votes     PostVote[]
-  bookmarks Bookmark[]
-  media     Media[]
-  pinnedBy  User[]          @relation("pinnedPost")
-  credits   ReleaseCredit[]
+  author           User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community        Community?        @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  tone             Tone?             @relation(fields: [toneId], references: [id], onDelete: SetNull)
+  tags             PostTag[]
+  comments         Comment[]
+  votes            PostVote[]
+  bookmarks        Bookmark[]
+  media            Media[]
+  pinnedBy         User[]            @relation("pinnedPost")
+  credits          ReleaseCredit[]
+  releaseRevisions ReleaseRevision[]
 
   @@index([status, hotRank, id])
   @@index([hotRank(sort: Desc), id(sort: Desc)])
@@ -611,6 +614,7 @@ model Post {
   @@index([authorId, createdAt])
   @@index([toneId])
   @@index([releaseTakeId])
+  @@index([releaseTakeIds], type: Gin)
   @@index([releaseProjectId])
   @@index([creditUserIds], type: Gin)
 }
@@ -1346,4 +1350,17 @@ model ReleaseCredit {
 
   @@id([postId, userId])
   @@index([userId, status])
+}
+
+/// A release as it was before an edit (mixes swapped, lyrics refreshed), so the author can restore it.
+model ReleaseRevision {
+  id        String   @id @default(cuid())
+  postId    String
+  release   Json
+  note      String?
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
 }

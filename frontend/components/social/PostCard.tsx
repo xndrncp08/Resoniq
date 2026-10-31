@@ -126,7 +126,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
             </div>
           )}
           <MediaGallery media={post.media} title={post.title ?? undefined} videoOverlay={post.tone ? <RigOverlay tone={post.tone} /> : undefined} />
-          {post.release && <ReleaseAttachment postId={post.id} release={post.release} detail={detail} />}
+          {post.release && <ReleaseAttachment postId={post.id} release={post.release} detail={detail} isAuthor={post.viewer.isAuthor} />}
           {post.tone && <ToneAttachment tone={post.tone} />}
           {post.tags.length > 0 && (
             <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs">

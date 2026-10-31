@@ -17,7 +17,7 @@ import { creditViews, type CreditView } from "@/lib/credits";
 
 function releaseView(v: Prisma.JsonValue | null, credits: CreditView[]) {
   const r = readRelease(v);
-  return r && { ...r, credits, src: r.take ? `/api/riff-takes/${r.take.id}/audio` : null };
+  return r && { ...r, credits, src: r.take ? `/api/riff-takes/${r.take.id}/audio` : null, takes: r.takes.map((t) => ({ ...t, src: `/api/riff-takes/${t.id}/audio` })) };
 }
 
 export const POST_CATEGORIES: PostCategory[] = [
@@ -133,7 +133,7 @@ export type PostView = {
   tone: PostTone | null;
   media: MediaView[];
   /** Published music (a song and/or a take, with credits); the recording plays through /api/riff-takes/[id]/audio. */
-  release: (Omit<Release, "credits"> & { src: string | null; credits: CreditView[] }) | null;
+  release: (Omit<Release, "credits" | "takes"> & { src: string | null; credits: CreditView[]; takes: (Release["takes"][number] & { src: string })[] }) | null;
   viewer: { vote: -1 | 0 | 1; bookmarked: boolean; isAuthor: boolean };
 };
 
