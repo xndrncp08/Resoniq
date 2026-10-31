@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { memo } from "@/lib/memo";
 import { AUTHOR_SELECT } from "@/lib/profiles";
@@ -142,4 +143,20 @@ async function loadPlatformCounts() {
     prisma.community.count({ where: { archivedAt: null } }),
   ]);
   return { musicians, posts, tones, communities };
+}
+
+/**
+ * Candidate ids for "people you might like": everyone matching `base` who shares a genre
+ * or instrument with you (GIN-indexed array overlap, so a match is found however few
+ * followers they have), topped up with the most followed. Callers load and rank the pool;
+ * it is bounded, so that ranking can stay in memory as the user table grows.
+ */
+export async function suggestionPool(base: Prisma.UserWhereInput, me: { genres: string[]; instruments: string[] }, size = 50): Promise<string[]> {
+  const order = [{ followerCount: "desc" as const }, { id: "asc" as const }];
+  const overlap = [...(me.genres.length ? [{ genres: { hasSome: me.genres } }] : []), ...(me.instruments.length ? [{ instruments: { hasSome: me.instruments } }] : [])];
+  const [matching, popular] = await Promise.all([
+    overlap.length ? prisma.user.findMany({ where: { AND: [base, { OR: overlap }] }, orderBy: order, take: size, select: { id: true } }) : [],
+    prisma.user.findMany({ where: base, orderBy: order, take: 20, select: { id: true } }),
+  ]);
+  return [...new Set([...matching, ...popular].map((u) => u.id))];
 }

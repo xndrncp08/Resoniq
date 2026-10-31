@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Media } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notify";
+import { announceRelease } from "@/lib/credits";
 import { getStorage } from "@/lib/storage";
 import { ABANDONED_UPLOAD_MS, MEDIA_LIMITS } from "@/lib/media/limits";
 import { sniffMedia } from "@/lib/media/sniff";
@@ -176,7 +177,9 @@ export async function processMedia(mediaId: string): Promise<void> {
 export async function settlePost(postId: string | null) {
   if (!postId) return;
   const pending = await prisma.media.count({ where: { postId, status: { in: ["UPLOADING", "PROCESSING"] } } });
-  if (pending === 0) await prisma.post.updateMany({ where: { id: postId, status: "PROCESSING" }, data: { status: "PUBLISHED" } });
+  if (pending > 0) return;
+  const { count } = await prisma.post.updateMany({ where: { id: postId, status: "PROCESSING" }, data: { status: "PUBLISHED" } });
+  if (count) await announceRelease(postId);
 }
 
 /** media.purge: delete every stored file of a removed upload (and its extracted audio). */

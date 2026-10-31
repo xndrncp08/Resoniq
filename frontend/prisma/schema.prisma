@@ -103,6 +103,9 @@ model User {
 
   @@index([pinnedPostId])
   @@index([signatureToneId])
+  // Musician suggestions match on shared genres/instruments (array overlap).
+  @@index([genres], type: Gin)
+  @@index([instruments], type: Gin)
 }
 
 enum Role {
