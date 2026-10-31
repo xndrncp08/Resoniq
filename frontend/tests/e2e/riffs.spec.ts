@@ -1,3 +1,4 @@
+import { collectErrors } from "./errors";
 import { expect, test } from "@playwright/test";
 import { deleteAccount, signUp } from "./account";
 
@@ -13,8 +14,7 @@ function wav(seconds = 1, rate = 8000) {
 }
 
 test("an idea from first take to a compared second take, then gone", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  const errors = collectErrors(page);
   await signUp(page, "riff");
   try {
     await page.goto("/riffs");

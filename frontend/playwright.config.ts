@@ -16,9 +16,11 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
-  use: { baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3100", channel: "chrome", trace: "retain-on-failure" },
+  use: { baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3100", trace: "retain-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 1000 } } },
     { name: "mobile", use: { ...devices["Pixel 7"], channel: "chrome" } },
+    // Safari's engine (iPhone emulation and desktop). Opt in with E2E_WEBKIT=1 after `npx playwright install webkit`.
+    ...(process.env.E2E_WEBKIT ? [{ name: "iphone", use: { ...devices["iPhone 15"] } }, { name: "safari", use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 1000 } } }] : []),
   ],
 });

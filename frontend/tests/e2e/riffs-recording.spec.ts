@@ -4,7 +4,8 @@ import { deleteAccount, signUp } from "./account";
 // Chrome's fake capture device: a real MediaRecorder recording of a generated tone.
 test.use({ permissions: ["microphone"], launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
 
-test("records a take from the microphone and keeps it", async ({ page }) => {
+test("records a take from the microphone and keeps it", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "The fake capture device is a Chrome flag; WebKit can't simulate a microphone here.");
   await signUp(page, "rec");
   try {
     await page.goto("/riffs");

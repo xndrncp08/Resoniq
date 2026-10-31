@@ -1,3 +1,4 @@
+import { collectErrors } from "./errors";
 import { expect, test, type Page } from "@playwright/test";
 
 // Fresh visitors see the consent banner; these specs aren't about it.
@@ -7,8 +8,7 @@ async function dismissConsent(page: Page) {
 }
 
 async function openStudio(page: Page) {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  const errors = collectErrors(page);
   await page.goto("/feed");
   await dismissConsent(page);
   await page.goto("/studio");

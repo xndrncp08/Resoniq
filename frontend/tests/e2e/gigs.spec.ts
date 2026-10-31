@@ -1,10 +1,10 @@
+import { collectErrors } from "./errors";
 import { expect, test } from "@playwright/test";
 import { deleteAccount, signUp } from "./account";
 
 /** Gig Mode end to end: build a setlist, save it, step through it on stage, delete it. Needs sign-ups enabled. */
 test("a setlist from empty to the stage and back", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  const errors = collectErrors(page);
   await signUp(page, "gig");
   try {
     await page.goto("/gigs");
