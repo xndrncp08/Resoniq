@@ -58,6 +58,7 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
   const [reportLoaded, setReportLoaded] = useState(false);
   const [gone, setGone] = useState(false);
   const [expanded, setExpanded] = useState(detail);
+  const [linkCopied, setLinkCopied] = useState(false);
   const meta = CATEGORY_META[post.category];
   const long = post.body.length > 420;
   if (gone) return null;
@@ -67,7 +68,12 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
   async function share() {
     const url = `${location.origin}/p/${post.id}`;
     if (navigator.share) await navigator.share({ title: post.title ?? `@${post.author.handle} on Resoniq`, url }).catch(() => {});
-    else await navigator.clipboard.writeText(url);
+    else {
+      // Desktop browsers without a share sheet: copy, and say so.
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
   }
 
   return (
@@ -144,7 +150,8 @@ export default function PostCard({ post, signedIn, detail = false, voteMode = "a
           </Link>
           <div className="ml-auto flex items-center">
             <IconButton icon={bookmarked ? "bookmark-filled" : "bookmark"} label={bookmarked ? "Remove bookmark" : "Bookmark"} active={bookmarked} onClick={toggleBookmark} size={36} />
-            <IconButton icon="share" label="Share" onClick={share} size={36} />
+            <IconButton icon={linkCopied ? "check" : "share"} label={linkCopied ? "Link copied" : "Share"} onClick={share} size={36} />
+            <span role="status" className="sr-only">{linkCopied ? "Link copied" : ""}</span>
           </div>
         </footer>
         {reportLoaded && <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="POST" targetId={post.id} />}

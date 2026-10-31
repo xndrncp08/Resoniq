@@ -46,6 +46,20 @@ It only sends once per post. If a `CREDIT_ADDED` or `NEW_RELEASE` notification a
 
 **Limit:** followers are notified in a single insert, capped at an artist's 2,000 newest followers. Move this to the jobs table (`lib/jobs`) if an artist outgrows that.
 
+## Sharing and link previews
+
+Release pages and profiles are built to be shared:
+
+| Page | Metadata | Preview image |
+| --- | --- | --- |
+| `/p/:id` with a release | `og:type=music.song` (duration, musician), canonical URL, a description built from the key, tempo and confirmed credits, and schema.org `MusicRecording` JSON-LD | `/api/og/post/:id`: title, confirmed credits, key/BPM/mix chips and the release's real waveform (its stored peaks) |
+| `/u/:handle` | `og:type=profile` | `/api/og/musician/:handle`: name, instruments, genres and release count |
+| any page | `twitter:card=summary_large_image` (root layout) | the page's own OpenGraph image |
+
+Preview images render only what a signed-out visitor could already see: they load content with no viewer, so private and community-restricted posts return 404. `releaseFacts` in `lib/publishing.ts` is shared by the page metadata and the image, so neither can show a pending or disputed credit.
+
+Published releases also show a **More from** panel with the artist's newest three other releases the viewer can see. It offers Follow, or "Join to follow" for signed-out visitors. The Share button uses the native share sheet where there is one (phones, Safari); elsewhere it copies the link and announces "Link copied".
+
 ## Timestamped feedback
 
 Comments on releases and notes from listening sessions can contain timestamps (`1:23`). `components/media/seek.tsx` provides `SeekProvider`, `TimeLink` and `SeekMarks`:

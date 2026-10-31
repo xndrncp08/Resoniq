@@ -38,7 +38,19 @@ test("a take goes from the vault to the profile, playable by anyone who sees the
     await expect(page.getByText("(Guitar and vocals)")).toBeVisible();
 
     expect((await anon.request.get(src)).headers()["content-type"]).toBe("audio/wav");
+
+    // Shared links preview as music: song metadata, a rendered image, and structured data.
+    const releasePath = new URL(page.url()).pathname;
+    const html = await (await anon.request.get(releasePath)).text();
+    expect(html).toContain('<meta property="og:type" content="music.song"/>');
+    expect(html).toContain('"@type":"MusicRecording"');
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image"/>');
+    const og = await anon.request.get(`/api/og/post/${releasePath.split("/p/")[1]}`);
+    expect(og.headers()["content-type"]).toBe("image/png");
+    expect((await anon.request.get(`/api/og/musician/${me}`)).headers()["content-type"]).toBe("image/png");
     await anon.close();
+    // The release page points listeners at the artist.
+    await expect(page.getByRole("complementary", { name: /More from/ })).toContainText("This is their first release here.");
 
     // A timestamp in a comment plays the release from that moment.
     const postUrl = page.url();

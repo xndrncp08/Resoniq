@@ -47,7 +47,10 @@ async function contactState(viewerId: string, profileId: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { profile } = await load((await params).handle);
-  return profile ? { title: `${profile.name ?? `@${profile.handle}`} (@${profile.handle})`, description: profile.bio ?? undefined } : { title: "Musician not found" };
+  if (!profile) return { title: "Musician not found" };
+  const title = `${profile.name ?? `@${profile.handle}`} (@${profile.handle})`;
+  const description = profile.bio ?? (profile.genres.length ? `Musician on Resoniq · ${profile.genres.slice(0, 4).join(", ")}` : undefined);
+  return { title, description, openGraph: { type: "profile", title, description, username: profile.handle, images: [`/api/og/musician/${profile.handle}`] } };
 }
 
 export default async function ProfilePage({ params, searchParams }: Props) {
