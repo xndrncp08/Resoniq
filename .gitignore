@@ -18,3 +18,24 @@ output/
 # Playwright end-to-end output
 frontend/test-results/
 frontend/playwright-report/
+
+# Local cleanup archive; keep uncertain files recoverable.
+.cleanup-quarantine/
+
+# Rebuildable reports, tool caches and editor/OS leftovers.
+coverage/
+.coverage
+htmlcov/
+.eslintcache
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Standalone promotional film experiments (never application media).
+/after-the-shift/
+/first-light/
+/bassist-wanted/
+/specimen-of-a-tone/
