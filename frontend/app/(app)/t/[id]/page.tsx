@@ -93,7 +93,7 @@ export default async function TonePage({ params }: Props) {
       <section id="rig" aria-labelledby="declared-h" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="declared-h" className="font-display text-2xl font-semibold">{generated ? "Suggested rig" : "The rig"}</h2>
-          <Provenance kind={generated ? "generated" : "declared"} />
+          {(generated || tone.declared) && <Provenance kind={generated ? "generated" : "declared"} />}
         </div>
         {tone.declared ? (
           <RigBoard rig={tone.declared} />
