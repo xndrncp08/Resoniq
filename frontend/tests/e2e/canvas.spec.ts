@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { deleteAccount, signUp } from "./account";
+import { collectErrors } from "./errors";
 
 async function member(browser: Browser, prefix: string) {
   const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, ...test.info().project.use });
@@ -21,6 +22,24 @@ test("two writers edit the same song at once; nothing is lost, and the chart rea
     await a.page.goto(`/riffs/${riff.id}`);
     await a.page.getByRole("button", { name: "Write a song from it" }).click();
     await expect(a.page).toHaveURL(/\/write\/[a-z0-9]+$/);
+    // Focus changes during a slow heartbeat must coalesce rather than fan out requests.
+    let active = 0;
+    let peak = 0;
+    await a.page.route("**/api/canvases/*/presence", async (route) => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      try { await route.continue(); } finally { active--; }
+    });
+    await lyrics(a.page, "Verse 1").click();
+    await expect.poll(() => active).toBe(1);
+    await a.page.evaluate(() => {
+      for (let i = 0; i < 4; i++) document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await lyrics(a.page, "Chorus").click();
+    await a.page.waitForTimeout(1500);
+    expect(peak).toBe(1);
+    await a.page.unroute("**/api/canvases/*/presence");
     const url = a.page.url();
     await b.page.goto(url.replace(/^https?:\/\/[^/]+/, ""));
     await expect(lyrics(b.page, "Chorus")).toBeVisible();
@@ -63,5 +82,38 @@ test("two writers edit the same song at once; nothing is lost, and the chart rea
   } finally {
     await a.close();
     await b.close();
+  }
+});
+
+test("a lost save race survives a failed refetch: the editor retries instead of sticking on Saving", async ({ page }) => {
+  const errors = collectErrors(page);
+  await signUp(page, "writer-race");
+  try {
+    const { canvas } = await (await page.request.post("/api/canvases", { data: { title: "Race" } })).json();
+    await page.goto(`/write/${canvas.id}`);
+    const canvasUrl = new RegExp(`/api/canvases/${canvas.id}$`);
+    // The next save "loses" to someone else, and fetching their version fails until the editor reports it.
+    let conflict = true;
+    let offline = false;
+    await page.route(canvasUrl, async (route) => {
+      const method = route.request().method();
+      if (method === "PUT" && conflict) {
+        conflict = false;
+        offline = true;
+        return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: "Someone saved first." }) });
+      }
+      if (method === "GET" && offline) return route.abort("internetdisconnected");
+      return route.continue();
+    });
+    await page.locator("textarea").first().fill("[G]Second try");
+    await expect(page.getByText("Offline · retrying")).toBeVisible({ timeout: 15_000 });
+    offline = false;
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await page.unroute(canvasUrl);
+    await page.reload();
+    await expect(page.locator("textarea").first()).toHaveValue("[G]Second try");
+    expect(errors).toEqual([]);
+  } finally {
+    await deleteAccount(page);
   }
 });

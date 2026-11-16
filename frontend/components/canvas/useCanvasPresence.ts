@@ -20,11 +20,17 @@ export function useCanvasPresence(userId: string, id: string, sectionId: string 
 
   useEffect(() => {
     let alive = true;
+    let running = false;
+    let pending = false;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       clearTimeout(timer);
+      // Coalesce section/focus changes while a request is running; never overlap heartbeats.
+      if (running) { pending = true; return; }
+      running = true;
       try {
-        const r = await api<CanvasPresence>(`/api/canvases/${id}/presence`, { body: { sectionId: section.current } });
+        const r = await api<CanvasPresence>(`/api/canvases/${id}/presence`, { body: { sectionId: section.current }, signal: controller.signal });
         if (!alive) return;
         setPresent(r.present);
         const cached = client.getQueryData<CanvasView>(canvasKeys.one(userId, id));
@@ -32,13 +38,18 @@ export function useCanvasPresence(userId: string, id: string, sectionId: string 
       } catch {
         // Offline for a moment: keep the last known presence and try again on the next tick.
       }
-      if (alive) timer = setTimeout(tick, document.visibilityState === "visible" ? 2500 : 15_000);
+      running = false;
+      if (alive) {
+        const delay = pending ? 0 : document.visibilityState === "visible" ? 2500 : 15_000;
+        pending = false;
+        timer = setTimeout(tick, delay);
+      }
     };
     kick.current = () => void tick();
     const onVisible = () => document.visibilityState === "visible" && void tick();
     document.addEventListener("visibilitychange", onVisible);
     void tick();
-    return () => { alive = false; clearTimeout(timer); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { alive = false; controller.abort(); clearTimeout(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [client, userId, id]);
 
   useEffect(() => {

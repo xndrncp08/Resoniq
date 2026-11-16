@@ -41,7 +41,8 @@ export default function StageView({ setlist }: { setlist: SetlistView }) {
   // Keyboard and page-turner pedals.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+      // Modifier shortcuts (Alt+← is Back) belong to the browser.
+      if (e.altKey || e.ctrlKey || e.metaKey || (e.target as HTMLElement).closest("input, select, textarea")) return;
       if (["ArrowRight", "PageDown", "ArrowDown", " "].includes(e.key)) { e.preventDefault(); go(1); }
       else if (["ArrowLeft", "PageUp", "ArrowUp"].includes(e.key)) { e.preventDefault(); go(-1); }
     };

@@ -12,7 +12,7 @@ test("a setlist from empty to the stage and back", async ({ page }) => {
     await page.getByRole("button", { name: "Create" }).click();
     await expect(page).toHaveURL(/\/gigs\/[a-z0-9]+$/);
 
-    for (const [title, bpm, key] of [["Opener", "132", "E"], ["Ballad", "72", "Am"]]) {
+    for (const [title, bpm, key] of [["Opener", "132", "E"], ["Ballad", "72", "Am"], ["Closer", "150", "G"]]) {
       await page.getByRole("button", { name: "Add song" }).click();
       const row = page.getByRole("listitem").last();
       await row.getByRole("textbox", { name: /title/ }).fill(title);
@@ -35,6 +35,20 @@ test("a setlist from empty to the stage and back", async ({ page }) => {
     await expect(page.getByText("Ballad notes")).toBeVisible();
     await page.getByRole("button", { name: "← Previous" }).click();
     await expect(page.getByRole("heading", { name: "Opener" })).toBeVisible();
+    // Space on a focused Next moves one song, not two (three songs, so a double step can't hide behind the end).
+    const nextButton = page.getByRole("button", { name: /^Next →/ });
+    await nextButton.focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("heading", { name: "Ballad" })).toBeVisible();
+    await page.waitForTimeout(300);
+    await expect(page.getByRole("heading", { name: "Ballad" })).toBeVisible();
+    // A pedal still turns the page while an on-screen button has focus (as it does after a tap).
+    await expect(nextButton).toBeFocused();
+    await page.keyboard.press("PageDown");
+    await expect(page.getByRole("heading", { name: "Closer" })).toBeVisible();
+    // Modifier shortcuts are the browser's, not page turns.
+    await page.keyboard.press("Control+ArrowLeft");
+    await expect(page.getByRole("heading", { name: "Closer" })).toBeVisible();
 
     await page.goto("/gigs");
     await page.getByRole("button", { name: "Delete E2E show" }).click();

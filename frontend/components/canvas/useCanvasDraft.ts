@@ -63,18 +63,23 @@ export function useCanvasDraft(userId: string, initial: CanvasView) {
         inFlight.current = false;
         if (err instanceof ClientApiError && err.status === 409) {
           // Someone saved first: fetch theirs and merge ours in; the next pass saves the result.
-          const latest = (await api<{ canvas: CanvasView }>(`/api/canvases/${initial.id}`)).canvas;
-          client.setQueryData(canvasKeys.one(userId, initial.id), latest);
-          setStatus("unsaved");
+          try {
+            const latest = (await api<{ canvas: CanvasView }>(`/api/canvases/${initial.id}`)).canvas;
+            client.setQueryData(canvasKeys.one(userId, initial.id), latest);
+            setStatus("unsaved");
+            return;
+          } catch {
+            // Couldn't fetch the newer version: retry like any other network trouble below.
+          }
         } else if (err instanceof ClientApiError && err.status < 500 && err.status !== 429) {
           setNotices((x) => [...x, err.message]);
           setStatus("error");
-        } else {
-          // Network trouble or overload: back off and try again (work stays in the editor).
-          retry.current = Math.min(retry.current + 1, 5);
-          setStatus("offline");
-          setTimeout(() => setDraft((d) => ({ ...d })), 2000 * 2 ** retry.current);
+          return;
         }
+        // Network trouble or overload: back off and try again (work stays in the editor).
+        retry.current = Math.min(retry.current + 1, 5);
+        setStatus("offline");
+        setTimeout(() => setDraft((d) => ({ ...d })), 2000 * 2 ** retry.current);
       }
     }, AUTOSAVE_MS);
     return () => clearTimeout(t);
