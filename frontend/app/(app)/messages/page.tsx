@@ -14,7 +14,7 @@ export default async function MessagesPage({ searchParams }: Props) {
   const items = await listConversations(actor.id, kind ? { kind } : {});
   return (
     <div className="mx-auto max-w-[760px] space-y-5">
-      <PageHeader eyebrow="Messages" title="Talk shop">Private conversations, collaboration invites and the projects that come out of them. Only the people in a conversation can see it.</PageHeader>
+      <PageHeader title="Talk shop">Private conversations, collaboration invites and the projects that come out of them. Only the people in a conversation can see it.</PageHeader>
       <Tabs label="Messages" items={[{ href: "/messages", label: "All", active: !kind }, { href: "/messages?view=projects", label: "Projects", active: kind === "PROJECT" }]} />
       <ConversationList userId={actor.id} kind={kind} initial={items} />
       {!items.length && (

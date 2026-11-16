@@ -17,6 +17,8 @@ import { AUTHOR_SELECT } from "@/lib/profiles";
 
 export const metadata: Metadata = { title: "Settings" };
 
+const SECTIONS = [["profile", "Profile"], ["musicianship", "Musicianship"], ["rig", "Rig"], ["account", "Sign-in"], ["messages", "Messages"], ["privacy", "Privacy"]] as const;
+
 export default async function SettingsPage() {
   const actor = await requirePageActor("/settings");
   const u = await prisma.user.findUniqueOrThrow({
@@ -33,19 +35,22 @@ export default async function SettingsPage() {
   const links = Array.isArray(u.links) ? (u.links as { label: string; url: string }[]) : [];
   return (
     <div className="mx-auto max-w-[760px] space-y-8">
-      <PageHeader eyebrow="Settings" title="Your account" />
+      <PageHeader title="Settings" />
+      <nav aria-label="Settings sections" className="scrollbar-none sticky top-14 z-30 -mx-4 flex gap-1 overflow-x-auto border-b hairline bg-bg/95 px-4 py-2 backdrop-blur md:top-0">
+        {SECTIONS.map(([id, label]) => <a key={id} href={`#${id}`} className="focus-ring shrink-0 rounded-full px-3 py-1.5 font-body text-sm text-muted hover:bg-white/[0.05] hover:text-ink">{label}</a>)}
+      </nav>
       {isSuspended(actor) && (
         <p className="panel border-amber/40 p-4 font-body text-sm text-amber">
           Your account is suspended{actor.suspendedUntil ? ` until ${actor.suspendedUntil.toISOString().slice(0, 10)}` : ""}. You can still browse. <a href="/appeals?type=ACCOUNT" className="underline">Appeal</a>
         </p>
       )}
-      <section className="space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm
+      <section id="profile" className="scroll-mt-28 space-y-3"><h2 className="font-display text-xl font-semibold">Profile</h2><ProfileForm
         // Only profile fields reach the browser (never the email, hash or verification state).
         initial={{ handle: u.handle, name: u.name, image: u.image, bannerUrl: u.bannerUrl, bio: u.bio, instruments: u.instruments, genres: u.genres, links }}
         avatarSources={{ upload: u.uploadedImage, google: u.providerImage }}
         imagesEnabled={(await mediaCapabilities()).images}
       /></section>
-      <section className="space-y-3">
+      <section id="musicianship" className="scroll-mt-28 space-y-3">
         <div><h2 className="font-display text-xl font-semibold">Musicianship</h2><p className="mt-1 font-body text-sm text-muted">Help the right people find you: what you&apos;re up for, and the work you lead with.</p></div>
         <MusicianshipForm
           initial={{ location: u.location, openTo: u.openTo.filter(isOpenTo), influences: u.influences, pinnedPostId: u.pinnedPostId, signatureToneId: u.signatureToneId, availableUntil: u.availableUntil && u.availableUntil >= new Date() ? u.availableUntil.toISOString().slice(0, 10) : null, availabilityNote: u.availabilityNote, playingSince: u.playingSince, highlights: u.highlights }}
@@ -53,22 +58,22 @@ export default async function SettingsPage() {
           posts={posts.map((p) => ({ id: p.id, label: `${(p.title || p.body || "Media post").replace(/\s+/g, " ").slice(0, 60)} · ${p.createdAt.toLocaleDateString("en", { month: "short", day: "numeric" })}` }))}
         />
       </section>
-      <section className="space-y-3">
+      <section id="rig" className="scroll-mt-28 space-y-3">
         <div><h2 className="font-display text-xl font-semibold">Your rig</h2><p className="mt-1 font-body text-sm text-muted">The gear you play, listed on your profile and linked to its page in the gear catalog.</p></div>
         <RigBuilder initial={rig} />
       </section>
-      <section className="panel space-y-2 p-5">
+      <section id="account" className="panel scroll-mt-28 space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Sign-in</h2>
         <p className="font-body text-sm text-muted">Email: <span className="text-ink">{u.email ?? "—"}</span> {u.email && (u.emailVerified ? <span className="text-signal">· verified</span> : <span className="text-amber">· not verified</span>)}</p>
         {u.email && !u.emailVerified && u.passwordHash && mailConfigured() && <ResendVerification />}
         {u.passwordHash && <p className="font-body text-sm text-muted">Forgot your password? <a href="/forgot" className="text-copper hover:underline">Reset it by email</a>. Resetting signs you out everywhere.</p>}
         <p className="font-body text-sm text-muted">Member since {u.createdAt.toLocaleDateString("en", { month: "long", year: "numeric" })}. Your email is never shown on your profile.</p>
       </section>
-      <section className="panel space-y-3 p-5">
+      <section id="messages" className="panel scroll-mt-28 space-y-3 p-5">
         <h2 className="font-display text-lg font-semibold">Messages</h2>
         <MessagingSettings initial={u.dmPolicy} blocked={blocks.map((b) => ({ id: b.blocked.id, handle: b.blocked.handle, name: b.blocked.name, image: b.blocked.image }))} />
       </section>
-      <section className="panel space-y-2 p-5">
+      <section id="privacy" className="panel scroll-mt-28 space-y-2 p-5">
         <h2 className="font-display text-lg font-semibold">Privacy</h2>
         <ul className="list-disc space-y-1 pl-5 font-body text-sm text-muted">
           <li>Tones are unlisted by default: viewable by link, never listed until you make them public.</li>

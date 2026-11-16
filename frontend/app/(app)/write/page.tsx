@@ -10,7 +10,7 @@ export default async function WritePage() {
   const userId = await requirePageUserId("/write");
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader eyebrow="Songwriting Canvas" title="Your songs">Lyrics and chords, sections and arrangement, with the riffs they grew from. Private, or shared with a project to write together.</PageHeader>
+      <PageHeader title="Your songs">Lyrics and chords, sections and arrangement, with the riffs they grew from. Private, or shared with a project to write together.</PageHeader>
       <CanvasList userId={userId} initial={await listCanvases(userId)} />
     </div>
   );

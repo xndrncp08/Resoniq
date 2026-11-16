@@ -10,7 +10,7 @@ export default async function ProjectsPage() {
   const userId = await requirePageUserId("/projects");
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader eyebrow="Music projects" title="Projects">Everything you&apos;re making with other people, from the first riff to release.</PageHeader>
+      <PageHeader title="Projects">Everything you&apos;re making with other people, from the first riff to release.</PageHeader>
       <ProjectList userId={userId} initial={await listProjects(userId)} />
     </div>
   );

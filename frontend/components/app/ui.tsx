@@ -7,7 +7,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "signal";
 type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-copper text-bg hover:bg-copper-soft shadow-[0_8px_24px_-12px_rgba(255,138,61,0.8)]",
+  primary: "bg-copper text-bg hover:bg-copper-soft",
   secondary: "border border-line-strong bg-surface-2 text-ink hover:border-copper/50 hover:bg-surface-3",
   ghost: "text-muted hover:bg-white/[0.05] hover:text-ink",
   danger: "border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20",
@@ -100,7 +100,7 @@ export function Avatar({ user, size = 40, className = "" }: { user: { name: stri
 
 export function Chip({ children, active = false, icon, className = "" }: { children: ReactNode; active?: boolean; icon?: IconName; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] ${active ? "border-copper/60 bg-copper/10 text-copper" : "border-line bg-surface-2 text-ink-dim"} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-body text-xs ${active ? "border-copper/60 bg-copper/10 text-copper" : "border-line bg-surface-2 text-ink-dim"} ${className}`}>
       {icon && <Icon name={icon} size={13} />}
       {children}
     </span>
@@ -114,17 +114,17 @@ export function Chip({ children, active = false, icon, className = "" }: { child
 export function Provenance({ kind, edited = false, className = "" }: { kind: "declared" | "inferred" | "generated"; edited?: boolean; className?: string }) {
   if (kind === "generated") {
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-amber ${className}`} title="Suggested starting settings written by Resoniq. Not taken from a recording, and not tested on the listed gear.">
+      <span className={`inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 font-body text-xs font-medium text-amber ${className}`} title="Suggested starting settings written by Resoniq. Not taken from a recording, and not tested on the listed gear.">
         <Icon name="knob" size={13} /> Resoniq-generated
       </span>
     );
   }
   return kind === "declared" ? (
-    <span className={`inline-flex items-center gap-1 rounded-full border border-copper/40 bg-copper/10 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-copper ${className}`} title="Gear the creator says they used">
+    <span className={`inline-flex items-center gap-1 rounded-full border border-copper/40 bg-copper/10 px-2 py-0.5 font-body text-xs font-medium text-copper ${className}`} title="Gear the creator says they used">
       <Icon name="declared" size={13} /> Creator declared
     </span>
   ) : (
-    <span className={`inline-flex items-center gap-1 rounded-full border border-signal/40 bg-signal/10 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-signal ${className}`} title="Estimated from the audio by Resoniq's analysis: a heuristic closest match, not a verified rig">
+    <span className={`inline-flex items-center gap-1 rounded-full border border-signal/40 bg-signal/10 px-2 py-0.5 font-body text-xs font-medium text-signal ${className}`} title="Estimated from the audio by Resoniq's analysis: a heuristic closest match, not a verified rig">
       <Icon name="inferred" size={13} /> {edited ? "Inferred · adjusted" : "Resoniq inferred"}
     </span>
   );
@@ -136,11 +136,9 @@ export function ManagedCreatorBadge() {
 
 export function EmptyState({ icon, title, children, action }: { icon: IconName; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="panel grille flex flex-col items-center gap-3 px-6 py-14 text-center">
-      <span className="panel-inset flex h-14 w-14 items-center justify-center rounded-2xl text-copper">
-        <Icon name={icon} size={26} />
-      </span>
-      <h3 className="font-display text-xl font-semibold">{title}</h3>
+    <div className="flex flex-col items-center gap-3 rounded-[var(--radius-panel)] border border-dashed border-line px-6 py-12 text-center">
+      <Icon name={icon} size={28} className="text-muted" />
+      <h3 className="font-display text-lg font-semibold">{title}</h3>
       {children && <div className="max-w-md font-body text-sm text-muted">{children}</div>}
       {action}
     </div>
@@ -154,7 +152,7 @@ export function Spinner({ size = 18, className = "" }: { size?: number; classNam
 export type TabItem = { href: string; label: string; active: boolean; count?: number };
 
 /** Route-driven tabs (each tab is a link), so state lives in the URL. */
-export function Tabs({ items, label, className = "" }: { items: TabItem[]; label: string; className?: string }) {
+export function Tabs({ items, label, size = "md", className = "" }: { items: TabItem[]; label: string; size?: "sm" | "md"; className?: string }) {
   return (
     <nav aria-label={label} className={`scrollbar-none flex gap-1 overflow-x-auto ${className}`}>
       {items.map((t) => (
@@ -163,7 +161,7 @@ export function Tabs({ items, label, className = "" }: { items: TabItem[]; label
           href={t.href}
           aria-current={t.active ? "page" : undefined}
           scroll={false}
-          className={`focus-ring relative whitespace-nowrap rounded-full px-4 py-2 font-body text-sm transition-colors ${t.active ? "bg-ink text-bg" : "text-muted hover:bg-white/[0.05] hover:text-ink"}`}
+          className={`focus-ring relative whitespace-nowrap rounded-full font-body transition-colors ${size === "sm" ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-sm"} ${t.active ? (size === "sm" ? "bg-surface-3 text-ink" : "bg-ink text-bg") : "text-muted hover:bg-white/[0.05] hover:text-ink"}`}
         >
           {t.label}
           {t.count !== undefined && <span className="ml-1.5 font-mono text-xs opacity-70">{t.count}</span>}
@@ -173,13 +171,12 @@ export function Tabs({ items, label, className = "" }: { items: TabItem[]; label
   );
 }
 
-export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: string; title: ReactNode; children?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, children, actions }: { title: ReactNode; children?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="label-engraved mb-2">{eyebrow}</p>}
-        <h1 className="font-display text-display-md font-semibold tracking-tight">{title}</h1>
-        {children && <div className="mt-2 max-w-2xl font-body text-muted">{children}</div>}
+        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+        {children && <div className="mt-1.5 max-w-2xl font-body text-[15px] text-muted">{children}</div>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>

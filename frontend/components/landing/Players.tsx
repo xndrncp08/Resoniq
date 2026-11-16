@@ -25,7 +25,7 @@ export default function Players() {
   return (
     <section aria-labelledby="players-title" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-8">
       <div className="mb-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-        <h2 id="players-title" className="max-w-3xl font-display text-display-md font-semibold tracking-[-0.03em]">
+        <h2 id="players-title" className="max-w-3xl font-display text-[clamp(2rem,4.2vw,3.75rem)] leading-[0.95] font-semibold tracking-[-0.03em]">
           Whatever you play. <span className="text-muted">Wherever you play it.</span>
         </h2>
         <p className="max-w-sm font-body text-ink-dim">Bedrooms, rehearsal rooms, home studios and stages. Resoniq is built for the music, not one brand of gear.</p>

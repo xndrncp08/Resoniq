@@ -32,7 +32,7 @@ export default function TankGPanel({ toneId, rig }: { toneId: string; rig: RigSp
         <h2 id="tank-g-h" className="font-display text-2xl font-semibold">M-VAVE TANK-G settings</h2>
         <Link href={`/gear/${TANK_G_SLUG}`} className="font-body text-sm text-copper hover:underline">More TANK-G presets</Link>
       </div>
-      <div className="panel grille relative overflow-hidden p-5 sm:p-6">
+      <div className="panel relative overflow-hidden p-5 sm:p-6">
         <p className="label-engraved mb-4">Panel · LIVE mode</p>
         <ol aria-label="TANK-G panel settings" className="grid grid-cols-3 gap-x-2 gap-y-5 min-[420px]:grid-cols-4 sm:grid-cols-6 lg:grid-cols-8">
           {rows.map((r) => <Knob key={r.control} label={r.control} value={num(r.setting)} text={r.setting} />)}

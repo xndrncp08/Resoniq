@@ -10,7 +10,7 @@ export default async function GigsPage() {
   const userId = await requirePageUserId("/gigs");
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader eyebrow="Gig Mode" title="Setlists">Songs in order with tempo, key, the tone to load and stage notes. Open Gig Mode on stage to step through them with big buttons, a page-turner or a MIDI footswitch.</PageHeader>
+      <PageHeader title="Setlists">Songs in order with tempo, key, the tone to load and stage notes. Open Gig Mode on stage to step through them with big buttons, a page-turner or a MIDI footswitch.</PageHeader>
       <GigList userId={userId} initial={await listSetlists(userId)} />
     </div>
   );

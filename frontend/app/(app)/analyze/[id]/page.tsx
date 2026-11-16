@@ -23,7 +23,7 @@ export default async function SongStatusPage({
   return (
     <div className="py-2">
       <div className="mx-auto max-w-xl text-center">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
+        <p className="font-body text-sm text-muted">
           {song.artist ? `${song.artist} — ` : ""}
           {song.title ?? "Untitled upload"}
         </p>

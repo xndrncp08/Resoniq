@@ -88,8 +88,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="panel grille relative overflow-hidden p-6 sm:p-8">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-copper/10 blur-3xl" />
+      <header className="panel relative overflow-hidden p-6 sm:p-8">
         <p className="label-engraved mb-2">c/{c.slug} · {c.kind.toLowerCase()}</p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">

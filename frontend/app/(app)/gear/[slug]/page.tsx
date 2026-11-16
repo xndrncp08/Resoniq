@@ -29,7 +29,7 @@ export default async function GearItemPage({ params, searchParams }: Props) {
   const tones = device ? null : await listTones(viewer?.id ?? null, { sort: "popular", gearId: item.id, cursor: null, limit: 18 });
   return (
     <div className="space-y-8">
-      <header className="panel grille relative flex flex-wrap items-center gap-6 overflow-hidden p-6 sm:p-8">
+      <header className="panel relative flex flex-wrap items-center gap-6 overflow-hidden p-6 sm:p-8">
         <span className="panel-inset flex h-28 w-28 items-center justify-center rounded-3xl text-copper"><Icon name={KIND_ICON[item.kind]} size={64} strokeWidth={1.25} /></span>
         <div className="min-w-0">
           <Chip>{item.kind.toLowerCase()}</Chip>

@@ -21,8 +21,8 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
   const qs = (o: Record<string, string | undefined>) => `/tones?${params(o)}`;
   return (
     <div>
-      <PageHeader eyebrow="Tone library" title="Find your next sound" actions={<><LinkButton href="/practice" icon="audio">Practice room</LinkButton><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
-        Member-declared rigs, starting points inferred from recordings, and clearly labelled Resoniq-generated settings. Save them, remix them, compare them.
+      <PageHeader title="Tones" actions={<><LinkButton href="/analyze" icon="analyze">Analyze a song</LinkButton><LinkButton href="/tones/new" icon="plus" variant="primary">Share a rig</LinkButton></>}>
+        Rigs members play, starting points inferred from recordings, and labelled Resoniq-generated settings.
       </PageHeader>
       <form action="/tones" className="mb-4 flex gap-2">
         <input type="hidden" name="sort" value={sort} />
@@ -33,13 +33,13 @@ export default async function TonesPage({ searchParams }: { searchParams: Promis
         <input id="tq" name="q" defaultValue={q} placeholder="Search tones" className="panel-inset h-11 w-full max-w-md rounded-full px-4 font-body outline-none focus:border-copper/60" />
       </form>
       <div className="mb-6 flex flex-wrap gap-3">
-        <Tabs label="Sort" items={[{ href: qs({ sort: "new" }), label: "Newest", active: sort === "new" }, { href: qs({ sort: "popular" }), label: "Most saved", active: sort === "popular" }]} />
-        <Tabs label="Instrument" items={[{ href: qs({ instrument: undefined }), label: "All", active: !instrument }, { href: qs({ instrument: "GUITAR" }), label: "Guitar", active: instrument === "GUITAR" }, { href: qs({ instrument: "BASS" }), label: "Bass", active: instrument === "BASS" }]} />
-        <Tabs label="Source" items={[{ href: qs({ source: undefined }), label: "All sources", active: !source }, { href: qs({ source: "members" }), label: "Members", active: source === "members" }, { href: qs({ source: "generated" }), label: "Resoniq-generated", active: source === "generated" }]} />
+        <Tabs label="Sort" size="sm" items={[{ href: qs({ sort: "new" }), label: "Newest", active: sort === "new" }, { href: qs({ sort: "popular" }), label: "Most saved", active: sort === "popular" }]} />
+        <Tabs label="Instrument" size="sm" items={[{ href: qs({ instrument: undefined }), label: "All", active: !instrument }, { href: qs({ instrument: "GUITAR" }), label: "Guitar", active: instrument === "GUITAR" }, { href: qs({ instrument: "BASS" }), label: "Bass", active: instrument === "BASS" }]} />
+        <Tabs label="Source" size="sm" items={[{ href: qs({ source: undefined }), label: "All sources", active: !source }, { href: qs({ source: "members" }), label: "Members", active: source === "members" }, { href: qs({ source: "generated" }), label: "Resoniq-generated", active: source === "generated" }]} />
       </div>
       <nav aria-label="Genre" className="-mt-3 mb-6 flex flex-wrap gap-1.5">
         {[undefined, ...TONE_GENRES].map((g) => (
-          <Link key={g ?? "all"} href={qs({ genre: g })} aria-current={genre === g ? "page" : undefined} className={`focus-ring rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-wide ${genre === g ? "border-copper/60 bg-copper/10 text-copper" : "border-line text-muted hover:text-ink"}`}>{g ?? "Any genre"}</Link>
+          <Link key={g ?? "all"} href={qs({ genre: g })} aria-current={genre === g ? "page" : undefined} className={`focus-ring rounded-full border px-3 py-1 font-body text-[13px] capitalize ${genre === g ? "border-copper/60 bg-copper/10 text-ink" : "border-line text-muted hover:text-ink"}`}>{g ?? "Any genre"}</Link>
         ))}
       </nav>
       <ToneGrid

@@ -81,7 +81,7 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
         onDrop={(e) => { e.preventDefault(); setDrag(false); add(e.dataTransfer.files); }}
-        className={`panel-inset grille flex flex-col items-center gap-3 rounded-2xl border-dashed px-4 py-8 text-center transition-colors ${drag ? "border-copper bg-copper/5" : ""}`}
+        className={`panel-inset flex flex-col items-center gap-3 rounded-2xl border-dashed px-4 py-8 text-center transition-colors ${drag ? "border-copper bg-copper/5" : ""}`}
       >
         <span className="flex gap-2 text-copper">{kinds.video && <Icon name="video" size={26} />}{kinds.audio && <Icon name="audio" size={26} />}<Icon name="image" size={26} /></span>
         <p className="font-body text-sm text-ink-dim">{kinds.video ? "Drop a performance video, an audio clip or photos of your board" : "Drop photos of your rig or board"}</p>

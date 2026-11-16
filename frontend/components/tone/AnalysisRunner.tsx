@@ -28,7 +28,7 @@ function AnalysisFailed({ title, error, onRetry }: { title: string | null; error
   const fix = fixFor(error);
   return (
     <section role="alert" aria-labelledby="analysis-failed-h" className="panel mx-auto max-w-2xl overflow-hidden">
-      <div className="grille flex gap-4 border-b border-line p-5 sm:p-7">
+      <div className="flex gap-4 border-b border-line p-5 sm:p-7">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger">
           <Icon name="alert" size={22} />
         </span>
