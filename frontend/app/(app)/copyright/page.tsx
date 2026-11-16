@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Copyright & takedowns" };
 export default function CopyrightPage() {
   return (
     <article className="mx-auto max-w-[720px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
-      <PageHeader eyebrow="Policy" title="Copyright & takedowns" />
+      <PageHeader title="Copyright & takedowns" />
       <p>Resoniq is for musicians sharing their own playing and their own setups. Covers and lessons are welcome; uploading someone else&apos;s recording as your own is not.</p>
       <h2 className="font-display text-xl font-semibold text-ink">If your work was posted without permission</h2>
       <ol className="list-decimal space-y-2 pl-5">

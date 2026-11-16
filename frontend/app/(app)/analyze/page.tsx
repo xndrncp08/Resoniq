@@ -5,6 +5,7 @@ import { storageAvailable } from "@/lib/hosting";
 import { getStorage } from "@/lib/storage";
 import { requirePageUserId } from "@/lib/session";
 import { warmEngine } from "@/lib/engine";
+import { PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Analyze a song" };
 
@@ -16,18 +17,9 @@ export default async function AnalyzePage() {
   if (caps.engine && caps.storage) after(warmEngine);
 
   return (
-    <div className="py-2">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">analyze</p>
-        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Upload a song
-        </h1>
-        <p className="mt-3 font-body text-sm text-muted">
-          We&apos;ll pull out the guitar tone and build a signal chain from it.
-        </p>
-      </div>
-
-      <div className="mt-14">
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Analyze a song">We&apos;ll estimate the guitar tone and build a starting signal chain from it.</PageHeader>
+      <div>
         <UploadPanel
           mode={caps.direct ? "direct" : "multipart"}
           unavailable={!caps.storage ? "Song analysis isn't available on this deployment yet: there's nowhere to store uploads. Browse tones and rigs in the meantime." : !caps.engine ? "The analysis engine isn't connected on this deployment yet. Browse tones and rigs in the meantime." : null}

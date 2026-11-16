@@ -11,7 +11,7 @@ export default async function BookmarksPage() {
   const page = await bookmarksFeed(actor.id, null, 15);
   return (
     <div className="mx-auto max-w-[680px]">
-      <PageHeader eyebrow="Saved" title="Bookmarks">Posts you saved, newest first. Tones you save live in your <a className="text-copper" href={`/u/${actor.handle}?tab=saved`}>saved tones</a>.</PageHeader>
+      <PageHeader title="Bookmarks">Posts you saved, newest first. Tones you save live in your <a className="text-copper" href={`/u/${actor.handle}?tab=saved`}>saved tones</a>.</PageHeader>
       <PostFeed endpoint="/api/bookmarks?limit=15" initial={page.items} cursor={page.nextCursor} signedIn empty={<EmptyState icon="bookmark" title="No bookmarks yet" action={<LinkButton href="/feed">Browse the feed</LinkButton>} />} />
     </div>
   );

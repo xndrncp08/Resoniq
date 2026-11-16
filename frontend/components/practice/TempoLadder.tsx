@@ -162,8 +162,7 @@ export default function TempoLadder() {
   return (
     <section aria-labelledby="ladder-h" className="panel p-5 sm:p-7">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="ladder-h" className="font-display text-2xl font-semibold">Climb the tempo ladder.</h2>
-        <span className="label-engraved">03 / Progress</span>
+        <h2 id="ladder-h" className="font-display text-xl font-semibold">Tempo ladder</h2>
       </div>
       <p className="mt-2 max-w-2xl text-sm text-muted">Pick a passage and the tempo you want it at. Play it, log whether it was clean, and step up a few BPM at a time. Your ladder is private and syncs to your account.</p>
       <div className="mt-6">

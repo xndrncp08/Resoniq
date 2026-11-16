@@ -7,8 +7,6 @@ import Nav from "@/components/landing/Nav";
 import HeroStage from "@/components/landing/HeroStage";
 import Ecosystem from "@/components/landing/Ecosystem";
 import Inspect from "@/components/landing/Inspect";
-import GearWall from "@/components/landing/GearWall";
-import HowItWorks from "@/components/landing/HowItWorks";
 import DeferredExample from "@/components/landing/DeferredExample";
 import LiveBoard from "@/components/landing/LiveBoard";
 import FinalCta from "@/components/landing/FinalCta";
@@ -18,11 +16,10 @@ import Players from "@/components/landing/Players";
 
 export default async function Home() {
   const viewer = await optionalActor();
-  const [counts, communities, gearByKind, gearItems, tones] = await Promise.all([
+  const [counts, communities, gearByKind, tones] = await Promise.all([
     platformCounts(),
     prisma.community.findMany({ where: { archivedAt: null }, orderBy: [{ memberCount: "desc" }, { name: "asc" }], take: 6, select: { slug: true, name: true, memberCount: true, kind: true } }),
     prisma.gearItem.groupBy({ by: ["kind"], where: { status: "APPROVED" }, _count: true }),
-    prisma.gearItem.findMany({ where: { status: "APPROVED" }, orderBy: { slug: "asc" }, take: 8, select: { slug: true, brand: true, model: true, kind: true } }),
     listTones(viewer?.id ?? null, { sort: "popular", cursor: null, limit: 4 }),
   ]);
   const gearTotal = gearByKind.reduce((s, g) => s + g._count, 0);
@@ -43,8 +40,6 @@ export default async function Home() {
         <Ecosystem communities={communities} gearByKind={gearByKind.map((g) => ({ kind: g.kind, count: g._count }))} gearTotal={gearTotal} />
         <Inspect />
         <LiveBoard tones={tones.items} viewerId={viewer?.id ?? null} />
-        <GearWall items={gearItems} />
-        <HowItWorks />
         <DeferredExample />
         <FinalCta />
       </main>

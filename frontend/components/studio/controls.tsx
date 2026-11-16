@@ -6,6 +6,9 @@ import type { KnobLook } from "@/components/studio/looks";
 const START = -225;
 const SWEEP = 270;
 const rad = (a: number) => (a * Math.PI) / 180;
+// Rounded so server and browser agree: engines can differ in the last digit of cos/sin, which breaks hydration.
+const cos = (a: number) => Math.round(Math.cos(rad(a)) * 1e6) / 1e6;
+const sin = (a: number) => Math.round(Math.sin(rad(a)) * 1e6) / 1e6;
 
 /** Shared drag and keyboard behaviour for knobs and faders (role="slider"). */
 function useSlider({ value, min, max, step, onChange, disabled, axis = "y" }: { value: number; min: number; max: number; step: number; onChange: (v: number) => void; disabled: boolean; axis?: "y" | "fader" }) {
@@ -49,10 +52,10 @@ function useSlider({ value, min, max, step, onChange, disabled, axis = "y" }: { 
 function KnobArt({ look, size, angle, t, accent, id }: { look: KnobLook; size: number; angle: number; t: number; accent: string; id: string }) {
   const c = size / 2;
   const r = size / 2 - 2;
-  const tip = (len: number) => [c + len * Math.cos(rad(angle)), c + len * Math.sin(rad(angle))] as const;
+  const tip = (len: number) => [c + len * cos(angle), c + len * sin(angle)] as const;
   if (look === "rack") {
     const arc = (a0: number, a1: number) => {
-      const p = (a: number) => [c + r * Math.cos(rad(a)), c + r * Math.sin(rad(a))];
+      const p = (a: number) => [c + r * cos(a), c + r * sin(a)];
       const [x0, y0] = p(a0);
       const [x1, y1] = p(a1);
       return `M ${x0} ${y0} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
@@ -97,7 +100,7 @@ function KnobArt({ look, size, angle, t, accent, id }: { look: KnobLook; size: n
           <radialGradient id={`${id}t`} cx="40%" cy="35%" r="75%"><stop offset="0%" stopColor="#ffffff" /><stop offset="60%" stopColor="#c3c8ce" /><stop offset="100%" stopColor="#80868d" /></radialGradient></defs>
         {shadow}
         <circle cx={c} cy={c} r={r * 0.92} fill={`url(#${id}b)`} />
-        {ridges.map((a) => <line key={a} x1={c + r * 0.78 * Math.cos(rad(a))} y1={c + r * 0.78 * Math.sin(rad(a))} x2={c + r * 0.92 * Math.cos(rad(a))} y2={c + r * 0.92 * Math.sin(rad(a))} stroke="rgba(0,0,0,.35)" strokeWidth={1} />)}
+        {ridges.map((a) => <line key={a} x1={c + r * 0.78 * cos(a)} y1={c + r * 0.78 * sin(a)} x2={c + r * 0.92 * cos(a)} y2={c + r * 0.92 * sin(a)} stroke="rgba(0,0,0,.35)" strokeWidth={1} />)}
         <circle cx={c} cy={c} r={r * 0.72} fill={`url(#${id}t)`} />
         <line x1={c} y1={c} x2={x} y2={y} stroke={accent} strokeWidth={Math.max(2, size / 22)} strokeLinecap="round" />
       </>
@@ -116,13 +119,13 @@ function KnobArt({ look, size, angle, t, accent, id }: { look: KnobLook; size: n
         <g transform={`rotate(${angle - START} ${c} ${c})`}>
           {size >= 48 && nums.map((n, i) => {
             const a = START + ((i + 1) / 10) * SWEEP;
-            const tx = c + r * 0.8 * Math.cos(rad(a));
-            const ty = c + r * 0.8 * Math.sin(rad(a));
+            const tx = c + r * 0.8 * cos(a);
+            const ty = c + r * 0.8 * sin(a);
             return <text key={n} x={tx} y={ty} fontSize={size / 9} textAnchor="middle" dominantBaseline="central" fill="#1d1f22" fontFamily="ui-sans-serif,system-ui" fontWeight={700} transform={`rotate(${a + 90} ${tx} ${ty})`}>{n}</text>;
           })}
         </g>
         <circle cx={c} cy={c} r={r * 0.6} fill={`url(#${id}b)`} stroke="rgba(255,255,255,.12)" />
-        <line x1={c + r * 0.62 * Math.cos(rad(angle))} y1={c + r * 0.62 * Math.sin(rad(angle))} x2={x} y2={y} stroke="#111" strokeWidth={2} strokeLinecap="round" />
+        <line x1={c + r * 0.62 * cos(angle)} y1={c + r * 0.62 * sin(angle)} x2={x} y2={y} stroke="#111" strokeWidth={2} strokeLinecap="round" />
         <circle cx={c - r * 0.15} cy={c - r * 0.2} r={r * 0.2} fill="rgba(255,255,255,.06)" />
       </>
     );
@@ -148,7 +151,7 @@ function KnobArt({ look, size, angle, t, accent, id }: { look: KnobLook; size: n
       <defs>{blur}<radialGradient id={`${id}b`} cx="40%" cy="30%" r="80%"><stop offset="0%" stopColor="#4a4a4e" /><stop offset="60%" stopColor="#151517" /><stop offset="100%" stopColor="#030303" /></radialGradient></defs>
       {shadow}
       <circle cx={c} cy={c} r={r * 0.95} fill={`url(#${id}b)`} stroke="rgba(255,255,255,.12)" />
-      <line x1={c + r * 0.25 * Math.cos(rad(angle))} y1={c + r * 0.25 * Math.sin(rad(angle))} x2={x} y2={y} stroke="#f3efe8" strokeWidth={Math.max(1.8, size / 18)} strokeLinecap="round" />
+      <line x1={c + r * 0.25 * cos(angle)} y1={c + r * 0.25 * sin(angle)} x2={x} y2={y} stroke="#f3efe8" strokeWidth={Math.max(1.8, size / 18)} strokeLinecap="round" />
     </>
   );
 }
@@ -209,8 +212,8 @@ export function StudioKnob({
         const c = size / 2;
         return (
           <g key={i}>
-            <line x1={c + r1 * Math.cos(rad(a))} y1={c + r1 * Math.sin(rad(a))} x2={c + r2 * Math.cos(rad(a))} y2={c + r2 * Math.sin(rad(a))} stroke={ink} strokeOpacity={0.7} strokeWidth={1} />
-            {size >= 44 && i % 2 === 0 && <text x={c + (size / 2 + pad * 0.68) * Math.cos(rad(a))} y={c + (size / 2 + pad * 0.68) * Math.sin(rad(a))} fontSize={Math.max(7, size / 8)} fill={ink} fillOpacity={0.8} textAnchor="middle" dominantBaseline="central" fontFamily="ui-monospace,monospace">{i}</text>}
+            <line x1={c + r1 * cos(a)} y1={c + r1 * sin(a)} x2={c + r2 * cos(a)} y2={c + r2 * sin(a)} stroke={ink} strokeOpacity={0.7} strokeWidth={1} />
+            {size >= 44 && i % 2 === 0 && <text x={c + (size / 2 + pad * 0.68) * cos(a)} y={c + (size / 2 + pad * 0.68) * sin(a)} fontSize={Math.max(7, size / 8)} fill={ink} fillOpacity={0.8} textAnchor="middle" dominantBaseline="central" fontFamily="ui-monospace,monospace">{i}</text>}
           </g>
         );
       })}

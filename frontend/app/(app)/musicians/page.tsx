@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Avatar, Button, Chip, EmptyState, LinkButton } from "@/components/app/ui";
+import { Avatar, Button, Chip, EmptyState, LinkButton, PageHeader } from "@/components/app/ui";
 import Icon from "@/components/icons/Icon";
 import { discoverMusicians, playMates } from "@/lib/discovery";
 import { optionalActor } from "@/lib/api";
@@ -29,15 +29,9 @@ export default async function MusiciansPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <header className="panel grille p-6 sm:p-10">
-        <p className="label-engraved mb-3 text-signal">The people behind the sound</p>
-        <h1 className="font-display text-display-lg font-semibold tracking-tight">Find your people.</h1>
-        <p className="mt-4 max-w-xl font-body text-lg leading-relaxed text-ink-dim">A rhythm section. A fresh pair of ears. Someone exploring the same sound. Start with what you play and what moves you.</p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <LinkButton href="/tag/collaboration?sort=new" icon="community">Collaboration posts</LinkButton>
-          <LinkButton href="/settings" icon="edit" variant="ghost">Add your instruments</LinkButton>
-        </div>
-      </header>
+      <PageHeader title="Musicians" actions={<LinkButton href="/tag/collaboration?sort=new" icon="community" variant="ghost">Collaboration posts</LinkButton>}>
+        Find players by instrument, genre and what they&apos;re open to.
+      </PageHeader>
 
       <form key={musicianDirectoryHref({ ...filters, after: "" })} action="/musicians" role="search" aria-label="Find musicians" className="panel p-5 sm:p-6">
         <div className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">

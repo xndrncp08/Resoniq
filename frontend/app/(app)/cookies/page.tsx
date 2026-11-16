@@ -50,7 +50,7 @@ function Table({ rows, caption }: { rows: Row[]; caption: string }) {
 export default function CookiesPage() {
   return (
     <article className="mx-auto max-w-[760px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
-      <PageHeader eyebrow="Policy" title="Cookies and storage" />
+      <PageHeader title="Cookies and storage" />
       <p className="font-mono text-xs text-muted">Last updated 26 October 2026</p>
       <p>
         Resoniq has no advertising, no analytics and no tracking scripts, and it never sells data. It uses a few essential cookies to keep you signed in and secure. With your permission, it also remembers some settings and unsent work in your browser&apos;s local storage. Everything is listed below, including how long each item lasts.

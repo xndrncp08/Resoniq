@@ -37,9 +37,8 @@ export default async function MusicPage({ searchParams }: Props) {
     <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-5">
         <header>
-          <p className="label-engraved text-copper">Original music</p>
-          <h1 className="mt-1 font-display text-display-md font-semibold tracking-tight">New music from people who play</h1>
-          <p className="mt-2 max-w-2xl font-body text-muted">Songs and recordings released on Resoniq, with who played on them. Every credit here was confirmed by the musician.</p>
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Music</h1>
+          <p className="mt-1.5 max-w-2xl font-body text-[15px] text-muted">Songs and recordings released on Resoniq, with who played on them. Every credit here was confirmed by the musician.</p>
         </header>
         <nav aria-label="Browse music" className="flex flex-wrap gap-2">
           <Link href={qs({ scope: null })} aria-current={!forYou ? "page" : undefined} className={chip(!forYou)}>All</Link>

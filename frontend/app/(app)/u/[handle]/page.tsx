@@ -63,7 +63,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   return (
     <div className="space-y-6">
       <header className="panel overflow-hidden">
-        <div className="grille relative h-36 bg-gradient-to-br from-copper-deep/60 via-surface to-signal-dim/30 sm:h-52">
+        <div className="relative h-28 bg-gradient-to-br from-copper-deep/40 via-surface to-surface sm:h-40">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {profile.bannerUrl && <img src={profile.bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         </div>

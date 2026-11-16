@@ -55,9 +55,7 @@ export default async function TonePage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <header className="panel grille relative overflow-hidden p-6 sm:p-8">
-        <div className="pointer-events-none absolute -left-20 -top-32 h-80 w-80 rounded-full bg-copper/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 right-0 h-80 w-80 rounded-full bg-signal/10 blur-3xl" />
+      <header className="panel relative overflow-hidden p-6 sm:p-8">
         <div className="relative">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Chip icon="tone">Tone</Chip>
@@ -95,7 +93,7 @@ export default async function TonePage({ params }: Props) {
       <section id="rig" aria-labelledby="declared-h" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="declared-h" className="font-display text-2xl font-semibold">{generated ? "Suggested rig" : "The rig"}</h2>
-          <Provenance kind={generated ? "generated" : "declared"} />
+          {(generated || tone.declared) && <Provenance kind={generated ? "generated" : "declared"} />}
         </div>
         {tone.declared ? (
           <RigBoard rig={tone.declared} />

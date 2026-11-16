@@ -60,7 +60,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="A/B" title="Compare tones">Knob by knob and block by block. Declared settings are only compared with declared ones, and inferred with inferred.</PageHeader>
+      <PageHeader title="Compare tones">Knob by knob and block by block. Declared settings are only compared with declared ones, and inferred with inferred.</PageHeader>
       <Picker a={sp.a} b={sp.b} choices={choices} />
       {!d ? (
         <EmptyState icon="compare" title="Pick two tones">Open any tone and press Compare, or paste two tone links above.</EmptyState>

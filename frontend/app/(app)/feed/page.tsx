@@ -8,7 +8,6 @@ import ComposerPrompt from "@/components/social/ComposerPrompt";
 import PostFeed from "@/components/social/PostFeed";
 import SideRail from "@/components/social/SideRail";
 import FeaturedStrip from "@/components/social/FeaturedStrip";
-import ConversationStarters from "@/components/social/ConversationStarters";
 import { CATEGORY_META } from "@/components/social/categories";
 import GettingStartedCard from "@/components/onboarding/GettingStartedCard";
 import { onboardingSteps } from "@/lib/onboarding";
@@ -32,7 +31,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
   return (
     <div className="flex gap-8">
       <div className="mx-auto w-full max-w-[680px] min-w-0 space-y-4">
-        <header className="flex flex-wrap items-end justify-between gap-3 pb-2"><div><p className="label-engraved mb-2">The listening room</p><h1 className="font-display text-3xl font-semibold tracking-tight">What are you working on?</h1></div><Link href="/practice" className="focus-ring rounded-full border border-signal/40 px-4 py-2 text-sm text-signal">Open practice room ↗</Link></header>
+        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">What are you working on?</h1>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs
             label="Feed"
@@ -43,23 +42,23 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
           />
           <Tabs
             label="Sort"
+            size="sm"
             items={(["hot", "new", "top"] as const).map((s) => ({ href: qs({ sort: s }), label: s[0].toUpperCase() + s.slice(1), active: sort === s }))}
           />
         </div>
-        <Tabs label="Post type" items={[{ href: qs({ category: "" }), label: "All posts", active: !category }, ...Object.entries(CATEGORY_META).map(([key, meta]) => ({ href: qs({ category: key }), label: meta.label, active: category === key }))]} />
+        <Tabs label="Post type" size="sm" items={[{ href: qs({ category: "" }), label: "All posts", active: !category }, ...Object.entries(CATEGORY_META).map(([key, meta]) => ({ href: qs({ category: key }), label: meta.label, active: category === key }))]} />
         {sort === "top" && (
-          <Tabs label="Time range" items={(["day", "week", "month", "year", "all"] as const).map((w) => ({ href: qs({ t: w }), label: w === "all" ? "All time" : `This ${w}`, active: window === w }))} />
+          <Tabs label="Time range" size="sm" items={(["day", "week", "month", "year", "all"] as const).map((w) => ({ href: qs({ t: w }), label: w === "all" ? "All time" : `This ${w}`, active: window === w }))} />
         )}
         {steps && steps.done < steps.total && <GettingStartedCard done={steps.done} total={steps.total} />}
         {me ? (
           <ComposerPrompt user={me} />
         ) : (
-          <div className="panel grille flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="panel flex flex-wrap items-center justify-between gap-4 p-5">
             <p className="max-w-md font-body text-ink-dim">Join to amp performances, save tones and post your own rig.</p>
             <LinkButton href="/signup" variant="primary">Join Resoniq</LinkButton>
           </div>
         )}
-        <ConversationStarters />
         {tab === "for-you" && sort === "hot" && !category && <FeaturedStrip placement="HOME" viewerId={viewer?.id ?? null} />}
         <PostFeed
           key={`${tab}-${sort}-${window}-${category}`}

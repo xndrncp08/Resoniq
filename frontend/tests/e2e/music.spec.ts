@@ -10,7 +10,7 @@ test("original music is browsable by genre and shows on Explore", async ({ page 
     expect((await page.request.patch("/api/me", { data: { genres: ["jazz"] } })).ok()).toBe(true);
     expect((await page.request.post("/api/posts", { data: { title, body: "First single.", category: "ORIGINAL" } })).ok()).toBe(true);
     await page.goto("/music");
-    await expect(page.getByRole("heading", { name: "New music from people who play" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Music", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: title })).toBeVisible();
     await page.getByRole("navigation", { name: "Genres" }).getByRole("link", { name: "jazz", exact: true }).click();
     await expect(page).toHaveURL(/genre=jazz/);

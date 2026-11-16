@@ -23,7 +23,7 @@ export default async function NotificationsPage() {
   const initial: NotificationItem[] = items.map((n) => ({ ...n, data: n.data as Record<string, unknown> | null, readAt: n.readAt?.toISOString() ?? null, createdAt: n.createdAt.toISOString(), postTitle: n.postId ? titles.get(n.postId) ?? null : null }));
   return (
     <div className="mx-auto max-w-[680px]">
-      <PageHeader eyebrow="Activity" title="Notifications" />
+      <PageHeader title="Notifications" />
       <NotificationList userId={actor.id} initial={initial} cursor={nextCursor} />
     </div>
   );

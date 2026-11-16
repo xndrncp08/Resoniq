@@ -62,8 +62,8 @@ export default function Metronome() {
   }
 
   return (
-    <section aria-labelledby="pulse-h" className="panel grille flex flex-col p-5 sm:p-7">
-      <div className="flex items-baseline justify-between gap-3"><h2 id="pulse-h" className="font-display text-2xl font-semibold">Find your pocket.</h2><span className="label-engraved">01 / Pulse</span></div>
+    <section aria-labelledby="pulse-h" className="panel flex flex-col p-5 sm:p-7">
+      <div className="flex items-baseline justify-between gap-3"><h2 id="pulse-h" className="font-display text-xl font-semibold">Metronome</h2></div>
       <p className="mt-2 text-sm text-muted">Start slow. Play clean. Bring the tempo up.</p>
       <div className="my-8 flex items-center justify-center gap-3">
         <IconButton icon="chevron-left" label="Slower by 1 BPM" onClick={() => tempo(bpm - 1)} size={44} />

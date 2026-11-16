@@ -61,8 +61,8 @@ export default function LoopPlayer() {
 
   return (
     <section aria-labelledby="loop-h" className="panel flex flex-col p-5 sm:p-7">
-      <div className="flex items-baseline justify-between gap-3"><h2 id="loop-h" className="font-display text-2xl font-semibold">Stay with the hard part.</h2><span className="label-engraved">02 / Repeat</span></div>
-      <p className="mt-2 text-sm text-muted">Bring a recording. Isolate a phrase. Learn it by ear.</p>
+      <div className="flex items-baseline justify-between gap-3"><h2 id="loop-h" className="font-display text-xl font-semibold">Loop a passage</h2></div>
+      <p className="mt-2 text-sm text-muted">Load a recording, mark the hard part and slow it down.</p>
       <label className="panel-inset relative my-6 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-dashed p-5 text-center focus-within:outline-2 focus-within:outline-signal">
         <Icon name="audio" size={28} className="text-copper" /><span className="max-w-full break-all font-body text-sm">{file?.name ?? "Choose an audio file"}</span><span className="text-xs text-muted">MP3, WAV, M4A · up to 100 MB · stays on your device</span>
         <input aria-label="Choose practice audio" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" className="absolute inset-0 w-full cursor-pointer opacity-0" onChange={(e) => { choose(e.target.files?.[0]); e.target.value = ""; }} />

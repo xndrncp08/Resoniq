@@ -4,9 +4,11 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons/Icon";
-import { Button, buttonClass, IconButton, LinkButton } from "@/components/app/ui";
+import { Button, IconButton, LinkButton } from "@/components/app/ui";
 import { api, errorMessage } from "@/lib/client-api";
 import { useServerToggle } from "@/lib/queries/toggle";
+
+const MENU_ITEM = "focus-ring flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left font-body text-sm text-ink-dim hover:bg-white/[0.05] hover:text-ink";
 
 const VIS = [["PRIVATE", "Private: only you"], ["UNLISTED", "Unlisted: anyone with the link"], ["PUBLIC", "Public: on your profile and in discovery"]] as const;
 
@@ -62,15 +64,19 @@ export default function ToneActions({ id, name, isOwner, saved, visibility, sign
       <div className="flex flex-wrap items-center gap-2">
         {!isOwner && <Button variant={isSaved ? "secondary" : "primary"} icon={isSaved ? "bookmark-filled" : "bookmark"} onClick={save}>{isSaved ? "Saved" : "Save tone"}</Button>}
         <Button icon="remix" onClick={remix} disabled={busy}>{isOwner ? "Duplicate" : "Remix"}</Button>
-        <LinkButton href={`/compare?a=${id}`} icon="compare">Compare</LinkButton>
         <LinkButton href={`/studio?tone=${id}`} icon="amp">Open in Studio</LinkButton>
         <LinkButton href={`/practice?tone=${id}`} icon="audio">Practice with it</LinkButton>
-        <a href={`/api/tones/${id}/export`} className={buttonClass("secondary", "md")}><Icon name="download" size={18} /> Export JSON</a>
-        <Button icon="image" onClick={() => setCard(true)}>Tone card</Button>
-        <IconButton icon="link" label="Copy link" onClick={copyLink} />
         {isOwner && <LinkButton href={`/t/${id}/edit`} icon="edit">Edit</LinkButton>}
         {isOwner && <LinkButton href={`/new?tone=${id}`} icon="share" variant="primary">Post it</LinkButton>}
-        {!isOwner && signedIn && <IconButton icon="flag" label="Report tone" onClick={() => { setReportLoaded(true); setReporting(true); }} />}
+        <IconButton icon="more" label="More actions" popoverTarget={`tone-more-${id}`} />
+        {/* Less frequent actions; any item closes the menu. */}
+        <div id={`tone-more-${id}`} popover="auto" onClick={(e) => (e.target as HTMLElement).closest("a, button") && e.currentTarget.hidePopover()} className="panel fixed m-auto w-64 p-2 text-ink shadow-panel">
+          <a href={`/compare?a=${id}`} className={MENU_ITEM}><Icon name="compare" size={18} /> Compare with another tone</a>
+          <button type="button" className={MENU_ITEM} onClick={() => setCard(true)}><Icon name="image" size={18} /> Share as an image</button>
+          <button type="button" className={MENU_ITEM} onClick={copyLink}><Icon name="link" size={18} /> Copy link</button>
+          <a href={`/api/tones/${id}/export`} className={MENU_ITEM}><Icon name="download" size={18} /> Export JSON</a>
+          {!isOwner && signedIn && <button type="button" className={MENU_ITEM.replace("text-ink-dim", "text-danger")} onClick={() => { setReportLoaded(true); setReporting(true); }}><Icon name="flag" size={18} /> Report tone</button>}
+        </div>
       </div>
       {isOwner && (
         <label className="flex flex-wrap items-center gap-2 font-body text-sm text-muted">

@@ -30,7 +30,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <PageHeader eyebrow="Communities" title="Find your people" actions={<LinkButton href="/c/new" icon="plus">Start a community</LinkButton>}>
+      <PageHeader title="Find your people" actions={<LinkButton href="/c/new" icon="plus">Start a community</LinkButton>}>
         Spaces for genres, instruments, gear and the way you play.
       </PageHeader>
       <form className="mb-4" action="/c">

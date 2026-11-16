@@ -9,7 +9,7 @@ const H = ({ children }: { children: React.ReactNode }) => <h2 className="font-d
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-[720px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
-      <PageHeader eyebrow="Policy" title="Terms" />
+      <PageHeader title="Terms" />
       <p className="font-mono text-xs text-muted">Last updated 23 October 2026</p>
       <p>By using Resoniq you agree to these terms. They are short on purpose.</p>
 

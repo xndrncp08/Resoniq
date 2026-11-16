@@ -9,7 +9,7 @@ const H = ({ children }: { children: React.ReactNode }) => <h2 className="font-d
 export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-[720px] space-y-6 font-body text-[15px] leading-relaxed text-ink-dim">
-      <PageHeader eyebrow="Policy" title="Privacy" />
+      <PageHeader title="Privacy" />
       <p className="font-mono text-xs text-muted">Last updated 26 October 2026</p>
       <p>Resoniq is a community for musicians. This page describes what this Resoniq instance actually stores and why. There are no ads, no third-party analytics or tracking scripts, and no data is sold.</p>
 

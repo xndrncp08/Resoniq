@@ -16,7 +16,7 @@ export default async function AppealsPage({ searchParams }: { searchParams: Prom
   const appeals = await prisma.appeal.findMany({ where: { userId: actor.id }, orderBy: { createdAt: "desc" }, take: 50 });
   return (
     <div className="mx-auto max-w-[720px] space-y-6">
-      <PageHeader eyebrow="Appeals" title="Ask for a second look">If a moderator removed something of yours or suspended your account, explain why it should be reversed. A different moderator reviews each appeal.</PageHeader>
+      <PageHeader title="Ask for a second look">If a moderator removed something of yours or suspended your account, explain why it should be reversed. A different moderator reviews each appeal.</PageHeader>
       {type && targetId && targetId !== "undefined" ? <AppealForm targetType={type} targetId={targetId} /> : <p className="font-body text-sm text-muted">Start an appeal from the moderation notification you received, or from the suspension notice in settings.</p>}
       <section className="space-y-3">
         <h2 className="font-display text-xl font-semibold">Your appeals</h2>

@@ -26,7 +26,7 @@ export default async function TankGBanksPage({ params }: { params: Promise<{ slu
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="M-VAVE TANK-G" title="Bank planner">
+      <PageHeader title="Bank planner">
         Plan which preset goes in each of the pedal&apos;s 36 slots (banks 1–9 × footswitches A–D). Your saved and own TANK-G presets start in a clean-to-lead order; change any slot and your plan is kept in this browser. Then set each slot in LIVE mode and hold its footswitch to store it.
       </PageHeader>
       {tones.length === 0 ? (

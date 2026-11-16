@@ -9,7 +9,7 @@ export default async function NewTonePage() {
   await requirePageActor("/tones/new");
   return (
     <div className="mx-auto max-w-[860px]">
-      <PageHeader eyebrow="New tone" title="Share your rig">Describe the setup you actually play. No analysis needed, and nothing here is required.</PageHeader>
+      <PageHeader title="Share your rig">Describe the setup you actually play. No analysis needed, and nothing here is required.</PageHeader>
       <ToneEditor tone={{ id: null, name: "", description: null, visibility: "PUBLIC", rig: null, hasInferred: false }} />
     </div>
   );

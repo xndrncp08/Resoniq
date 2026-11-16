@@ -24,7 +24,7 @@ export default async function GearPage({ searchParams }: { searchParams: Promise
   ]);
   return (
     <div>
-      <PageHeader eyebrow="Gear catalog" title="The gear behind the tones">Browse the catalog, then see the public tones built around each piece. Anything missing can be added as custom gear in a rig.</PageHeader>
+      <PageHeader title="The gear behind the tones">Browse the catalog, then see the public tones built around each piece. Anything missing can be added as custom gear in a rig.</PageHeader>
       <form action="/gear" className="mb-4">
         {kind && <input type="hidden" name="kind" value={kind} />}
         <label className="sr-only" htmlFor="gq">Search gear</label>
