@@ -1,3 +1,4 @@
+import { collectErrors } from "./errors";
 import { expect, test } from "@playwright/test";
 import { deleteAccount, signUp } from "./account";
 
@@ -6,6 +7,7 @@ test.use({ permissions: ["microphone"], launchOptions: { args: ["--use-fake-ui-f
 
 test("records a take from the microphone and keeps it", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "The fake capture device is a Chrome flag; WebKit can't simulate a microphone here.");
+  const errors = collectErrors(page);
   await signUp(page, "rec");
   try {
     await page.goto("/riffs");
@@ -16,6 +18,7 @@ test("records a take from the microphone and keeps it", async ({ page, browserNa
     await page.getByRole("button", { name: "Stop" }).click();
     await page.getByRole("button", { name: "Keep take" }).click();
     await expect(page.getByRole("button", { name: "Play First idea" })).toBeVisible();
+    expect(errors).toEqual([]);
     const src = await page.locator("audio").first().getAttribute("src");
     expect((await page.request.get(src!)).headers()["content-type"]).toBe("audio/mp4");
   } finally {

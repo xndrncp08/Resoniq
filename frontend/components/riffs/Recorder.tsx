@@ -12,9 +12,13 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).p
 async function describe(blob: Blob): Promise<Pick<TakeUpload, "durationSec" | "peaks">> {
   try {
     const ctx = new AudioContext();
-    const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
-    void ctx.close();
-    return { durationSec: Math.round(audio.duration * 10) / 10, peaks: computePeaks(audio.getChannelData(0)) };
+    try {
+      const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
+      return { durationSec: Math.round(audio.duration * 10) / 10, peaks: computePeaks(audio.getChannelData(0)) };
+    } finally {
+      // A failed close mustn't throw away metadata that decoded fine.
+      await ctx.close().catch(() => {});
+    }
   } catch {
     return { durationSec: null, peaks: null };
   }
@@ -78,9 +82,11 @@ export default function Recorder({ onTake, busy }: { onTake: (take: TakeUpload) 
       if (s >= MAX_SECONDS) stop();
     }, 250);
     cleanup.current = () => {
+      // Stop and the review/unmount effect share this teardown. Release each resource once.
+      cleanup.current = () => {};
       cancelAnimationFrame(raf);
       clearInterval(timer);
-      void ctx.close();
+      void ctx.close().catch(() => {});
       stream.current?.getTracks().forEach((t) => t.stop());
     };
     rec.start(1000);
