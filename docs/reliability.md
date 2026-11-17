@@ -98,6 +98,26 @@ summing the page's script chunks:
 When adding a dialog, import it with `next/dynamic` and render it only after
 the first open (see `ReportDialog` in `ProfileMenu`).
 
+## Database
+
+Production uses Supabase's transaction pooler on the free tier.
+
+- **Pool size.** `lib/prisma.ts` adds `connection_limit=5` on the pooler (a
+  value in `DATABASE_URL` wins). With 1, every query from every request on a
+  Vercel instance shared one connection, and bursts failed with P2024 (pool
+  timeout, 10 s). The pooler only holds a database connection while a query or
+  transaction runs, and the free tier accepts 200 client connections. Each
+  cold start logs `[db] connection_limit=<n>`.
+- **Fewer round trips.** The featured strip only looks up kinds that have
+  slots. The viewer's card (handle, name, avatar) and interests are fetched
+  once per render through `cache()` (`viewerCard`, `viewerInterests` in
+  `lib/profiles.ts`), however many components ask. Statements per signed-in
+  page view, counted with Postgres statement logging on a local production
+  build: `/feed` 21 → 15, `/explore` 15 → 11.
+- **Migrations.** Vercel builds don't migrate. Apply a migration to Supabase
+  and verify it before merging code that depends on it (see
+  `docs/deploy-free.md`).
+
 ## Testing against isolated data
 
 - **Integration** (`npm run test:int`) truncates tables. Point

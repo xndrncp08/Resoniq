@@ -93,7 +93,8 @@ the whole render completes (`/explore` completes in ~412 ms, `/feed` ~376 ms).
   and hydrate on a 4× slowed CPU, and ~200 ms of TTFB is network. The landing
   page (LCP ~3.1 s) hydrates a long page; its heavy demo is already deferred.
 - `connection_limit=1` still serializes a request's queries over the pooler;
-  raising it would need checking against Supabase's free-tier pool.
+  raising it would need checking against Supabase's free-tier pool. (Raised to
+  5 in November 2026; see `docs/reliability.md`, "Database".)
 - Auth-gated pages now stream, so a signed-out request gets 200 with an
   in-body redirect to `/login` instead of an HTTP 307. No protected content is
   rendered; APIs still return 401 and admin pages 404.

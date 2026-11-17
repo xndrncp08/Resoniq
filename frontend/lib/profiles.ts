@@ -1,7 +1,13 @@
+import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ProfileLink } from "@/lib/profile-validation";
 import { isOpenTo, type OpenTo } from "@/lib/portfolio-options";
+
+// The signed-in user's own small lookups, which the shell, the feed and the suggestion rails all ask for:
+// cache() makes it one query per server render (route handlers call through uncached, like getActor).
+export const viewerCard = cache((id: string) => prisma.user.findUnique({ where: { id }, select: { handle: true, name: true, image: true } }));
+export const viewerInterests = cache((id: string) => prisma.user.findUnique({ where: { id }, select: { genres: true, instruments: true } }));
 
 /** What anyone may see about a user. Never includes email, role or account status. */
 export type PublicProfile = {

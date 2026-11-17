@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { memo } from "@/lib/memo";
-import { AUTHOR_SELECT } from "@/lib/profiles";
+import { AUTHOR_SELECT, viewerInterests } from "@/lib/profiles";
 import { COMMUNITY_SELECT } from "@/lib/communities";
 import type { MusicianFilters } from "@/lib/musician-directory";
 
@@ -101,7 +101,7 @@ export async function suggestedCommunities(viewerId: string | null, limit = 5) {
 }
 
 async function loadSuggestedCommunities(viewerId: string | null, limit: number) {
-  const me = viewerId ? await prisma.user.findUnique({ where: { id: viewerId }, select: { genres: true, instruments: true } }) : null;
+  const me = viewerId ? await viewerInterests(viewerId) : null;
   const interests = me ? [...me.genres, ...me.instruments].map((s) => s.replace(/\s+/g, "-")) : [];
   const where = { archivedAt: null, ...(viewerId && { members: { none: { userId: viewerId } } }) };
   const matched = interests.length

@@ -51,11 +51,17 @@ and what it doesn't, and the exact steps it takes.
 The schema, structural seed and `_prisma_migrations` history are already in
 the Supabase project. Vercel can't reach Supabase's IPv6-only direct host, so
 set `DATABASE_URL` on Vercel (Production, Sensitive) to the **transaction
-pooler** string from Supabase → Connect, with Prisma's pooler flags:
+pooler** string from Supabase → Connect:
 
 ```
-postgresql://postgres.<ref>:<db-password>@<pooler-host>:6543/postgres?pgbouncer=true&connection_limit=1
+postgresql://postgres.<ref>:<db-password>@<pooler-host>:6543/postgres
 ```
+
+`lib/prisma.ts` adds `pgbouncer=true` and `connection_limit=5` for this host.
+Leave `connection_limit` out of the URL unless you mean to override it: a
+value of 1 makes concurrent requests on one Vercel instance queue behind a
+single connection and fail with P2024 after 10 s. Each cold start logs
+`[db] connection_limit=<n>`, which shows the value in use.
 
 Later migrations: `PROD_DATABASE_URL='<session pooler string, port 5432>' scripts/deploy-db.sh`
 (backs up first, applies pending migrations only, never resets).
