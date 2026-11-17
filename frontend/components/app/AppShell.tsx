@@ -6,6 +6,7 @@ import { MobileNav, SideNav, type NavUser } from "@/components/app/AppNav";
 import AnnouncementBar from "@/components/app/AnnouncementBar";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { unreadConversationCount } from "@/lib/messaging";
+import { viewerCard } from "@/lib/profiles";
 
 /** The signed-in (and public-browsing) app frame: navigation, announcements, content. */
 export default async function AppShell({ children }: { children: ReactNode }) {
@@ -13,7 +14,7 @@ export default async function AppShell({ children }: { children: ReactNode }) {
   const viewer = actor && actor.status !== "BANNED" ? actor : null;
   const [user, notifications, messages] = viewer
     ? await Promise.all([
-        prisma.user.findUnique({ where: { id: viewer.id }, select: { handle: true, name: true, image: true } }),
+        viewerCard(viewer.id),
         prisma.notification.count({ where: { userId: viewer.id, readAt: null } }),
         unreadConversationCount(viewer.id),
       ])

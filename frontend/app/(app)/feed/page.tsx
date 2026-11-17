@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { optionalActor } from "@/lib/api";
 import { followingFeed, forYouFeed, POST_CATEGORIES, type FeedSort, type TopWindow } from "@/lib/posts";
 import { EmptyState, LinkButton, Tabs } from "@/components/app/ui";
@@ -11,6 +10,7 @@ import FeaturedStrip from "@/components/social/FeaturedStrip";
 import { CATEGORY_META } from "@/components/social/categories";
 import GettingStartedCard from "@/components/onboarding/GettingStartedCard";
 import { onboardingSteps } from "@/lib/onboarding";
+import { viewerCard } from "@/lib/profiles";
 
 export const metadata: Metadata = { title: "Feed" };
 
@@ -25,7 +25,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Search 
   const category = POST_CATEGORIES.find((c) => c === sp.category);
   const q = { sort, window, category, cursor: null, limit: 15 };
   const page = tab === "following" && viewer ? await followingFeed(viewer.id, q) : await forYouFeed(viewer?.id ?? null, q);
-  const [me, steps] = viewer ? await Promise.all([prisma.user.findUnique({ where: { id: viewer.id }, select: { handle: true, name: true, image: true } }), onboardingSteps(viewer.id)]) : [null, null];
+  const [me, steps] = viewer ? await Promise.all([viewerCard(viewer.id), onboardingSteps(viewer.id)]) : [null, null];
   const qs = (o: Record<string, string>) => `/feed?${new URLSearchParams({ tab, sort, t: window, ...(category && { category }), ...o })}`;
 
   return (

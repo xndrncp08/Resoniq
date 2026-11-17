@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { poolerSafeUrl } from "@/lib/prisma";
+import { POOLER_CONNECTION_LIMIT, poolerSafeUrl } from "@/lib/prisma";
 
 describe("poolerSafeUrl", () => {
   const pooler = "postgresql://postgres.ref:p%40ss@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
@@ -8,7 +8,8 @@ describe("poolerSafeUrl", () => {
     const url = new URL(poolerSafeUrl(pooler)!);
     expect(url.password).toBe("p%40ss");
     expect(url.searchParams.get("pgbouncer")).toBe("true");
-    expect(url.searchParams.get("connection_limit")).toBe("1");
+    expect(url.searchParams.get("connection_limit")).toBe(String(POOLER_CONNECTION_LIMIT));
+    expect(POOLER_CONNECTION_LIMIT).toBeGreaterThan(1);
   });
 
   it("keeps settings the URL already has", () => {

@@ -5,7 +5,7 @@ import type { Actor } from "@/lib/authz";
 import { screenText } from "@/lib/automod";
 import { notify } from "@/lib/notify";
 import { page, type Cursor } from "@/lib/pagination";
-import { AUTHOR_SELECT, type Author } from "@/lib/profiles";
+import { AUTHOR_SELECT, viewerInterests, type Author } from "@/lib/profiles";
 import { hotRank } from "@/lib/ranking";
 import { extractMentions, extractTags } from "@/lib/rich-text";
 import { fail } from "@/lib/validation";
@@ -385,7 +385,7 @@ async function graphOf(userId: string) {
   const [follows, memberships, me] = await Promise.all([
     prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true }, take: 2000 }),
     prisma.communityMember.findMany({ where: { userId }, select: { communityId: true }, take: 500 }),
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { genres: true, instruments: true } }),
+    viewerInterests(userId).then((u) => u ?? { genres: [], instruments: [] }),
   ]);
   return {
     authorIds: [userId, ...follows.map((f) => f.followingId)],

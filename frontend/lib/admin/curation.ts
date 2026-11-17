@@ -62,11 +62,14 @@ export async function featured(placement: FeaturedPlacement, viewerId: string | 
     take: 12,
   });
   const ids = (k: FeaturedKind) => slots.filter((s) => s.kind === k).map((s) => s.targetId);
+  // Feed and Explore render this on every visit and usually little or nothing is featured: only look up kinds
+  // that have slots. Each skipped lookup is one less pooler round trip.
+  const lookup = <T>(k: FeaturedKind, query: (ids: string[]) => Promise<T[]>) => (ids(k).length ? query(ids(k)) : Promise.resolve([] as T[]));
   const [postRows, toneRows, users, communities] = await Promise.all([
-    prisma.post.findMany({ where: { AND: [{ id: { in: ids("POST") } }, visiblePostWhere(null)] }, select: POST_VIEW_SELECT }),
-    getToneRows(ids("TONE")).then((rows) => rows.filter((t) => t.visibility === "PUBLIC" && t.user.status !== "BANNED")),
-    prisma.user.findMany({ where: { id: { in: ids("USER") }, status: "ACTIVE" }, select: { ...AUTHOR_SELECT, bio: true, followerCount: true, instruments: true } }),
-    prisma.community.findMany({ where: { id: { in: ids("COMMUNITY") }, archivedAt: null }, select: COMMUNITY_SELECT }),
+    lookup("POST", (id) => prisma.post.findMany({ where: { AND: [{ id: { in: id } }, visiblePostWhere(null)] }, select: POST_VIEW_SELECT })),
+    lookup("TONE", (id) => getToneRows(id).then((rows) => rows.filter((t) => t.visibility === "PUBLIC" && t.user.status !== "BANNED"))),
+    lookup("USER", (id) => prisma.user.findMany({ where: { id: { in: id }, status: "ACTIVE" }, select: { ...AUTHOR_SELECT, bio: true, followerCount: true, instruments: true } })),
+    lookup("COMMUNITY", (id) => prisma.community.findMany({ where: { id: { in: id }, archivedAt: null }, select: COMMUNITY_SELECT })),
   ]);
   const posts = await withViewerState(postRows, viewerId);
   return {
