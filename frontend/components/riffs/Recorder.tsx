@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/app/ui";
+import { useUnsavedChanges } from "@/components/app/UnsavedChanges";
 import { computePeaks, recorderMime } from "@/lib/riffs/peaks";
 import type { TakeUpload } from "@/lib/queries/riffs";
 
@@ -39,6 +40,8 @@ export default function Recorder({ onTake, busy }: { onTake: (take: TakeUpload) 
   const cleanup = useRef<() => void>(() => {});
 
   useEffect(() => () => { cleanup.current(); if (review) URL.revokeObjectURL(review.url); }, [review]);
+  // A take in progress or waiting for "Keep" exists only in this tab: ask before a link or Back drops it.
+  useUnsavedChanges({ dirty: state !== "idle", label: state === "recording" ? "the recording in progress" : "this take" });
 
   async function start() {
     setError(null);

@@ -20,16 +20,20 @@ The declared/inferred split is the system's core rule. `<Provenance kind>`
 
 ## Type
 
-Space Grotesk (display), Inter (body), IBM Plex Mono (readouts and engraved
-labels). The display scale is fluid: `text-display-xl` (hero, up to 10.5rem),
-`-lg` (section openers), `-md` (page headers). `.label-engraved` is the
-uppercase mono label used on panels, like screen-printed text on a faceplate.
+Space Grotesk (display), Inter (body), IBM Plex Mono (readouts and numbers).
+`text-display-xl` and `-lg` are for the public landing only. App pages open
+with `PageHeader` (a 24–30px title and one line of help, no eyebrow);
+entity pages (a tone, a gear item, a community) use `text-display-md`.
+`.label-engraved` is a small sentence-case field or section label. Compact
+uppercase mono labels remain only inside instrument panels (Amp Studio,
+analysis readouts), where they read as faceplate printing.
 
 ## Surfaces and shape
 
 `.panel` is a machined panel (gradient surface, hairline, 22px radius).
-`.panel-inset` is a recessed well for inputs and readouts. `.grille` adds a
-speaker-cloth dot texture. Controls are pill-shaped (`rounded-full`); content
+`.panel-inset` is a recessed well for inputs and readouts. `.grille` (a
+speaker-cloth dot texture) and blurred glows are for the landing page and Amp
+Studio, not app pages. Empty states are a dashed outline, an icon and one action. Controls are pill-shaped (`rounded-full`); content
 cards are 22px; small wells are 12px.
 
 ## Components
@@ -58,11 +62,29 @@ configuration is scoped to the application, authentication form, dialogs and
 deferred example. Reduced motion disables automatic video hover previews.
 The global `prefers-reduced-motion` rule also neutralises CSS movement.
 
+## Navigation
+
+`components/app/AppNav.tsx` has three groups. Add new pages to one of them
+rather than as new top-level links:
+
+- **Discover:** Feed, Explore, Music and Tones. Musicians, Communities and Gear
+  are reached from Explore; Analyze and Compare from Tones (their routes
+  highlight the parent).
+- **Make:** Practice, Riff Vault, Songwriting, Projects, Gig Mode and Amp Studio.
+- **Inbox:** Messages and Notifications.
+
+Personal pages (Profile, Tone vault, Bookmarks, Settings, Control
+center for staff, Sign out) sit in the account menu. Menus are native
+`popover` elements: light dismiss and Escape come from the browser, and a
+click on any link inside closes them. Secondary actions on a page go in a
+"More" popover (see `ToneActions`), not a longer button row.
+
 ## Responsive behavior
 
 - ≥ 1280: full sidebar
 - 768–1279: icon rail
-- < 768: top bar plus bottom tab bar with a center Share button
+- < 768: top bar (search, messages, notifications, menu) plus a bottom tab bar
+  (Feed, Explore, Share, Tones, You). The menu sheet lists every destination.
 
 Admin collapses its nav into a disclosure under 1024. Wide tables scroll
 horizontally inside their panel, never the page.

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -8,9 +9,11 @@ import { api, errorMessage } from "@/lib/client-api";
 import type { CreditView } from "@/lib/credits";
 import { useState } from "react";
 import TakePlayer from "@/components/riffs/TakePlayer";
-import ManageRelease from "@/components/social/ManageRelease";
 import ChordChart from "@/components/canvas/ChordChart";
 import type { PostView } from "@/lib/posts";
+
+// Authors only, on demand: keeps the dialog and its animation runtime out of every feed.
+const ManageRelease = dynamic(() => import("@/components/social/ManageRelease"), { ssr: false });
 
 /** Published music on a post: the recording, the song's chart, and who made it. */
 export default function ReleaseAttachment({ postId, release, detail, isAuthor = false }: { postId: string; release: NonNullable<PostView["release"]>; detail: boolean; isAuthor?: boolean }) {

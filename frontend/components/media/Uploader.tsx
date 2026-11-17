@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/icons/Icon";
 import { Button, IconButton } from "@/components/app/ui";
 import { errorMessage } from "@/lib/client-api";
@@ -21,13 +21,20 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
   const input = useRef<HTMLInputElement>(null);
   const aborts = useRef(new Map<string, AbortController>());
 
-  const publish = (next: UploadItem[]) => onChange(next.flatMap((i) => (i.state === "done" && i.mediaId ? [i.mediaId] : [])), next.some((i) => i.state === "uploading"));
-  const update = (key: string, patch: Partial<UploadItem>) =>
-    setItems((prev) => {
-      const next = prev.map((i) => (i.key === key ? { ...i, ...patch } : i));
-      publish(next);
-      return next;
-    });
+  const report = useRef(onChange);
+  useEffect(() => { report.current = onChange; });
+  // Reported after render: state updaters must stay pure (they can run twice, and during render).
+  const ready = items.flatMap((i) => (i.state === "done" && i.mediaId ? [i.mediaId] : [])).join(",");
+  const busy = items.some((i) => i.state === "uploading");
+  useEffect(() => { report.current(ready ? ready.split(",") : [], busy); }, [ready, busy]);
+  // Leaving the composer stops unfinished uploads and frees image previews.
+  const live = useRef(items);
+  useEffect(() => { live.current = items; });
+  useEffect(() => () => {
+    aborts.current.forEach((c) => c.abort());
+    live.current.forEach((i) => i.preview && URL.revokeObjectURL(i.preview));
+  }, []);
+  const update = (key: string, patch: Partial<UploadItem>) => setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
 
   function start(item: UploadItem) {
     const ctrl = new AbortController();
@@ -52,21 +59,16 @@ export default function Uploader({ max = 10, onChange, kinds = { images: true, v
         preview: kindOf(file) === "IMAGE" ? URL.createObjectURL(file) : undefined,
       };
     });
-    setItems((prev) => {
-      const next = [...prev, ...fresh];
-      publish(next);
-      return next;
-    });
+    setItems((prev) => [...prev, ...fresh]);
     fresh.filter((i) => i.state === "uploading").forEach(start);
   }
 
   function remove(key: string) {
     aborts.current.get(key)?.abort();
-    setItems((prev) => {
-      const next = prev.filter((i) => i.key !== key);
-      publish(next);
-      return next;
-    });
+    aborts.current.delete(key);
+    const gone = items.find((i) => i.key === key);
+    if (gone?.preview) URL.revokeObjectURL(gone.preview);
+    setItems((prev) => prev.filter((i) => i.key !== key));
   }
 
   return (
