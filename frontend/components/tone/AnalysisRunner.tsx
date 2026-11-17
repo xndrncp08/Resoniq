@@ -178,9 +178,9 @@ export default function AnalysisRunner({
     if (!following || status !== "ANALYZING") return;
     const timer = setInterval(async () => {
       const res = await fetch(`/api/songs/${songId}`).catch(() => null);
-      if (!res?.ok) return;
-      const { song: s } = (await res.json()) as { song: SongStatus };
-      if (s.status === "ANALYZING") return;
+      // A failed or garbled poll (a deploy, a proxy error page) just waits for the next one.
+      const s = res?.ok ? ((await res.json().catch(() => null)) as { song: SongStatus } | null)?.song : null;
+      if (!s || s.status === "ANALYZING") return;
       setFollowing(false);
       adopt(s);
     }, POLL_MS);

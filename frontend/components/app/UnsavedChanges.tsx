@@ -2,9 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Dialog from "@/components/app/Dialog";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/app/ui";
 import { errorMessage } from "@/lib/client-api";
+
+// This provider wraps every page; the dialog (and its animation runtime) loads the first time it's needed.
+const Dialog = dynamic(() => import("@/components/app/Dialog"), { ssr: false });
 
 /**
  * One place that protects unsaved work across Resoniq. Forms register what's
@@ -42,6 +45,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const guards = useRef(new Map<string, Guard>());
   const [ask, setAsk] = useState<{ resolve: (go: boolean) => void; guards: Guard[] } | null>(null);
+  const [asked, setAsked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dirty = () => [...guards.current.values()].filter((g) => g.dirty);
@@ -57,6 +61,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     const pending = dirty();
     if (!pending.length) return Promise.resolve(true);
     setError(null);
+    setAsked(true);
     return new Promise<boolean>((resolve) => setAsk({ resolve, guards: pending }));
   }, []);
 
@@ -144,17 +149,19 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   return (
     <UnsavedContext.Provider value={value}>
       {children}
-      <Dialog open={!!ask} title="Unsaved changes" onClose={() => !saving && close(false)}>
-        <p className="font-body text-[15px] leading-relaxed text-ink-dim">
-          You have unsaved changes to <span className="text-ink">{what}</span>. {canSave ? "Save them before you go?" : "Leaving will discard them."}
-        </p>
-        {error && <p role="alert" className="mt-3 font-body text-sm text-danger">{error}</p>}
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button onClick={() => close(false)} disabled={saving} autoFocus>Keep editing</Button>
-          <Button variant="ghost" className="text-danger" onClick={() => close(true)} disabled={saving}>Discard changes</Button>
-          {canSave && <Button variant="primary" onClick={saveAll} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>}
-        </div>
-      </Dialog>
+      {asked && (
+        <Dialog open={!!ask} title="Unsaved changes" onClose={() => !saving && close(false)}>
+          <p className="font-body text-[15px] leading-relaxed text-ink-dim">
+            You have unsaved changes to <span className="text-ink">{what}</span>. {canSave ? "Save them before you go?" : "Leaving will discard them."}
+          </p>
+          {error && <p role="alert" className="mt-3 font-body text-sm text-danger">{error}</p>}
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button onClick={() => close(false)} disabled={saving} autoFocus>Keep editing</Button>
+            <Button variant="ghost" className="text-danger" onClick={() => close(true)} disabled={saving}>Discard changes</Button>
+            {canSave && <Button variant="primary" onClick={saveAll} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>}
+          </div>
+        </Dialog>
+      )}
     </UnsavedContext.Provider>
   );
 }
