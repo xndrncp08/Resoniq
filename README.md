@@ -158,6 +158,8 @@ CI runs frontend lint, type checking, tests and build; PostgreSQL integration an
 - [Security model and known gaps](SECURITY.md)
 - [Platform design](docs/superpowers/specs/2026-10-22-platform-evolution-design.md)
 - [Design system](docs/design-system.md), [brand](docs/brand.md), and [state and 3D](docs/state-and-3d.md)
+- [Reliability guide](docs/reliability.md): recording, songwriting sync, uploads, analysis recovery and how they are tested
+- [Releases and discovery](docs/releases-and-discovery.md)
 - [Managed tone publishing](docs/managed-tone-publishing.md) and [TANK-G library](docs/tank-g-library.md)
 - [Roadmap](ROADMAP.md)
 
